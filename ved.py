@@ -260,6 +260,14 @@ class Editor:
         self._insert_last_space = True
         self.mode = Mode.INSERT
 
+    def _enter_op_pending(self, op, n, extra_n, dot=True):
+        """Enter operator-pending mode for op, optionally starting dot recording."""
+        if dot:
+            self._start_dot(n, op)
+        self.pending_op = op
+        self.pending_count = n
+        self.pending_extra_n = extra_n
+
     # ── Dot repeat helpers ─────────────────────────────────────────────
 
     def _start_dot(self, count, first_keys=None):
@@ -1098,10 +1106,7 @@ class Editor:
                 key = "gg"
             elif key == "c":
                 # gcc — toggle comment (enter pending for second c)
-                self._start_dot(n, "gc")
-                self.pending_op = "gc"
-                self.pending_count = n
-                self.pending_extra_n = extra_n
+                self._enter_op_pending("gc", n, extra_n)
                 return
             else:
                 return
@@ -1283,34 +1288,20 @@ class Editor:
             self._motion_percent()
         # Operators — enter pending state
         elif key == "d":
-            self._start_dot(n, "d")
-            self.pending_op = "d"
-            self.pending_count = n
-            self.pending_extra_n = extra_n
+            self._enter_op_pending("d", n, extra_n)
             return
         elif key == "y":
-            self.pending_op = "y"
-            self.pending_count = n
-            self.pending_extra_n = extra_n
+            self._enter_op_pending("y", n, extra_n, dot=False)
             return
         elif key == "c":
-            self._start_dot(n, "c")
-            self.pending_op = "c"
-            self.pending_count = n
-            self.pending_extra_n = extra_n
+            self._enter_op_pending("c", n, extra_n)
             return
         # >> indent, << dedent
         elif key == ">":
-            self._start_dot(n, ">")
-            self.pending_op = ">"
-            self.pending_count = n
-            self.pending_extra_n = extra_n
+            self._enter_op_pending(">", n, extra_n)
             return
         elif key == "<":
-            self._start_dot(n, "<")
-            self.pending_op = "<"
-            self.pending_count = n
-            self.pending_extra_n = extra_n
+            self._enter_op_pending("<", n, extra_n)
             return
         # Line-wise shortcuts
         elif key == "D":
