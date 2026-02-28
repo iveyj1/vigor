@@ -1692,6 +1692,47 @@ def test_wq_closes_buffer():
     assert code == 0
     print("  PASS: :wq closes buffer")
 
+# ── Phase 29: x/X and space-leader ────────────────────────────────────────
+
+def test_x_deletes_char():
+    """x deletes character under cursor."""
+    path = write_temp("hello\n")
+    screen, content, code = run_ved(b"x:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "ello\n", f"Expected 'ello\\n', got {content!r}"
+    print("  PASS: x deletes char")
+
+def test_x_with_count():
+    """3x deletes 3 characters."""
+    path = write_temp("abcdef\n")
+    screen, content, code = run_ved(b"3x:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "def\n", f"Expected 'def\\n', got {content!r}"
+    print("  PASS: 3x deletes 3 chars")
+
+def test_X_deletes_before():
+    """X deletes character before cursor."""
+    path = write_temp("hello\n")
+    # Move to position 2 (on 'l'), then X deletes 'e'
+    screen, content, code = run_ved(b"llX:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "hllo\n", f"Expected 'hllo\\n', got {content!r}"
+    print("  PASS: X deletes before cursor")
+
+def test_space_k_deletes_buffer():
+    """<space>k deletes current buffer."""
+    p1 = write_temp("keep\n")
+    p2 = write_temp("remove\n")
+    # Open two files, :n to second, <space>k deletes it, :q exits
+    screen, _, code = run_ved(b":n\r k:q\r", file_paths=[p1, p2])
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code == 0
+    print("  PASS: <space>k deletes buffer")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -1921,6 +1962,13 @@ def main():
         test_bdelete_last_refused,
         test_qa_checks_all_dirty,
         test_wq_closes_buffer,
+    ])
+
+    total_failed += run_phase("Phase 29 — x/X and space-leader", [
+        test_x_deletes_char,
+        test_x_with_count,
+        test_X_deletes_before,
+        test_space_k_deletes_buffer,
     ])
 
     print(f"\n{'=' * 60}")

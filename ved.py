@@ -186,6 +186,7 @@ class Editor:
         self._replaying_dot = False # currently replaying a dot action
         self._dot_count = 0         # count when recording started
         self._pending_g = False     # waiting for second key after 'g'
+        self._pending_space = False # space-leader: waiting for next key
         self._pending_g_op = False  # 'g' prefix inside operator-pending
         self._pending_find = None   # 'f'/'t'/'F'/'T' waiting for char
         self._pending_find_for_op = None  # (cmd, ch) find for operator
@@ -1170,6 +1171,19 @@ class Editor:
         if self._recording and not self._replaying_dot:
             self._recording_keys.append(key)
 
+        # Space leader: wait for next key
+        if self._pending_space:
+            self._pending_space = False
+            if key == "k":
+                # <space>k — delete current buffer
+                if self.buf.dirty:
+                    self.msg = "No write since last change (add ! to override)"
+                elif len(self.buffers) <= 1:
+                    self.msg = "Cannot delete last buffer"
+                else:
+                    self._close_buffer()
+            return
+
         # 'g' prefix: wait for next key (gg, gc)
         if self._pending_g:
             self._pending_g = False
@@ -1375,6 +1389,21 @@ class Editor:
             self._delete_to_eol()
             self._enter_insert()
         # Paste
+        elif key == "x":
+            self._start_dot(n, "x")
+            self._snapshot()
+            line = self.buf.lines[self.cy]
+            if line and self.cx < len(line):
+                end = min(self.cx + n, len(line))
+                self._delete_range(self.cy, self.cx, self.cy, end)
+            self._save_dot()
+        elif key == "X":
+            self._start_dot(n, "X")
+            self._snapshot()
+            if self.cx > 0:
+                start = max(self.cx - n, 0)
+                self._delete_range(self.cy, start, self.cy, self.cx)
+            self._save_dot()
         elif key == "p":
             self._start_dot(n, "p")
             self._snapshot()
@@ -1442,6 +1471,9 @@ class Editor:
         # . — dot repeat
         elif key == ".":
             self._dot_repeat(n, extra_n)
+        elif key == " ":
+            self._pending_space = True
+            return
         elif key == "ESC":
             self.pending_op = ""
         self._clamp_cursor()
