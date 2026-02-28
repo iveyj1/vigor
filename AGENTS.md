@@ -11,7 +11,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Files**
 
-- `ved.py` — the entire editor (~1040 lines)
+- `ved.py` — the entire editor (~1145 lines)
 - `test_ved.py` — PTY-based smoke tests (plain asserts, no framework)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
@@ -40,7 +40,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Normal mode commands** — `h j k l` (movement), `w W b B e E` (word motions), `i I a A` (enter insert), `v V` (enter visual), `:` (enter command), `/` `?` (search forward/backward), `n` `N` (repeat search same/opposite direction). All motions accept a count prefix (`3j`, `5w`, etc.). Operators `d y c` enter operator-pending mode and combine with a motion (`dw`, `cw`, `yj`). Doubled operators (`dd`, `yy`, `cc`) act linewise. Shortcuts `D Y C` operate from cursor to end-of-line (D/C) or yank the whole line (Y). `p` / `P` paste from the unnamed register after/before the cursor.
 
-**Command mode** — `:new`, `:e[dit] <path>`, `:w[rite] [path]`, `:q[uit]` (refuses if dirty), `:q!` (force), `:wq`, `:[range]s/pat/repl/[g]` (substitute).
+**Command mode** — `:new`, `:e[dit] <path>`, `:w[rite] [path]`, `:q[uit]` (refuses if dirty), `:q!` (force), `:wq`, `:[range]s/pat/repl/[g]` (substitute), `:set <option>` (set wrap/nowrap/number/nonumber/relativenumber/norelativenumber).
 
 **Insert mode** — printable characters insert at cursor. Enter splits the line. Backspace deletes backward or joins lines. Esc returns to NORMAL without moving the cursor.
 
@@ -68,7 +68,9 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Terminal** — manages raw mode via `termios`, reads keys one at a time with escape sequence decoding, and restores terminal state on exit via `atexit`.
 
-**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of: content rows (with optional visual selection highlighting), a reverse-video status bar, and a command/message bar.
+**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of: content rows (with optional visual selection highlighting and line wrapping), a reverse-video status bar, and a command/message bar. Rendering is split into `_render_line` (handles wrap/truncate for a buffer line) and `_render_visible` (applies selection highlighting to a visible segment).
+
+**Line wrap** — when `opt_wrap` is true, lines longer than `cols` are split into chunks at the column boundary. `_line_screen_rows(line_idx)` computes how many screen rows a buffer line occupies. The render loop tracks `screen_rows_used` and `cursor_screen_y`/`cursor_screen_x` so cursor positioning works correctly on wrapped lines. `_ensure_scroll` sums wrapped screen rows from scroll to cursor to keep the cursor visible.
 
 **Mode handlers** — `handle_normal`, `handle_insert`, `handle_command`, `handle_visual`. Each is a flat `if/elif` chain. The main loop dispatches based on `self.mode`.
 
@@ -118,7 +120,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 62 tests across 11 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6). Run with `python3 test_ved.py`.
+**Coverage** — 66 tests across 12 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4). Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents

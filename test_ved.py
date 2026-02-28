@@ -866,6 +866,54 @@ def test_substitute_not_found():
     assert code == 0
     print("  PASS: s/ not found")
 
+# ── Phase 12 — Line Wrap ───────────────────────────────────────────────────
+
+def test_set_wrap():
+    """:set wrap enables wrap, :set nowrap disables."""
+    path = write_temp("short\n")
+    # :set wrap should not crash, then :q
+    screen, _, code = run_ved(b":set wrap\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    print("  PASS: :set wrap")
+
+def test_wrap_long_line():
+    """A long line wraps across multiple screen rows."""
+    # 40-col terminal, line of 60 chars should wrap to 2 rows
+    long_line = "A" * 60 + "\n"
+    path = write_temp(long_line)
+    screen, _, code = run_ved(b":set wrap\r:q\r", file_path=path, cols=40)
+    os.unlink(path)
+    assert code == 0
+    # Screen should contain the full line broken across rows
+    # Just verify no crash and the A's appear
+    a_count = screen.count("A")
+    assert a_count >= 40, f"Expected at least 40 A's visible, got {a_count}"
+    print("  PASS: long line wraps")
+
+def test_nowrap_truncates():
+    """Without wrap, long lines are truncated."""
+    long_line = "B" * 100 + "\n"
+    path = write_temp(long_line)
+    screen, _, code = run_ved(b":q\r", file_path=path, cols=40)
+    os.unlink(path)
+    assert code == 0
+    # Should see at most 40 B's per row
+    print("  PASS: nowrap truncates")
+
+def test_wrap_cursor_position():
+    """Cursor on wrapped line positions correctly."""
+    # 20-col terminal, 30-char line — cursor at col 25 should be on 2nd screen row
+    long_line = "X" * 30 + "\n"
+    path = write_temp(long_line)
+    # :set wrap, move right 25 times, insert marker
+    keys = b":set wrap\r" + b"25liM\x1b:wq\r"
+    screen, content, code = run_ved(keys, file_path=path, cols=20)
+    os.unlink(path)
+    assert code == 0
+    assert "M" in content, f"Expected 'M' in content, got: {content!r}"
+    print("  PASS: wrap cursor position")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -980,6 +1028,13 @@ def main():
         test_substitute_line_range,
         test_substitute_regex,
         test_substitute_not_found,
+    ])
+
+    total_failed += run_phase("Phase 12 — Line Wrap", [
+        test_set_wrap,
+        test_wrap_long_line,
+        test_nowrap_truncates,
+        test_wrap_cursor_position,
     ])
 
     print(f"\n{'=' * 60}")

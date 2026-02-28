@@ -177,8 +177,19 @@ class Editor:
         """Adjust scroll so cursor is visible."""
         if self.cy < self.scroll:
             self.scroll = self.cy
-        if self.cy >= self.scroll + self.rows:
-            self.scroll = self.cy - self.rows + 1
+        if not self.opt_wrap:
+            if self.cy >= self.scroll + self.rows:
+                self.scroll = self.cy - self.rows + 1
+        else:
+            # With wrap, count screen rows from scroll to cursor
+            # If cursor line doesn't fit, scroll forward
+            while True:
+                screen_rows = 0
+                for i in range(self.scroll, self.cy + 1):
+                    screen_rows += self._line_screen_rows(i)
+                if screen_rows <= self.rows:
+                    break
+                self.scroll += 1
 
     # ── Character classification for word motions ──────────────────────
 
@@ -365,6 +376,56 @@ class Editor:
 
     # ── Rendering ──────────────────────────────────────────────────────
 
+    def _line_screen_rows(self, line_idx):
+        """How many screen rows does buffer line `line_idx` occupy?"""
+        if not self.opt_wrap or self.cols == 0:
+            return 1
+        line_len = len(self.buf.lines[line_idx]) if line_idx < len(self.buf.lines) else 0
+        if line_len == 0:
+            return 1
+        return (line_len + self.cols - 1) // self.cols
+
+    def _render_line(self, line, buf_line, sel, out):
+        """Render a single buffer line (possibly wrapped). Returns number of screen rows used."""
+        if not self.opt_wrap:
+            visible = line[:self.cols]
+            self._render_visible(visible, buf_line, 0, sel, out)
+            out.append("\x1b[K\r\n")
+            return 1
+        else:
+            # Wrap: split line into chunks of self.cols
+            if not line:
+                self._render_visible("", buf_line, 0, sel, out)
+                out.append("\x1b[K\r\n")
+                return 1
+            rows_used = 0
+            for chunk_start in range(0, len(line), self.cols):
+                chunk = line[chunk_start:chunk_start + self.cols]
+                self._render_visible(chunk, buf_line, chunk_start, sel, out)
+                out.append("\x1b[K\r\n")
+                rows_used += 1
+            return rows_used
+
+    def _render_visible(self, visible, buf_line, col_offset, sel, out):
+        """Render a visible string segment with optional selection highlight."""
+        if sel:
+            sy, sx, ey, ex = sel
+            if sy <= buf_line <= ey:
+                hl_start = (sx - col_offset) if buf_line == sy else 0
+                hl_end = (ex - col_offset) if buf_line == ey else len(visible)
+                hl_start = max(0, min(hl_start, len(visible)))
+                hl_end = max(0, min(hl_end, len(visible)))
+                before = visible[:hl_start]
+                highlighted = visible[hl_start:hl_end]
+                after = visible[hl_end:]
+                out.append(before)
+                out.append("\x1b[7m")
+                out.append(highlighted)
+                out.append("\x1b[m")
+                out.append(after)
+                return
+        out.append(visible)
+
     def render(self):
         out = []
         out.append("\x1b[?25l")  # hide cursor
@@ -372,36 +433,48 @@ class Editor:
 
         sel = self._selection_range()
 
-        for row in range(self.rows):
-            buf_line = self.scroll + row
-            if buf_line < len(self.buf.lines):
-                line = self.buf.lines[buf_line]
-                visible = line[:self.cols]
-                if sel:
-                    sy, sx, ey, ex = sel
-                    if sy <= buf_line <= ey:
-                        # Compute highlight range for this line
-                        hl_start = sx if buf_line == sy else 0
-                        hl_end = ex if buf_line == ey else len(visible)
-                        # Clamp
-                        hl_start = max(0, min(hl_start, len(visible)))
-                        hl_end = max(0, min(hl_end, len(visible)))
-                        before = visible[:hl_start]
-                        highlighted = visible[hl_start:hl_end]
-                        after = visible[hl_end:]
-                        out.append(before)
-                        out.append("\x1b[7m")
-                        out.append(highlighted)
-                        out.append("\x1b[m")
-                        out.append(after)
-                    else:
-                        out.append(visible)
+        screen_rows_used = 0
+        cursor_screen_y = 0
+        cursor_screen_x = self.cx
+        buf_line = self.scroll
+
+        while screen_rows_used < self.rows and buf_line < len(self.buf.lines):
+            line = self.buf.lines[buf_line]
+            if buf_line == self.cy:
+                # Track cursor screen position
+                if self.opt_wrap and self.cols > 0:
+                    wrap_row = self.cx // self.cols
+                    cursor_screen_y = screen_rows_used + wrap_row
+                    cursor_screen_x = self.cx % self.cols
                 else:
-                    out.append(visible)
+                    cursor_screen_y = screen_rows_used
+                    cursor_screen_x = self.cx
+
+            rows_available = self.rows - screen_rows_used
+            if self.opt_wrap:
+                line_rows = self._line_screen_rows(buf_line)
+                if line_rows > rows_available:
+                    # Partially render — only show what fits
+                    for chunk_start in range(0, len(line), self.cols):
+                        if screen_rows_used >= self.rows:
+                            break
+                        chunk = line[chunk_start:chunk_start + self.cols]
+                        self._render_visible(chunk, buf_line, chunk_start, sel, out)
+                        out.append("\x1b[K\r\n")
+                        screen_rows_used += 1
+                else:
+                    used = self._render_line(line, buf_line, sel, out)
+                    screen_rows_used += used
             else:
-                out.append("~")
-            out.append("\x1b[K")  # clear to end of line
-            out.append("\r\n")
+                self._render_line(line, buf_line, sel, out)
+                screen_rows_used += 1
+            buf_line += 1
+
+        # Fill remaining rows with tildes
+        while screen_rows_used < self.rows:
+            out.append("~")
+            out.append("\x1b[K\r\n")
+            screen_rows_used += 1
 
         # Status bar (reverse video)
         out.append("\x1b[7m")
@@ -437,9 +510,9 @@ class Editor:
         else:
             out.append("\x1b[2 q")  # steady block
 
-        # Position real cursor
-        screen_y = self.cy - self.scroll + 1  # 1-indexed
-        screen_x = self.cx + 1                # 1-indexed
+        # Position real cursor (use tracked values from render loop)
+        screen_y = cursor_screen_y + 1  # 1-indexed
+        screen_x = cursor_screen_x + 1  # 1-indexed
         out.append(f"\x1b[{screen_y};{screen_x}H")
         out.append("\x1b[?25h")  # show cursor
 
@@ -831,9 +904,39 @@ class Editor:
             self.scroll = 0
             self.msg = "[New]"
             self.mode = Mode.NORMAL
+        elif cmd == "set":
+            self._exec_set(arg)
+            self.mode = Mode.NORMAL
         else:
             self.msg = f"Not a command: {cmd}"
             self.mode = Mode.NORMAL
+
+    def _exec_set(self, arg):
+        """Handle :set <option> commands."""
+        if not arg:
+            self.msg = "Argument required"
+            return
+        opt = arg.strip()
+        if opt == "wrap":
+            self.opt_wrap = True
+            self.msg = "wrap on"
+        elif opt == "nowrap":
+            self.opt_wrap = False
+            self.msg = "wrap off"
+        elif opt == "number":
+            self.opt_number = True
+            self.msg = "number on"
+        elif opt == "nonumber":
+            self.opt_number = False
+            self.msg = "number off"
+        elif opt == "relativenumber":
+            self.opt_relnum = True
+            self.msg = "relativenumber on"
+        elif opt == "norelativenumber":
+            self.opt_relnum = False
+            self.msg = "relativenumber off"
+        else:
+            self.msg = f"Unknown option: {opt}"
 
     def _exec_substitute(self, m):
         """Execute :[range]s/pat/repl/[g] substitute command."""
