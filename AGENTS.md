@@ -1,6 +1,6 @@
 # ved — Agent Guidance
 
-> Use `##` headings, **bold** for subheadings within sections, minimal dividers.
+> Use `###` headings, **bold** for subheadings within sections, minimal dividers.
 > Keep paragraphs short. Prefer lists over prose where possible.
 > No tables unless genuinely tabular data. No horizontal rules between sections.
 
@@ -16,10 +16,12 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
 
+## Management
+In this chat, I'll provide requirements for numbered development phases.  When each phase is complete and functional, update AGENTS, commit the code, and move to the next phase.  Review the phases for guidance when they are provided and ask for any needed clarifications.  If a feature is asked for in the chat, add it to the requirements.
 
 ## General Guidance
 
-**Simplicity is the constraint, not a goal.** Every feature, every line of code must justify its existence. If something can be left out without losing core editing capability, leave it out.
+**Simplicity is the constraint, not a goal.** Every feature, every line of code must justify its existence. If something can be left out without losing editing capability specified in the requirements, leave it out.
 
 **One file.** The editor lives entirely in `ved.py`. Classes and functions are organized by visual section markers (`# ── Section ──`) rather than by module. This keeps the call graph obvious, searchable, and greppable.
 
