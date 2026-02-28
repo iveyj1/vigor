@@ -11,7 +11,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Files**
 
-- `ved.py` — the entire editor (~930 lines)
+- `ved.py` — the entire editor (~895 lines)
 - `test_ved.py` — PTY-based smoke tests (plain asserts, no framework)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
@@ -71,6 +71,8 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Mode handlers** — `handle_normal`, `handle_insert`, `handle_command`, `handle_visual`. Each is a flat `if/elif` chain. The main loop dispatches based on `self.mode`.
 
+**Motion dispatch** — `_exec_motion(key, n)` is the single source of truth for all motion execution (`h l j k w W b B e E` and arrow keys). It is called by `handle_normal`, `handle_visual`, and `_apply_motion` (which wraps it with cursor save/restore for operator-pending). The `_MOTION_KEYS` frozenset provides O(1) membership checks.
+
 **Operator-pending** — typing `d`, `y`, or `c` in Normal mode sets `pending_op` and saves the current count in `pending_count`. The next key is treated as a motion. The operator then acts on the range from the original cursor to where the motion would land. Doubled operators (e.g., `dd`) are linewise. `_exec_operator` coordinates motion simulation (via `_apply_motion`), range normalization, and the delete/yank/change action.
 
 **Register and clipboard** — `_set_register(text, linewise)` stores text in the unnamed register and writes it to the system clipboard via OSC 52 (`\x1b]52;c;<base64>\x07`). `_paste_after` / `_paste_before` insert register contents — linewise paste inserts whole lines above/below; charwise paste inserts inline. `reg_linewise` tracks whether the register holds lines or characters, which determines paste behavior.
@@ -93,6 +95,8 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 **Insert efficiency** — each character typed creates a new string for the current line via `str[:cx] + ch + str[cx:]`. This is O(n) per line length, which is fast for any reasonable line. If profiling showed this as a bottleneck, the line under the cursor could temporarily become a `list` of characters during Insert mode, joined to `str` on Esc. This hasn't been necessary.
 
 **Visual selection** — `_selection_range` normalizes the anchor/cursor into a `(start_y, start_x, end_y, end_x)` tuple. The renderer checks each visible line against this range and wraps the overlapping portion in `\x1b[7m` (reverse video) / `\x1b[m` (reset).
+
+**Cursor shape** — DECSCUSR escape sequences switch cursor appearance per mode: `\x1b[2 q` (steady block) in Normal/Visual/Command, `\x1b[6 q` (steady bar) in Insert. On exit, `\x1b[0 q` resets to the terminal's default cursor.
 
 **Status bar** — reverse-video full-width bar showing mode, filename, dirty flag, pending count, and cursor position. Built as a padded string exactly `cols` characters wide.
 

@@ -10,6 +10,7 @@ import tty
 import atexit
 import signal
 import shutil
+import select
 from enum import Enum
 
 # ── Modes ──────────────────────────────────────────────────────────────────
@@ -112,7 +113,6 @@ class Terminal:
 
     def _has_data(self):
         """Check if stdin has data available (non-blocking)."""
-        import select
         r, _, _ = select.select([self.fd], [], [], 0.02)
         return bool(r)
 
@@ -308,6 +308,44 @@ class Editor:
             pos = nxt
         self.cy, self.cx = pos
 
+    # ── Motion dispatch (shared by normal, visual, operator-pending) ──
+
+    _MOTION_KEYS = frozenset(
+        "h l j k w W b B e E".split()
+        + ["LEFT", "RIGHT", "DOWN", "UP"]
+    )
+
+    def _exec_motion(self, key, n=1):
+        """Execute a motion key n times. Returns True if key was a motion."""
+        if key not in self._MOTION_KEYS:
+            return False
+        for _ in range(n):
+            if key == "h" or key == "LEFT":
+                self.cx -= 1
+                self._clamp_cursor()
+            elif key == "l" or key == "RIGHT":
+                self.cx += 1
+                self._clamp_cursor()
+            elif key == "j" or key == "DOWN":
+                self.cy += 1
+                self._clamp_cursor()
+            elif key == "k" or key == "UP":
+                self.cy -= 1
+                self._clamp_cursor()
+            elif key == "w":
+                self.motion_w(big=False)
+            elif key == "W":
+                self.motion_w(big=True)
+            elif key == "b":
+                self.motion_b(big=False)
+            elif key == "B":
+                self.motion_b(big=True)
+            elif key == "e":
+                self.motion_e(big=False)
+            elif key == "E":
+                self.motion_e(big=True)
+        return True
+
     # ── Visual selection helpers ─────────────────────────────────────
 
     def _selection_range(self):
@@ -388,6 +426,12 @@ class Editor:
             out.append(self.msg[:self.cols] if self.msg else "")
         out.append("\x1b[K")
 
+        # Cursor shape: block for normal/visual/command, bar for insert
+        if self.mode == Mode.INSERT:
+            out.append("\x1b[6 q")  # steady bar
+        else:
+            out.append("\x1b[2 q")  # steady block
+
         # Position real cursor
         screen_y = self.cy - self.scroll + 1  # 1-indexed
         screen_x = self.cx + 1                # 1-indexed
@@ -417,35 +461,8 @@ class Editor:
         """Execute a motion n times from current position.
         Returns (new_cy, new_cx) without modifying cursor."""
         saved_cy, saved_cx = self.cy, self.cx
-        for _ in range(n):
-            if motion_key == "h" or motion_key == "LEFT":
-                self.cx -= 1
-                self._clamp_cursor()
-            elif motion_key == "l" or motion_key == "RIGHT":
-                self.cx += 1
-                self._clamp_cursor()
-            elif motion_key == "j" or motion_key == "DOWN":
-                self.cy += 1
-                self._clamp_cursor()
-            elif motion_key == "k" or motion_key == "UP":
-                self.cy -= 1
-                self._clamp_cursor()
-            elif motion_key == "w":
-                self.motion_w(big=False)
-            elif motion_key == "W":
-                self.motion_w(big=True)
-            elif motion_key == "b":
-                self.motion_b(big=False)
-            elif motion_key == "B":
-                self.motion_b(big=True)
-            elif motion_key == "e":
-                self.motion_e(big=False)
-            elif motion_key == "E":
-                self.motion_e(big=True)
-            else:
-                # Unknown motion — abort
-                self.cy, self.cx = saved_cy, saved_cx
-                return None
+        if not self._exec_motion(motion_key, n):
+            return None
         result = (self.cy, self.cx)
         self.cy, self.cx = saved_cy, saved_cx
         return result
@@ -479,8 +496,7 @@ class Editor:
                 last = self.buf.lines[ey]
                 text = first[sx:]
                 for mid_y in range(sy + 1, ey):
-                    text += "\n" + self.buf.lines[sy + 1]
-                    # Don't delete yet, indices shift
+                    text += "\n" + self.buf.lines[mid_y]
                 text += "\n" + last[:ex]
                 # Now rebuild: keep first[:sx] + last[ex:], delete middle
                 self.buf.lines[sy] = first[:sx] + last[ex:]
@@ -512,6 +528,15 @@ class Editor:
                 parts.append(self.buf.lines[ey][:ex])
                 text = "\n".join(parts)
             self._set_register(text, linewise=False)
+        return text
+
+    def _delete_to_eol(self):
+        """Delete from cursor to end of line, store in register."""
+        line = self.buf.lines[self.cy]
+        text = line[self.cx:]
+        self.buf.lines[self.cy] = line[:self.cx]
+        self._set_register(text, linewise=False)
+        self.buf.dirty = True
         return text
 
     def _exec_operator(self, op, motion_key, n):
@@ -582,40 +607,8 @@ class Editor:
             return
 
         # Standard motions
-        if key == "h" or key == "LEFT":
-            for _ in range(n):
-                self.cx -= 1
-                self._clamp_cursor()
-        elif key == "l" or key == "RIGHT":
-            for _ in range(n):
-                self.cx += 1
-                self._clamp_cursor()
-        elif key == "j" or key == "DOWN":
-            for _ in range(n):
-                self.cy += 1
-                self._clamp_cursor()
-        elif key == "k" or key == "UP":
-            for _ in range(n):
-                self.cy -= 1
-                self._clamp_cursor()
-        elif key == "w":
-            for _ in range(n):
-                self.motion_w(big=False)
-        elif key == "W":
-            for _ in range(n):
-                self.motion_w(big=True)
-        elif key == "b":
-            for _ in range(n):
-                self.motion_b(big=False)
-        elif key == "B":
-            for _ in range(n):
-                self.motion_b(big=True)
-        elif key == "e":
-            for _ in range(n):
-                self.motion_e(big=False)
-        elif key == "E":
-            for _ in range(n):
-                self.motion_e(big=True)
+        if self._exec_motion(key, n):
+            pass  # motion already executed
         # Operators — enter pending state
         elif key == "d":
             self.pending_op = "d"
@@ -632,11 +625,7 @@ class Editor:
         # Line-wise shortcuts
         elif key == "D":
             # Delete from cursor to end of line
-            line = self.buf.lines[self.cy]
-            text = line[self.cx:]
-            self.buf.lines[self.cy] = line[:self.cx]
-            self._set_register(text, linewise=False)
-            self.buf.dirty = True
+            self._delete_to_eol()
         elif key == "Y":
             # Yank entire line (like yy)
             end = min(self.cy + n - 1, len(self.buf.lines) - 1)
@@ -644,11 +633,7 @@ class Editor:
             self.msg = f"{n} line(s) yanked"
         elif key == "C":
             # Change from cursor to end of line
-            line = self.buf.lines[self.cy]
-            text = line[self.cx:]
-            self.buf.lines[self.cy] = line[:self.cx]
-            self._set_register(text, linewise=False)
-            self.buf.dirty = True
+            self._delete_to_eol()
             self.mode = Mode.INSERT
         # Paste
         elif key == "p":
@@ -839,27 +824,8 @@ class Editor:
             self._visual_delete()
             self.mode = Mode.INSERT
             return
-        # Motions — same as normal
-        if key == "h" or key == "LEFT":
-            self.cx -= 1
-        elif key == "l" or key == "RIGHT":
-            self.cx += 1
-        elif key == "j" or key == "DOWN":
-            self.cy += 1
-        elif key == "k" or key == "UP":
-            self.cy -= 1
-        elif key == "w":
-            self.motion_w(big=False)
-        elif key == "W":
-            self.motion_w(big=True)
-        elif key == "b":
-            self.motion_b(big=False)
-        elif key == "B":
-            self.motion_b(big=True)
-        elif key == "e":
-            self.motion_e(big=False)
-        elif key == "E":
-            self.motion_e(big=True)
+        # Motions — same dispatch as normal mode
+        self._exec_motion(key)
         self._clamp_cursor()
         self._ensure_scroll()
 
@@ -914,6 +880,8 @@ class Editor:
             elif self.mode in (Mode.VISUAL, Mode.VISUAL_LINE):
                 self.handle_visual(key)
 
+        sys.stdout.write("\x1b[0 q")  # reset cursor shape to default
+        sys.stdout.flush()
         self.term.restore()
 
 # ── Entry point ────────────────────────────────────────────────────────────
