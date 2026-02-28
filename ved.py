@@ -164,6 +164,7 @@ class Editor:
         self._pending_g_op = False  # 'g' prefix inside operator-pending
         self._pending_g_visual = False  # 'g' prefix in visual mode
         self._pending_find = None   # 'f'/'t'/'F'/'T' waiting for char
+        self._pending_find_for_op = None  # (cmd, ch) find for operator
         self._pending_find_visual = None  # find-char pending in visual
         self._pending_textobj = None  # 'i'/'a' waiting for object key
         self.term = Terminal()
@@ -988,9 +989,14 @@ class Editor:
 
     def _apply_motion(self, motion_key, n, extra_n=None):
         """Execute a motion n times from current position.
-        Returns (new_cy, new_cx) without modifying cursor."""
+        Returns (new_cy, new_cx) without modifying cursor.
+        Also handles find-char motions stored in _pending_find_for_op."""
         saved_cy, saved_cx = self.cy, self.cx
-        if not self._exec_motion(motion_key, n, extra_n=extra_n):
+        if self._pending_find_for_op:
+            cmd, ch = self._pending_find_for_op
+            self._pending_find_for_op = None
+            self._exec_find(cmd, ch, n)
+        elif not self._exec_motion(motion_key, n, extra_n=extra_n):
             return None
         result = (self.cy, self.cx)
         self.cy, self.cx = saved_cy, saved_cx
@@ -1079,8 +1085,8 @@ class Editor:
         # Normalize range
         if (sy, sx) > (ty, tx):
             sy, sx, ty, tx = ty, tx, sy, sx
-        # Inclusive motions (e, E): include the end character
-        if motion_key in ("e", "E"):
+        # Inclusive motions (e, E, f, t): include the end character
+        if motion_key in ("e", "E", "f", "t"):
             tx += 1
             if not linewise and ty < len(self.buf.lines):
                 tx = min(tx, len(self.buf.lines[ty]))
@@ -1146,33 +1152,18 @@ class Editor:
             cmd = self._pending_find
             self._pending_find = None
             if self.pending_op:
-                # In operator-pending mode: simulate find motion
+                # In operator-pending mode: route through _exec_operator
                 op = self.pending_op
                 op_n = self.pending_count
                 self.pending_op = ""
                 self.pending_count = 0
                 self.pending_extra_n = None
-                saved_cy, saved_cx = self.cy, self.cx
-                self._exec_find(cmd, key, n)
-                ty, tx = self.cy, self.cx
-                self.cy, self.cx = saved_cy, saved_cx
-                if (ty, tx) != (saved_cy, saved_cx):
-                    if op in ("d", "c"):
-                        self._snapshot()
-                    # Include the character at target for f motions
-                    if cmd in ("f", "t"):
-                        tx += 1
-                    if op == "d":
-                        self._delete_range(saved_cy, saved_cx, ty, tx)
-                        self._save_dot()
-                    elif op == "y":
-                        self._yank_range(saved_cy, saved_cx, ty, tx)
-                    elif op == "c":
-                        self._delete_range(saved_cy, saved_cx, ty, tx)
-                        self._enter_insert()
-                else:
-                    if op in ("d", "c"):
-                        self._save_dot()
+                if op in ("d", "c"):
+                    self._snapshot()
+                self._pending_find_for_op = (cmd, key)
+                self._exec_operator(op, cmd, op_n)
+                if op == "d":
+                    self._save_dot()
             else:
                 self._exec_find(cmd, key, n)
             self._clamp_cursor()
