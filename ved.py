@@ -162,10 +162,8 @@ class Editor:
         self._dot_count = 0         # count when recording started
         self._pending_g = False     # waiting for second key after 'g'
         self._pending_g_op = False  # 'g' prefix inside operator-pending
-        self._pending_g_visual = False  # 'g' prefix in visual mode
         self._pending_find = None   # 'f'/'t'/'F'/'T' waiting for char
         self._pending_find_for_op = None  # (cmd, ch) find for operator
-        self._pending_find_visual = None  # find-char pending in visual
         self._pending_textobj = None  # 'i'/'a' waiting for object key
         self.term = Terminal()
         self._update_size()
@@ -1735,12 +1733,17 @@ class Editor:
         if key == "ESC":
             self.mode = Mode.NORMAL
             return
-        # 'g' prefix for gg and gc
-        if key == "g":
-            self._pending_g_visual = True
+        # Resolve pending find-char
+        if self._pending_find:
+            cmd = self._pending_find
+            self._pending_find = None
+            self._exec_find(cmd, key, 1)
+            self._clamp_cursor()
+            self._ensure_scroll()
             return
-        if self._pending_g_visual:
-            self._pending_g_visual = False
+        # 'g' prefix for gg and gc
+        if self._pending_g:
+            self._pending_g = False
             if key == "g":
                 key = "gg"
             elif key == "c":
@@ -1754,16 +1757,12 @@ class Editor:
                 return
             else:
                 return
-        # f/t/F/T prefix: wait for target character
-        if self._pending_find_visual:
-            cmd = self._pending_find_visual
-            self._pending_find_visual = None
-            self._exec_find(cmd, key, 1)
-            self._clamp_cursor()
-            self._ensure_scroll()
+        if key == "g":
+            self._pending_g = True
             return
+        # f/t/F/T — wait for target char
         if key in ("f", "t", "F", "T"):
-            self._pending_find_visual = key
+            self._pending_find = key
             return
         # Edit operations on selection
         if key in ("d", "x"):
