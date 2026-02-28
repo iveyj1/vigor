@@ -914,6 +914,63 @@ def test_wrap_cursor_position():
     assert "M" in content, f"Expected 'M' in content, got: {content!r}"
     print("  PASS: wrap cursor position")
 
+# ── Phase 13: Line Numbers ────────────────────────────────────────────────
+
+def test_set_number():
+    """:set number shows absolute line numbers."""
+    path = write_temp("alpha\nbeta\ngamma\n")
+    keys = b":set number\r:q\r"
+    screen, _, code = run_ved(keys, file_path=path, cols=40)
+    os.unlink(path)
+    assert code == 0
+    assert "1 alpha" in screen, f"Expected '1 alpha' in screen: {screen[:300]}"
+    assert "2 beta" in screen, f"Expected '2 beta' in screen: {screen[:300]}"
+    assert "3 gamma" in screen, f"Expected '3 gamma' in screen: {screen[:300]}"
+    assert "number on" in screen, f"Expected 'number on' message in screen"
+    print("  PASS: :set number")
+
+def test_set_relativenumber():
+    """:set relativenumber shows relative line numbers (0 at cursor)."""
+    path = write_temp("alpha\nbeta\ngamma\ndelta\n")
+    # Cursor on line 1 (0-indexed: 0), so distances are 0,1,2,3
+    keys = b":set relativenumber\r:q\r"
+    screen, _, code = run_ved(keys, file_path=path, cols=40)
+    os.unlink(path)
+    assert code == 0
+    # Current line shows 0, next lines show 1, 2, 3
+    assert "0 alpha" in screen, f"Expected '0 alpha' in screen: {screen[:400]}"
+    assert "1 beta" in screen, f"Expected '1 beta' in screen: {screen[:400]}"
+    assert "2 gamma" in screen, f"Expected '2 gamma' in screen: {screen[:400]}"
+    print("  PASS: :set relativenumber")
+
+def test_number_and_relnum():
+    """Both number + relativenumber: current line shows absolute, others show relative."""
+    path = write_temp("alpha\nbeta\ngamma\ndelta\nepsilon\n")
+    # Move to line 3 (0-indexed: 2), then enable both
+    keys = b"2j:set number\r:set relativenumber\r:q\r"
+    screen, _, code = run_ved(keys, file_path=path, cols=40)
+    os.unlink(path)
+    assert code == 0
+    # Line 3 (cursor) should show absolute '3', others relative
+    assert "3 gamma" in screen, f"Expected '3 gamma' for cursor line: {screen[:400]}"
+    assert "2 alpha" in screen, f"Expected '2 alpha' (relative) in screen: {screen[:400]}"
+    assert "1 beta" in screen, f"Expected '1 beta' (relative) in screen: {screen[:400]}"
+    assert "1 delta" in screen, f"Expected '1 delta' (relative) in screen: {screen[:400]}"
+    assert "2 epsilon" in screen, f"Expected '2 epsilon' (relative) in screen: {screen[:400]}"
+    print("  PASS: number + relativenumber")
+
+def test_number_with_wrap():
+    """:set number with :set wrap — only first wrapped row gets the line number."""
+    long_line = "A" * 30 + "\nshort\n"
+    path = write_temp(long_line)
+    keys = b":set wrap\r:set number\r:q\r"
+    screen, _, code = run_ved(keys, file_path=path, cols=20)
+    os.unlink(path)
+    assert code == 0
+    assert "1 " in screen, f"Expected '1 ' gutter in screen: {screen[:300]}"
+    assert "2 short" in screen, f"Expected '2 short' in screen: {screen[:300]}"
+    print("  PASS: number with wrap")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -1035,6 +1092,13 @@ def main():
         test_wrap_long_line,
         test_nowrap_truncates,
         test_wrap_cursor_position,
+    ])
+
+    total_failed += run_phase("Phase 13 — Line Numbers", [
+        test_set_number,
+        test_set_relativenumber,
+        test_number_and_relnum,
+        test_number_with_wrap,
     ])
 
     print(f"\n{'=' * 60}")

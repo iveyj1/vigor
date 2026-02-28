@@ -376,31 +376,64 @@ class Editor:
 
     # ── Rendering ──────────────────────────────────────────────────────
 
+    def _gutter_width(self):
+        """Width of line number gutter (0 if line numbers disabled)."""
+        if not self.opt_number and not self.opt_relnum:
+            return 0
+        return max(3, len(str(len(self.buf.lines)))) + 1
+
+    def _gutter_str(self, buf_line, gutter_width):
+        """Format the line number string for a given buffer line."""
+        if gutter_width == 0:
+            return ""
+        if self.opt_relnum:
+            if buf_line == self.cy:
+                num = (buf_line + 1) if self.opt_number else 0
+            else:
+                num = abs(buf_line - self.cy)
+        else:
+            num = buf_line + 1
+        return f"{num:>{gutter_width - 1}} "
+
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""
         if not self.opt_wrap or self.cols == 0:
             return 1
+        content_cols = self.cols - self._gutter_width()
+        if content_cols <= 0:
+            return 1
         line_len = len(self.buf.lines[line_idx]) if line_idx < len(self.buf.lines) else 0
         if line_len == 0:
             return 1
-        return (line_len + self.cols - 1) // self.cols
+        return (line_len + content_cols - 1) // content_cols
 
-    def _render_line(self, line, buf_line, sel, out):
+    def _render_line(self, line, buf_line, sel, out, gutter_width=0):
         """Render a single buffer line (possibly wrapped). Returns number of screen rows used."""
+        gutter = self._gutter_str(buf_line, gutter_width)
+        gutter_pad = " " * gutter_width
+        content_cols = self.cols - gutter_width
+        if content_cols <= 0:
+            content_cols = 1
         if not self.opt_wrap:
-            visible = line[:self.cols]
+            visible = line[:content_cols]
+            out.append(gutter)
             self._render_visible(visible, buf_line, 0, sel, out)
             out.append("\x1b[K\r\n")
             return 1
         else:
-            # Wrap: split line into chunks of self.cols
+            # Wrap: split line into chunks of content_cols
             if not line:
+                out.append(gutter)
                 self._render_visible("", buf_line, 0, sel, out)
                 out.append("\x1b[K\r\n")
                 return 1
             rows_used = 0
-            for chunk_start in range(0, len(line), self.cols):
-                chunk = line[chunk_start:chunk_start + self.cols]
+            for chunk_start in range(0, len(line), content_cols):
+                chunk = line[chunk_start:chunk_start + content_cols]
+                if rows_used == 0:
+                    out.append(gutter)
+                else:
+                    out.append(gutter_pad)
                 self._render_visible(chunk, buf_line, chunk_start, sel, out)
                 out.append("\x1b[K\r\n")
                 rows_used += 1
@@ -432,41 +465,51 @@ class Editor:
         out.append("\x1b[H")     # cursor home
 
         sel = self._selection_range()
+        gw = self._gutter_width()
+        content_cols = max(1, self.cols - gw)
 
         screen_rows_used = 0
         cursor_screen_y = 0
-        cursor_screen_x = self.cx
+        cursor_screen_x = self.cx + gw
         buf_line = self.scroll
 
         while screen_rows_used < self.rows and buf_line < len(self.buf.lines):
             line = self.buf.lines[buf_line]
             if buf_line == self.cy:
                 # Track cursor screen position
-                if self.opt_wrap and self.cols > 0:
-                    wrap_row = self.cx // self.cols
+                if self.opt_wrap and content_cols > 0:
+                    wrap_row = self.cx // content_cols
                     cursor_screen_y = screen_rows_used + wrap_row
-                    cursor_screen_x = self.cx % self.cols
+                    cursor_screen_x = self.cx % content_cols + gw
                 else:
                     cursor_screen_y = screen_rows_used
-                    cursor_screen_x = self.cx
+                    cursor_screen_x = self.cx + gw
 
             rows_available = self.rows - screen_rows_used
             if self.opt_wrap:
                 line_rows = self._line_screen_rows(buf_line)
                 if line_rows > rows_available:
                     # Partially render — only show what fits
-                    for chunk_start in range(0, len(line), self.cols):
+                    gutter = self._gutter_str(buf_line, gw)
+                    gutter_pad = " " * gw
+                    chunk_idx = 0
+                    for chunk_start in range(0, len(line), content_cols):
                         if screen_rows_used >= self.rows:
                             break
-                        chunk = line[chunk_start:chunk_start + self.cols]
+                        chunk = line[chunk_start:chunk_start + content_cols]
+                        if chunk_idx == 0:
+                            out.append(gutter)
+                        else:
+                            out.append(gutter_pad)
                         self._render_visible(chunk, buf_line, chunk_start, sel, out)
                         out.append("\x1b[K\r\n")
                         screen_rows_used += 1
+                        chunk_idx += 1
                 else:
-                    used = self._render_line(line, buf_line, sel, out)
+                    used = self._render_line(line, buf_line, sel, out, gw)
                     screen_rows_used += used
             else:
-                self._render_line(line, buf_line, sel, out)
+                self._render_line(line, buf_line, sel, out, gw)
                 screen_rows_used += 1
             buf_line += 1
 
@@ -850,7 +893,7 @@ class Editor:
 
         # ── Substitute command: [range]s/pat/repl/[g] ──
         sub_match = re.match(
-            r'^(%|(\d+)(,(\d+))?)?s(.)(.*?)\5(.*?)(?:\5([g]*))?$',
+            r'^(%|(\d+)(,(\d+))?)?s([^a-zA-Z0-9\s])(.*?)\5(.*?)(?:\5([g]*))?$',
             stripped
         )
         if sub_match:

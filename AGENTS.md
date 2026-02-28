@@ -11,7 +11,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Files**
 
-- `ved.py` — the entire editor (~1145 lines)
+- `ved.py` — the entire editor (~1190 lines)
 - `test_ved.py` — PTY-based smoke tests (plain asserts, no framework)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
@@ -57,7 +57,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Single unnamed register, no undo, no macros.** ved has one unnamed register that holds the last deleted or yanked text. Every yank/delete also copies to the system clipboard via OSC 52. There are no named registers, no undo tree, and no macros. If you need undo, use version control.
 
-**Minimal ex commands.** vi has dozens of ex commands. ved supports only: new, edit, write, quit, wq. Abbreviations (`:e`, `:w`, `:q`) work. That's it.
+**Minimal ex commands.** vi has dozens of ex commands. ved supports only: new, edit, write, quit, wq, set, substitute. Abbreviations (`:e`, `:w`, `:q`) work. That's it.
 
 
 ## Architecture
@@ -68,9 +68,11 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Terminal** — manages raw mode via `termios`, reads keys one at a time with escape sequence decoding, and restores terminal state on exit via `atexit`.
 
-**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of: content rows (with optional visual selection highlighting and line wrapping), a reverse-video status bar, and a command/message bar. Rendering is split into `_render_line` (handles wrap/truncate for a buffer line) and `_render_visible` (applies selection highlighting to a visible segment).
+**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of: content rows (with optional line number gutter, visual selection highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. Rendering is split into `_render_line` (handles wrap/truncate for a buffer line, prepends gutter) and `_render_visible` (applies selection highlighting to a visible segment).
 
-**Line wrap** — when `opt_wrap` is true, lines longer than `cols` are split into chunks at the column boundary. `_line_screen_rows(line_idx)` computes how many screen rows a buffer line occupies. The render loop tracks `screen_rows_used` and `cursor_screen_y`/`cursor_screen_x` so cursor positioning works correctly on wrapped lines. `_ensure_scroll` sums wrapped screen rows from scroll to cursor to keep the cursor visible.
+**Line numbers** — `_gutter_width()` returns the gutter width (0 when disabled, otherwise `max(3, digits_in_total_lines) + 1`). `_gutter_str(buf_line, gutter_width)` formats the number: absolute when `opt_number` only, relative distance from cursor when `opt_relnum` only, or hybrid (absolute on cursor line, relative elsewhere) when both are set. Content columns are reduced by the gutter width. In wrap mode, only the first wrapped row of a line shows the number; continuation rows get blank padding.
+
+**Line wrap** — when `opt_wrap` is true, lines longer than content columns (total cols minus gutter) are split into chunks at the column boundary. `_line_screen_rows(line_idx)` computes how many screen rows a buffer line occupies. The render loop tracks `screen_rows_used` and `cursor_screen_y`/`cursor_screen_x` so cursor positioning works correctly on wrapped lines. `_ensure_scroll` sums wrapped screen rows from scroll to cursor to keep the cursor visible.
 
 **Mode handlers** — `handle_normal`, `handle_insert`, `handle_command`, `handle_visual`. Each is a flat `if/elif` chain. The main loop dispatches based on `self.mode`.
 
@@ -84,7 +86,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Search** — `/` and `?` enter SEARCH mode, which captures a regex pattern in the command bar. On Enter, `_search_next(direction)` compiles the pattern with `re.compile` and iterates through buffer lines from the position after the cursor (wrapping around). Forward search uses `re.search`; backward search uses `re.finditer` to find the last match before the cursor. `n` repeats in the same direction; `N` reverses. The last pattern is stored in `search_pattern` and reused when Enter is pressed with an empty prompt.
 
-**Substitute** — `_exec_command` detects `:[range]s/pat/repl/[g]` via a regex match before the generic command parser. `_exec_substitute` parses the range (current line, `%` for whole file, or `N,M` line numbers), compiles the pattern, and runs `re.subn` on each line in range. The `g` flag controls whether all matches or just the first are replaced. The delimiter is captured dynamically (any character after `s`), so `s|pat|repl|` also works.
+**Substitute** — `_exec_command` detects `:[range]s/pat/repl/[g]` via a regex match before the generic command parser. The delimiter must be a non-alphanumeric, non-whitespace character (this prevents `:set number` from being misinterpreted as a substitute command). `_exec_substitute` parses the range (current line, `%` for whole file, or `N,M` line numbers), compiles the pattern, and runs `re.subn` on each line in range. The `g` flag controls whether all matches or just the first are replaced. The delimiter is captured dynamically (any punctuation after `s`), so `s|pat|repl|` also works.
 
 **Word motions** — characters are classified as word (`[a-zA-Z0-9_]`), punctuation, or space. Small word motions (`w b e`) treat punctuation runs as separate words. Big WORD motions (`W B E`) only split on whitespace. The algorithm uses `_forward`/`_backward` helpers to step through the buffer one character at a time, crossing line boundaries.
 
@@ -120,7 +122,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 66 tests across 12 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4). Run with `python3 test_ved.py`.
+**Coverage** — 70 tests across 13 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4). Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents
