@@ -160,6 +160,12 @@ class Editor:
         self._recording = False     # currently recording for dot
         self._replaying_dot = False # currently replaying a dot action
         self._dot_count = 0         # count when recording started
+        self._pending_g = False     # waiting for second key after 'g'
+        self._pending_g_op = False  # 'g' prefix inside operator-pending
+        self._pending_g_visual = False  # 'g' prefix in visual mode
+        self._pending_find = None   # 'f'/'t'/'F'/'T' waiting for char
+        self._pending_find_visual = None  # find-char pending in visual
+        self._pending_textobj = None  # 'i'/'a' waiting for object key
         self.term = Terminal()
         self._update_size()
 
@@ -1100,7 +1106,7 @@ class Editor:
             self._recording_keys.append(key)
 
         # 'g' prefix: wait for next key (gg, gc)
-        if hasattr(self, '_pending_g') and self._pending_g:
+        if self._pending_g:
             self._pending_g = False
             if key == "g":
                 key = "gg"
@@ -1131,7 +1137,7 @@ class Editor:
             return
 
         # f/t/F/T prefix: wait for target character
-        if hasattr(self, '_pending_find') and self._pending_find:
+        if self._pending_find:
             cmd = self._pending_find
             self._pending_find = None
             if self.pending_op:
@@ -1174,7 +1180,7 @@ class Editor:
             op_n = self.pending_count
             op_extra_n = self.pending_extra_n
             # Handle 'g' prefix in operator-pending (e.g. dgg)
-            if hasattr(self, '_pending_g_op') and self._pending_g_op:
+            if self._pending_g_op:
                 self._pending_g_op = False
                 if key == "g":
                     key = "gg"
@@ -1189,7 +1195,7 @@ class Editor:
             if key in ("i", "a"):
                 self._pending_textobj = key
                 return
-            if hasattr(self, '_pending_textobj') and self._pending_textobj:
+            if self._pending_textobj:
                 obj_type = self._pending_textobj
                 self._pending_textobj = None
                 around = obj_type == "a"
@@ -1752,7 +1758,7 @@ class Editor:
         if key == "g":
             self._pending_g_visual = True
             return
-        if hasattr(self, '_pending_g_visual') and self._pending_g_visual:
+        if self._pending_g_visual:
             self._pending_g_visual = False
             if key == "g":
                 key = "gg"
@@ -1768,7 +1774,7 @@ class Editor:
             else:
                 return
         # f/t/F/T prefix: wait for target character
-        if hasattr(self, '_pending_find_visual') and self._pending_find_visual:
+        if self._pending_find_visual:
             cmd = self._pending_find_visual
             self._pending_find_visual = None
             self._exec_find(cmd, key, 1)
