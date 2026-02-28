@@ -860,6 +860,8 @@ class Editor:
                 self.cx = len(prev)
                 self.buf.lines[self.cy] = prev + cur
                 self.buf.dirty = True
+        elif key in ("LEFT", "RIGHT", "UP", "DOWN"):
+            self._exec_motion(key, 1)
         elif len(key) == 1:
             line = self.buf.lines[self.cy]
             self.buf.lines[self.cy] = line[:self.cx] + key + line[self.cx:]

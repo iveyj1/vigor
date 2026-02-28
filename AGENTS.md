@@ -12,7 +12,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 **Files**
 
 - `ved.py` — the entire editor (~1190 lines)
-- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework)
+- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 72 tests)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
 
@@ -42,7 +42,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Command mode** — `:new`, `:e[dit] <path>`, `:w[rite] [path]`, `:q[uit]` (refuses if dirty), `:q!` (force), `:wq`, `:[range]s/pat/repl/[g]` (substitute), `:set <option>` (set wrap/nowrap/number/nonumber/relativenumber/norelativenumber).
 
-**Insert mode** — printable characters insert at cursor. Enter splits the line. Backspace deletes backward or joins lines. Esc returns to NORMAL without moving the cursor.
+**Insert mode** — printable characters insert at cursor. Enter splits the line. Backspace deletes backward or joins lines. Arrow keys (Up/Down/Left/Right) move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
 **Full terminal** — ved uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Lines longer than the terminal width are truncated at the screen edge.
 
@@ -118,11 +118,11 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **PTY sizing** — the harness sets the PTY window size to 24×80 via `TIOCSWINSZ` before forking. Resize tests change the size and send `SIGWINCH` to the child.
 
-**Timing** — a 300ms delay after fork lets ved start and render. Keys are sent one byte at a time with 30ms inter-key delay. Tests that send many keys (scroll test) use a longer timeout.
+**Timing** — a 300ms delay after fork lets ved start and render. Keys are sent one byte at a time with 30ms inter-key delay. CSI escape sequences (e.g. `\x1b[C` for Right arrow) are written atomically as a single chunk so the editor's 20ms `select` timeout decodes them correctly. Tests that send many keys (scroll test) use a longer timeout.
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 70 tests across 13 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4). Run with `python3 test_ved.py`.
+**Coverage** — 72 tests across 14 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4), insert arrow keys (2). Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents

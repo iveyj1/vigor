@@ -58,10 +58,24 @@ def run_ved(keys, file_path=None, timeout=3.0, rows=24, cols=80):
     # Wait a moment for ved to start and render
     time.sleep(0.3)
 
-    # Send keys one at a time with delay to let ved process
-    for b in keys:
+    # Send keys — escape sequences are sent atomically so the editor
+    # decodes them correctly (its select timeout is 20ms, shorter than
+    # our inter-key delay of 30ms).
+    i = 0
+    while i < len(keys):
         try:
-            os.write(master, bytes([b]))
+            if keys[i] == 0x1B and i + 1 < len(keys) and keys[i + 1] == 0x5B:
+                # CSI sequence: \x1b[ + one or more bytes until a letter
+                end = i + 2
+                while end < len(keys) and not (0x40 <= keys[end] <= 0x7E):
+                    end += 1
+                if end < len(keys):
+                    end += 1  # include the final letter
+                os.write(master, keys[i:end])
+                i = end
+            else:
+                os.write(master, bytes([keys[i]]))
+                i += 1
         except OSError:
             break
         time.sleep(0.03)
@@ -971,6 +985,35 @@ def test_number_with_wrap():
     assert "2 short" in screen, f"Expected '2 short' in screen: {screen[:300]}"
     print("  PASS: number with wrap")
 
+# ── Phase 14: Arrow Keys in Insert Mode ───────────────────────────────────
+
+def test_insert_arrow_left_right():
+    """Left/Right arrow keys move cursor in insert mode."""
+    path = write_temp("abcd\n")
+    # Enter insert, type X, right arrow twice, type Y → "Xab Ycd"
+    # Actually: start at col 0. i enters insert. Type X → "Xabcd", cx=1.
+    # Right arrow → cx=2. Type Y → "XaYbcd", cx=3.
+    keys = b"iX\x1b[CY\x1b:wq\r"
+    screen, content, code = run_ved(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "XaYbcd" in content, f"Expected 'XaYbcd', got: {content!r}"
+    print("  PASS: insert arrow left/right")
+
+def test_insert_arrow_up_down():
+    """Up/Down arrow keys move cursor between lines in insert mode."""
+    path = write_temp("aaa\nbbb\nccc\n")
+    # Move to line 2 (j), enter insert (i), Down arrow, type X
+    # Cursor starts at (0,0). j → (1,0). i → insert at (1,0).
+    # Down arrow → (2,0). Type X → "Xccc"
+    keys = b"ji\x1b[BX\x1b:wq\r"
+    screen, content, code = run_ved(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0
+    lines = content.strip().split("\n")
+    assert lines[2] == "Xccc", f"Expected 'Xccc' on line 3, got: {lines[2]!r}"
+    print("  PASS: insert arrow up/down")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -1099,6 +1142,11 @@ def main():
         test_set_relativenumber,
         test_number_and_relnum,
         test_number_with_wrap,
+    ])
+
+    total_failed += run_phase("Phase 14 — Insert Arrow Keys", [
+        test_insert_arrow_left_right,
+        test_insert_arrow_up_down,
     ])
 
     print(f"\n{'=' * 60}")
