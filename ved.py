@@ -240,6 +240,17 @@ class Editor:
         self._ensure_scroll()
         self.mode = Mode.NORMAL
 
+    def _close_buffer(self):
+        """Remove current buffer and load an adjacent one."""
+        self._save_buf_state()
+        self.buffers.pop(self.buf_idx)
+        if self.buf_idx >= len(self.buffers):
+            self.buf_idx = len(self.buffers) - 1
+        self._load_buf_state(self.buf_idx)
+        self._clamp_cursor()
+        self._ensure_scroll()
+        self.mode = Mode.NORMAL
+
     # ── Cursor clamping ────────────────────────────────────────────────
 
     def _clamp_cursor(self):
@@ -1568,37 +1579,22 @@ class Editor:
                 self.mode = Mode.NORMAL
                 return
             if len(self.buffers) > 1:
-                # Close current buffer
-                self._save_buf_state()
-                self.buffers.pop(self.buf_idx)
-                if self.buf_idx >= len(self.buffers):
-                    self.buf_idx = len(self.buffers) - 1
-                self._load_buf_state(self.buf_idx)
-                self._clamp_cursor()
-                self._ensure_scroll()
-                self.mode = Mode.NORMAL
+                self._close_buffer()
             else:
                 self.running = False
         elif cmd in ("q!", "quit!"):
             if len(self.buffers) > 1:
-                self._save_buf_state()
-                self.buffers.pop(self.buf_idx)
-                if self.buf_idx >= len(self.buffers):
-                    self.buf_idx = len(self.buffers) - 1
-                self._load_buf_state(self.buf_idx)
-                self._clamp_cursor()
-                self._ensure_scroll()
-                self.mode = Mode.NORMAL
+                self._close_buffer()
             else:
                 self.running = False
-        elif cmd in ("qa", "quitall"):
-            dirty = [bs for bs in self.buffers if bs.buf.dirty]
-            if dirty:
-                self.msg = f"{len(dirty)} buffer(s) have unsaved changes (add ! to override)"
-                self.mode = Mode.NORMAL
-                return
-            self.running = False
-        elif cmd in ("qa!", "quitall!"):
+        elif cmd in ("qa", "qa!", "qall", "qall!", "quitall", "quitall!"):
+            force = cmd.endswith("!")
+            if not force:
+                dirty = [bs for bs in self.buffers if bs.buf.dirty]
+                if dirty:
+                    self.msg = f"{len(dirty)} buffer(s) have unsaved changes (add ! to override)"
+                    self.mode = Mode.NORMAL
+                    return
             self.running = False
         elif cmd in ("w", "write"):
             path = arg or self.buf.path
@@ -1617,14 +1613,7 @@ class Editor:
                 self._undo_save_depth = len(self._undo_stack)
                 self._undo_branched = False
                 if len(self.buffers) > 1:
-                    self._save_buf_state()
-                    self.buffers.pop(self.buf_idx)
-                    if self.buf_idx >= len(self.buffers):
-                        self.buf_idx = len(self.buffers) - 1
-                    self._load_buf_state(self.buf_idx)
-                    self._clamp_cursor()
-                    self._ensure_scroll()
-                    self.mode = Mode.NORMAL
+                    self._close_buffer()
                 else:
                     self.running = False
             else:
@@ -1676,27 +1665,13 @@ class Editor:
                 self.msg = "Cannot delete last buffer"
                 self.mode = Mode.NORMAL
                 return
-            self._save_buf_state()
-            self.buffers.pop(self.buf_idx)
-            if self.buf_idx >= len(self.buffers):
-                self.buf_idx = len(self.buffers) - 1
-            self._load_buf_state(self.buf_idx)
-            self._clamp_cursor()
-            self._ensure_scroll()
-            self.mode = Mode.NORMAL
+            self._close_buffer()
         elif cmd in ("k!", "bdelete!"):
             if len(self.buffers) <= 1:
                 self.msg = "Cannot delete last buffer"
                 self.mode = Mode.NORMAL
                 return
-            self._save_buf_state()
-            self.buffers.pop(self.buf_idx)
-            if self.buf_idx >= len(self.buffers):
-                self.buf_idx = len(self.buffers) - 1
-            self._load_buf_state(self.buf_idx)
-            self._clamp_cursor()
-            self._ensure_scroll()
-            self.mode = Mode.NORMAL
+            self._close_buffer()
         elif cmd == "set":
             self._exec_set(arg)
             self.mode = Mode.NORMAL
