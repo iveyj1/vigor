@@ -773,7 +773,18 @@ class Editor:
             self.cmd += key
 
     def _exec_command(self, raw):
-        parts = raw.strip().split(None, 1)
+        stripped = raw.strip()
+
+        # ── Substitute command: [range]s/pat/repl/[g] ──
+        sub_match = re.match(
+            r'^(%|(\d+)(,(\d+))?)?s(.)(.*?)\5(.*?)(?:\5([g]*))?$',
+            stripped
+        )
+        if sub_match:
+            self._exec_substitute(sub_match)
+            return
+
+        parts = stripped.split(None, 1)
         if not parts:
             self.mode = Mode.NORMAL
             return
@@ -823,6 +834,57 @@ class Editor:
         else:
             self.msg = f"Not a command: {cmd}"
             self.mode = Mode.NORMAL
+
+    def _exec_substitute(self, m):
+        """Execute :[range]s/pat/repl/[g] substitute command."""
+        range_spec = m.group(1)  # '%' or '10' or '10,20' or None
+        start_str = m.group(2)   # first line number or None
+        end_str = m.group(4)     # second line number or None
+        pattern = m.group(6)
+        replacement = m.group(7)
+        flags_str = m.group(8) or ""
+
+        # Determine line range
+        if range_spec == "%":
+            start_line = 0
+            end_line = len(self.buf.lines) - 1
+        elif start_str is not None:
+            start_line = max(0, int(start_str) - 1)  # 1-indexed to 0-indexed
+            if end_str is not None:
+                end_line = min(int(end_str) - 1, len(self.buf.lines) - 1)
+            else:
+                end_line = start_line
+        else:
+            # No range: current line only
+            start_line = self.cy
+            end_line = self.cy
+
+        try:
+            pat = re.compile(pattern)
+        except re.error as e:
+            self.msg = f"Invalid regex: {e}"
+            self.mode = Mode.NORMAL
+            return
+
+        global_flag = "g" in flags_str
+        total_subs = 0
+
+        for line_idx in range(start_line, end_line + 1):
+            line = self.buf.lines[line_idx]
+            if global_flag:
+                new_line, count = pat.subn(replacement, line)
+            else:
+                new_line, count = pat.subn(replacement, line, count=1)
+            if count > 0:
+                self.buf.lines[line_idx] = new_line
+                total_subs += count
+
+        if total_subs > 0:
+            self.buf.dirty = True
+            self.msg = f"{total_subs} substitution(s)"
+        else:
+            self.msg = "Pattern not found"
+        self.mode = Mode.NORMAL
 
     # ── Visual mode ────────────────────────────────────────────────────
 

@@ -11,7 +11,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Files**
 
-- `ved.py` — the entire editor (~980 lines)
+- `ved.py` — the entire editor (~1040 lines)
 - `test_ved.py` — PTY-based smoke tests (plain asserts, no framework)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
@@ -40,7 +40,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 
 **Normal mode commands** — `h j k l` (movement), `w W b B e E` (word motions), `i I a A` (enter insert), `v V` (enter visual), `:` (enter command), `/` `?` (search forward/backward), `n` `N` (repeat search same/opposite direction). All motions accept a count prefix (`3j`, `5w`, etc.). Operators `d y c` enter operator-pending mode and combine with a motion (`dw`, `cw`, `yj`). Doubled operators (`dd`, `yy`, `cc`) act linewise. Shortcuts `D Y C` operate from cursor to end-of-line (D/C) or yank the whole line (Y). `p` / `P` paste from the unnamed register after/before the cursor.
 
-**Command mode** — `:new`, `:e[dit] <path>`, `:w[rite] [path]`, `:q[uit]` (refuses if dirty), `:q!` (force), `:wq`.
+**Command mode** — `:new`, `:e[dit] <path>`, `:w[rite] [path]`, `:q[uit]` (refuses if dirty), `:q!` (force), `:wq`, `:[range]s/pat/repl/[g]` (substitute).
 
 **Insert mode** — printable characters insert at cursor. Enter splits the line. Backspace deletes backward or joins lines. Esc returns to NORMAL without moving the cursor.
 
@@ -82,6 +82,8 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Search** — `/` and `?` enter SEARCH mode, which captures a regex pattern in the command bar. On Enter, `_search_next(direction)` compiles the pattern with `re.compile` and iterates through buffer lines from the position after the cursor (wrapping around). Forward search uses `re.search`; backward search uses `re.finditer` to find the last match before the cursor. `n` repeats in the same direction; `N` reverses. The last pattern is stored in `search_pattern` and reused when Enter is pressed with an empty prompt.
 
+**Substitute** — `_exec_command` detects `:[range]s/pat/repl/[g]` via a regex match before the generic command parser. `_exec_substitute` parses the range (current line, `%` for whole file, or `N,M` line numbers), compiles the pattern, and runs `re.subn` on each line in range. The `g` flag controls whether all matches or just the first are replaced. The delimiter is captured dynamically (any character after `s`), so `s|pat|repl|` also works.
+
 **Word motions** — characters are classified as word (`[a-zA-Z0-9_]`), punctuation, or space. Small word motions (`w b e`) treat punctuation runs as separate words. Big WORD motions (`W B E`) only split on whitespace. The algorithm uses `_forward`/`_backward` helpers to step through the buffer one character at a time, crossing line boundaries.
 
 **Count prefixes** — digits `1-9` (and subsequent `0-9`) accumulate in `self.count`. When a motion key arrives, it executes `max(count, 1)` times. Count resets to 0 after any non-digit key.
@@ -116,7 +118,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 56 tests across 10 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6). Run with `python3 test_ved.py`.
+**Coverage** — 62 tests across 11 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6). Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents

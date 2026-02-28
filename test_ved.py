@@ -808,6 +808,64 @@ def test_search_esc_cancels():
     assert "Xaaa" in content, f"Expected 'Xaaa' (cursor stayed on line 0), got: {content!r}"
     print("  PASS: search Esc cancels")
 
+# ── Phase 11 — Replace ─────────────────────────────────────────────────────
+
+def test_substitute_current_line():
+    """s/pat/repl/ on current line replaces first match."""
+    path = write_temp("foo bar foo\nsecond\n")
+    screen, content, code = run_ved(b":s/foo/baz/\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    lines = content.strip().split("\n")
+    assert lines[0] == "baz bar foo", f"Expected 'baz bar foo', got: {lines[0]!r}"
+    print("  PASS: s/pat/repl/ current line")
+
+def test_substitute_global_flag():
+    """s/pat/repl/g replaces all occurrences on current line."""
+    path = write_temp("foo bar foo\n")
+    screen, content, code = run_ved(b":s/foo/baz/g\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content.strip() == "baz bar baz", f"Expected 'baz bar baz', got: {content!r}"
+    print("  PASS: s/pat/repl/g global")
+
+def test_substitute_whole_file():
+    """%s/pat/repl/g replaces across all lines."""
+    path = write_temp("aaa\nbbb\naaa\n")
+    screen, content, code = run_ved(b":%s/aaa/zzz/g\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    lines = content.strip().split("\n")
+    assert lines == ["zzz", "bbb", "zzz"], f"Expected zzz/bbb/zzz, got: {lines}"
+    print("  PASS: %s/pat/repl/g whole file")
+
+def test_substitute_line_range():
+    """2,3s/x/y/ replaces on lines 2-3 only."""
+    path = write_temp("x1\nx2\nx3\nx4\n")
+    screen, content, code = run_ved(b":2,3s/x/y/\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    lines = content.strip().split("\n")
+    assert lines == ["x1", "y2", "y3", "x4"], f"Expected x1/y2/y3/x4, got: {lines}"
+    print("  PASS: 2,3s/x/y/ line range")
+
+def test_substitute_regex():
+    """s/ with regex pattern works."""
+    path = write_temp("abc 123 def\n")
+    screen, content, code = run_ved(b":s/[0-9]+/NUM/\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content.strip() == "abc NUM def", f"Expected 'abc NUM def', got: {content!r}"
+    print("  PASS: s/ with regex")
+
+def test_substitute_not_found():
+    """s/ with no match shows message, no crash."""
+    path = write_temp("hello\n")
+    screen, content, code = run_ved(b":s/zzz/aaa/\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    print("  PASS: s/ not found")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -913,6 +971,15 @@ def main():
         test_search_N_reverses,
         test_search_not_found,
         test_search_esc_cancels,
+    ])
+
+    total_failed += run_phase("Phase 11 — Replace", [
+        test_substitute_current_line,
+        test_substitute_global_flag,
+        test_substitute_whole_file,
+        test_substitute_line_range,
+        test_substitute_regex,
+        test_substitute_not_found,
     ])
 
     print(f"\n{'=' * 60}")
