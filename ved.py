@@ -352,6 +352,24 @@ class Editor:
         self.buf.dirty = True
         self._enter_insert()
 
+    def _join_lines(self, count=2):
+        """Join current line with the next (count-1) lines."""
+        joins = max(1, count - 1)
+        did_join = False
+        for _ in range(joins):
+            if self.cy >= len(self.buf.lines) - 1:
+                break
+            left = self.buf.lines[self.cy].rstrip()
+            right = self.buf.lines[self.cy + 1].lstrip()
+            sep = " " if left and right else ""
+            self.buf.lines[self.cy] = left + sep + right
+            del self.buf.lines[self.cy + 1]
+            did_join = True
+        if did_join:
+            self.buf.dirty = True
+            self.cx = min(self.cx, len(self.buf.lines[self.cy]))
+        return did_join
+
     def _enter_op_pending(self, op, n, extra_n, dot=True):
         """Enter operator-pending mode for op, optionally starting dot recording."""
         if dot:
@@ -1421,6 +1439,12 @@ class Editor:
             self._snapshot()
             self._delete_to_eol()
             self._enter_insert()
+        elif key == "J":
+            self._start_dot(n, "J")
+            self._snapshot()
+            if not self._join_lines(n):
+                self._undo_stack.pop()
+            self._save_dot()
         # Paste
         elif key == "x":
             self._start_dot(n, "x")

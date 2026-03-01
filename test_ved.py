@@ -1774,6 +1774,44 @@ def test_insert_delete_key():
     assert content == "ac\n", f"Expected 'ac', got {content!r}"
     print("  PASS: insert Delete key")
 
+# ── Phase 31: J join + visual ^/$ motions ─────────────────────────────────
+
+def test_J_joins_lines():
+    """J joins current line with the next line."""
+    path = write_temp("hello\nworld\n")
+    screen, content, code = run_ved(b"J:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "hello world\n", f"Expected joined line, got {content!r}"
+    print("  PASS: J joins lines")
+
+def test_count_J_joins_multiple_lines():
+    """Counted J joins N lines into one."""
+    path = write_temp("a\nb\nc\n")
+    screen, content, code = run_ved(b"3J:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "a b c\n", f"Expected 'a b c', got {content!r}"
+    print("  PASS: count J joins multiple lines")
+
+def test_visual_dollar_delete_line_tail():
+    """Visual mode supports $ motion for selection expansion."""
+    path = write_temp("hello\n")
+    screen, content, code = run_ved(b"v$d:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "\n", f"Expected empty line after visual $ delete, got {content!r}"
+    print("  PASS: visual $ motion")
+
+def test_visual_caret_delete_to_nonblank():
+    """Visual mode supports ^ motion for selection expansion."""
+    path = write_temp("  hello!\n")
+    screen, content, code = run_ved(b"$v^d:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "  \n", f"Expected leading spaces only, got {content!r}"
+    print("  PASS: visual ^ motion")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -1991,6 +2029,12 @@ def main():
             test_home_end_normal_mode,
             test_insert_home_end_tab,
             test_insert_delete_key,
+        ]),
+        ("31", "Phase 31 — J join and visual ^/$", [
+            test_J_joins_lines,
+            test_count_J_joins_multiple_lines,
+            test_visual_dollar_delete_line_tail,
+            test_visual_caret_delete_to_nonblank,
         ]),
     ]
 
