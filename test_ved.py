@@ -371,6 +371,88 @@ def test_E_end_WORD():
     assert "a.bX" in content, f"Expected 'a.bX', got: {content!r}"
     print("  PASS: E end of WORD")
 
+def test_e_from_eol_stays_on_current_line_last_word():
+    """e from one-past-EOL lands on the current line's last word end."""
+    path = write_temp("abc\nxyz\n")
+    screen, content, code = run_ved(b"$eaX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "abcX\nxyz\n", f"Expected 'abcX' on first line, got: {content!r}"
+    print("  PASS: e from EOL stays on line")
+
+def test_e_crosses_empty_line_without_crash():
+    """Repeated e crosses empty lines safely without crashing."""
+    path = write_temp("abc\n\nxyz\n")
+    screen, content, code = run_ved(b"$eeaX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "abc\n\nxyzX\n", f"Expected move to next word end, got: {content!r}"
+    print("  PASS: e crosses empty lines safely")
+
+def test_w_skips_empty_line_to_next_word():
+    """w should skip empty lines and land on the next word start."""
+    path = write_temp("abc\n\nxyz\n")
+    screen, content, code = run_ved(b"$wiX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "abc\n\nXxyz\n", f"Expected w to skip blank line, got: {content!r}"
+    print("  PASS: w skips empty lines")
+
+def test_w_newline_is_word_boundary():
+    """w should stop at next line word start, not skip it."""
+    path = write_temp("sys\nimport os\n")
+    screen, content, code = run_ved(b"wiX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "sys\nXimport os\n", f"Expected w to land on 'import', got: {content!r}"
+    print("  PASS: w respects newline boundary")
+
+def test_e_newline_is_word_boundary():
+    """e should stop at end of current line word, not next line word."""
+    path = write_temp("abc\ndef ghi\n")
+    screen, content, code = run_ved(b"eaX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "abcX\ndef ghi\n", f"Expected e to end on first line, got: {content!r}"
+    print("  PASS: e respects newline boundary")
+
+def test_b_newline_is_word_boundary():
+    """b should stop at current line word start before crossing lines."""
+    path = write_temp("import sys\nimport os\n")
+    # From 'os', b should land on current line 'import', not previous line 'sys'.
+    screen, content, code = run_ved(b"2G7lbiX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "import sys\nXimport os\n", f"Expected b to land on current line, got: {content!r}"
+    print("  PASS: b respects newline boundary")
+
+def test_B_newline_is_word_boundary():
+    """B should stop at current line WORD start before crossing lines."""
+    path = write_temp("import sys\nimport os\n")
+    screen, content, code = run_ved(b"2G7lBiX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "import sys\nXimport os\n", f"Expected B to land on current line, got: {content!r}"
+    print("  PASS: B respects newline boundary")
+
+def test_W_newline_is_word_boundary():
+    """W should land on next line start, not skip it."""
+    path = write_temp("a.b\nc.d\n")
+    screen, content, code = run_ved(b"WiX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "a.b\nXc.d\n", f"Expected W to land on next line start, got: {content!r}"
+    print("  PASS: W respects newline boundary")
+
+def test_E_newline_is_word_boundary():
+    """E should end current line WORD, not jump to next line."""
+    path = write_temp("a.b\nc.d\n")
+    screen, content, code = run_ved(b"EaX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "a.bX\nc.d\n", f"Expected E to end first line WORD, got: {content!r}"
+    print("  PASS: E respects newline boundary")
+
 # ── Phase 4: Visual Mode ──────────────────────────────────────────────────
 
 def test_v_enters_visual():
@@ -2061,6 +2143,15 @@ def main():
             test_W_forward_WORD,
             test_B_backward_WORD,
             test_E_end_WORD,
+            test_e_from_eol_stays_on_current_line_last_word,
+            test_e_crosses_empty_line_without_crash,
+            test_w_skips_empty_line_to_next_word,
+            test_w_newline_is_word_boundary,
+            test_e_newline_is_word_boundary,
+            test_b_newline_is_word_boundary,
+            test_B_newline_is_word_boundary,
+            test_W_newline_is_word_boundary,
+            test_E_newline_is_word_boundary,
         ]),
         ("4", "Phase 4 — Visual Mode", [
             test_v_enters_visual,

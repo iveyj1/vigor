@@ -240,14 +240,20 @@ class Editor:
     def _write_crash_report(self, exc):
         """Persist crash report to disk. Returns report path or None."""
         report = self._format_exception_report(exc)
-        report_path = os.path.expanduser("~/.ved-crash.log")
-        try:
-            with open(report_path, "a") as f:
-                f.write(report)
-                f.write("\n")
-            return report_path
-        except Exception:
-            return None
+        candidates = [
+            os.path.expanduser("~/.ved-crash.log"),
+            os.path.abspath(".ved-crash.log"),
+            "/tmp/ved-crash.log",
+        ]
+        for report_path in candidates:
+            try:
+                with open(report_path, "a") as f:
+                    f.write(report)
+                    f.write("\n")
+                return report_path
+            except Exception:
+                continue
+        return None
 
     @staticmethod
     def _resolve_startup_path(path):
@@ -538,25 +544,30 @@ class Editor:
     def motion_w(self, big=False):
         """Move to start of next word (w) or WORD (W)."""
         classify = self._WORD_class if big else self._char_class
-        ch = self._get_char(self.cy, self.cx)
-        if ch is None:
-            # On empty line or past end — try next line
-            if self.cy + 1 < len(self.buf.lines):
-                self.cy += 1
-                self.cx = 0
-            return
-        cur_class = classify(ch)
         pos = (self.cy, self.cx)
-        # Skip current class
-        while pos:
-            c = self._get_char(*pos)
-            if c is None or classify(c) != cur_class:
-                break
-            pos = self._forward(*pos)
+        ch = self._get_char(*pos)
+        cur_class = classify(ch) if ch is not None else 0
+        # Skip current non-space class.
+        if cur_class != 0:
+            while pos:
+                py, px = pos
+                c = self._get_char(*pos)
+                if c is None or classify(c) != cur_class:
+                    break
+                nxt = self._forward(*pos)
+                if nxt is None:
+                    pos = None
+                    break
+                # Newline is always a word boundary, even if the next line
+                # starts with the same character class.
+                if nxt[0] != py:
+                    pos = nxt
+                    break
+                pos = nxt
         # Skip spaces
         while pos:
             c = self._get_char(*pos)
-            if c is None or classify(c) != 0:
+            if c is not None and classify(c) != 0:
                 break
             pos = self._forward(*pos)
         if pos:
@@ -572,17 +583,23 @@ class Editor:
         # Skip spaces
         while pos:
             c = self._get_char(*pos)
-            if c is None or classify(c) != 0:
+            if c is not None and classify(c) != 0:
                 break
             pos = self._backward(*pos)
         if pos is None:
             self.cy, self.cx = 0, 0
             return
         # Now on the last char of the prev word — find its start
-        target_class = classify(self._get_char(*pos))
+        target_char = self._get_char(*pos)
+        if target_char is None:
+            return
+        target_class = classify(target_char)
         while True:
+            py, px = pos
             prev = self._backward(*pos)
             if prev is None:
+                break
+            if prev[0] != py:
                 break
             c = self._get_char(*prev)
             if c is None or classify(c) != target_class:
@@ -593,6 +610,16 @@ class Editor:
     def motion_e(self, big=False):
         """Move to end of word (e) or WORD (E)."""
         classify = self._WORD_class if big else self._char_class
+        line = self.buf.lines[self.cy]
+        # Cursor can sit one past EOL in ved. In this state, land on the
+        # last non-space token on the current line before crossing lines.
+        if self.cx >= len(line):
+            i = len(line) - 1
+            while i >= 0 and classify(line[i]) == 0:
+                i -= 1
+            if i >= 0:
+                self.cx = i
+                return
         # Step forward one position first
         pos = self._forward(self.cy, self.cx)
         if pos is None:
@@ -600,16 +627,22 @@ class Editor:
         # Skip spaces
         while pos:
             c = self._get_char(*pos)
-            if c is None or classify(c) != 0:
+            if c is not None and classify(c) != 0:
                 break
             pos = self._forward(*pos)
         if pos is None:
             return
         # Now on the first char of a word — find its end
-        target_class = classify(self._get_char(*pos))
+        target_char = self._get_char(*pos)
+        if target_char is None:
+            return
+        target_class = classify(target_char)
         while True:
+            py, px = pos
             nxt = self._forward(*pos)
             if nxt is None:
+                break
+            if nxt[0] != py:
                 break
             c = self._get_char(*nxt)
             if c is None or classify(c) != target_class:
