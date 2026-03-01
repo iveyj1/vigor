@@ -1799,6 +1799,15 @@ def test_home_end_ss3_sequences():
     assert content == "^hello!\n", f"Expected '^hello!' with SS3 Home/End, got {content!r}"
     print("  PASS: Home/End SS3 sequences")
 
+def test_home_end_csi_tilde_sequences():
+    """Home/End also work with CSI tilde sequences (ESC [1~/[4~)."""
+    path = write_temp("hello\n")
+    screen, content, code = run_ved(b"\x1b[4~i!\x1b\x1b[1~i^\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "^hello!\n", f"Expected '^hello!' with CSI tilde Home/End, got {content!r}"
+    print("  PASS: Home/End CSI tilde sequences")
+
 def test_insert_home_end_tab():
     """Insert mode handles Home/End and Tab (4 spaces)."""
     path = write_temp("abc\n")
@@ -2176,6 +2185,7 @@ def main():
             test_caret_motion_first_nonblank,
             test_home_end_normal_mode,
             test_home_end_ss3_sequences,
+            test_home_end_csi_tilde_sequences,
             test_insert_home_end_tab,
             test_insert_delete_key,
         ]),

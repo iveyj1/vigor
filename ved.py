@@ -117,6 +117,10 @@ class Terminal:
                 if code and code[0:1].isdigit():
                     extra = os.read(self.fd, 1) if self._has_data() else b""
                     if extra == b"~":
+                        if code == b"1" or code == b"7":
+                            return "HOME"
+                        if code == b"4" or code == b"8":
+                            return "END"
                         if code == b"3":
                             return "DEL"
                 return "ESC"
