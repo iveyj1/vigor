@@ -1753,231 +1753,218 @@ def run_phase(name, tests):
 
 def main():
     total_failed = 0
+    selected = set(sys.argv[1:]) if len(sys.argv) > 1 else None
 
-    total_failed += run_phase("Phase 1 — Scaffold", [
-        test_open_and_quit,
-        test_open_file_visible,
-        test_j_k_movement,
-        test_h_l_movement,
-        test_scroll_down,
-    ])
+    phase_defs = [
+        ("1", "Phase 1 — Scaffold", [
+            test_open_and_quit,
+            test_open_file_visible,
+            test_j_k_movement,
+            test_h_l_movement,
+            test_scroll_down,
+        ]),
+        ("2", "Phase 2 — Editing", [
+            test_insert_text,
+            test_a_appends,
+            test_I_beginning,
+            test_A_end,
+            test_enter_splits,
+            test_backspace_joins,
+            test_write_save,
+            test_quit_dirty_refuses,
+            test_edit_file,
+            test_new_buffer,
+        ]),
+        ("3", "Phase 3 — Word Motions", [
+            test_w_forward_word,
+            test_b_backward_word,
+            test_e_end_word,
+            test_W_forward_WORD,
+            test_B_backward_WORD,
+            test_E_end_WORD,
+        ]),
+        ("4", "Phase 4 — Visual Mode", [
+            test_v_enters_visual,
+            test_V_line_visual,
+            test_visual_esc_cancels,
+            test_visual_motion_extends,
+        ]),
+        ("5", "Phase 5 — Polish", [
+            test_status_bar_shown,
+            test_wq_command,
+            test_q_bang_forces,
+            test_empty_file,
+        ]),
+        ("6", "Phase 6 — Resize", [
+            test_sigwinch_no_crash,
+            test_resize_shrink_grow,
+        ]),
+        ("7", "Phase 7 — Count Prefixes", [
+            test_count_3j,
+            test_count_5l,
+            test_count_resets_on_esc,
+        ]),
+        ("8", "Phase 8 — Edit Operations", [
+            test_dd_deletes_line,
+            test_2dd_deletes_two_lines,
+            test_dw_deletes_word,
+            test_D_deletes_to_end,
+            test_yy_p_paste_line,
+            test_yy_P_paste_above,
+            test_cw_changes_word,
+            test_cc_changes_line,
+            test_C_changes_to_end,
+            test_dd_on_last_line,
+            test_p_charwise_paste,
+        ]),
+        ("9", "Phase 9 — Visual Edit", [
+            test_visual_delete,
+            test_visual_yank_paste,
+            test_visual_change,
+            test_visual_line_delete,
+            test_visual_x_same_as_d,
+        ]),
+        ("10", "Phase 10 — Search", [
+            test_search_forward,
+            test_search_backward,
+            test_search_n_repeats,
+            test_search_N_reverses,
+            test_search_not_found,
+            test_search_esc_cancels,
+        ]),
+        ("11", "Phase 11 — Replace", [
+            test_substitute_current_line,
+            test_substitute_global_flag,
+            test_substitute_whole_file,
+            test_substitute_line_range,
+            test_substitute_regex,
+            test_substitute_not_found,
+        ]),
+        ("12", "Phase 12 — Line Wrap", [
+            test_set_wrap,
+            test_wrap_long_line,
+            test_nowrap_truncates,
+            test_wrap_cursor_position,
+        ]),
+        ("13", "Phase 13 — Line Numbers", [
+            test_set_number,
+            test_set_relativenumber,
+            test_number_and_relnum,
+            test_number_with_wrap,
+        ]),
+        ("14", "Phase 14 — Insert Arrow Keys", [
+            test_insert_arrow_left_right,
+            test_insert_arrow_up_down,
+        ]),
+        ("15", "Phase 15 — Undo / Redo", [
+            test_undo_insert,
+            test_undo_dd,
+            test_redo_after_undo,
+            test_undo_paste,
+            test_undo_substitute,
+            test_undo_redo_dirty_flag,
+            test_undo_insert_word_checkpoint,
+            test_undo_visual_delete,
+            test_redo_cleared_on_new_edit,
+            test_undo_at_oldest,
+        ]),
+        ("17", "Phase 17 — gg and G Motions", [
+            test_G_goes_to_last_line,
+            test_gg_goes_to_first_line,
+            test_count_G,
+            test_zero_goes_to_column_zero,
+            test_dgg_deletes_to_first,
+        ]),
+        ("18", "Phase 18 — f t F T ; ,", [
+            test_f_motion,
+            test_t_motion,
+            test_F_motion,
+            test_semicolon_repeats_find,
+            test_comma_reverses_find,
+            test_dfl_deletes_to_char,
+        ]),
+        ("19", "Phase 19 — Indent >>  <<", [
+            test_indent_line,
+            test_dedent_line,
+            test_count_indent,
+        ]),
+        ("20", "Phase 20 — Autoindent", [
+            test_autoindent_on_enter,
+            test_autoindent_disabled,
+        ]),
+        ("21", "Phase 21 — % Bracket Match", [
+            test_percent_match_paren,
+            test_percent_match_brace,
+        ]),
+        ("22", "Phase 22 — O and o", [
+            test_o_opens_below,
+            test_O_opens_above,
+            test_o_autoindent,
+        ]),
+        ("23", "Phase 23 — iw/aw Text Objects", [
+            test_diw_deletes_word,
+            test_daw_deletes_word_with_space,
+            test_ciw_changes_word,
+        ]),
+        ("24", "Phase 24 — Bracket/Quote Objects", [
+            test_di_paren,
+            test_da_bracket,
+            test_di_quote,
+        ]),
+        ("25", "Phase 25 — Comment Toggle", [
+            test_gcc_comments_line,
+            test_gcc_uncomments_line,
+            test_visual_gc,
+            test_set_comment_char,
+        ]),
+        ("26", "Phase 26 — Dot Repeat", [
+            test_dot_repeat_dd,
+            test_dot_repeat_insert,
+            test_dot_repeat_indent,
+        ]),
+        ("27", "Phase 27 — :read :! :read !", [
+            test_read_file,
+            test_read_command,
+            test_bang_command,
+        ]),
+        ("28", "Phase 28 — Multi-buffer", [
+            test_multi_file_argv,
+            test_next_prev_buffer,
+            test_ls_lists_buffers,
+            test_quit_closes_buffer,
+            test_e_adds_buffer,
+            test_bdelete_removes_buffer,
+            test_bdelete_dirty_blocked,
+            test_bdelete_last_refused,
+            test_qa_checks_all_dirty,
+            test_wq_closes_buffer,
+        ]),
+        ("29", "Phase 29 — x/X and space-leader", [
+            test_x_deletes_char,
+            test_x_with_count,
+            test_X_deletes_before,
+            test_space_k_deletes_buffer,
+        ]),
+    ]
 
-    total_failed += run_phase("Phase 2 — Editing", [
-        test_insert_text,
-        test_a_appends,
-        test_I_beginning,
-        test_A_end,
-        test_enter_splits,
-        test_backspace_joins,
-        test_write_save,
-        test_quit_dirty_refuses,
-        test_edit_file,
-        test_new_buffer,
-    ])
+    if selected is not None:
+        known = {phase_id for phase_id, _, _ in phase_defs}
+        unknown = sorted(selected - known)
+        if unknown:
+            print(f"Unknown phase selector(s): {', '.join(unknown)}")
+            print(f"Known selectors: {', '.join(sorted(known))}")
+            sys.exit(2)
 
-    total_failed += run_phase("Phase 3 — Word Motions", [
-        test_w_forward_word,
-        test_b_backward_word,
-        test_e_end_word,
-        test_W_forward_WORD,
-        test_B_backward_WORD,
-        test_E_end_WORD,
-    ])
-
-    total_failed += run_phase("Phase 4 — Visual Mode", [
-        test_v_enters_visual,
-        test_V_line_visual,
-        test_visual_esc_cancels,
-        test_visual_motion_extends,
-    ])
-
-    total_failed += run_phase("Phase 5 — Polish", [
-        test_status_bar_shown,
-        test_wq_command,
-        test_q_bang_forces,
-        test_empty_file,
-    ])
-
-    total_failed += run_phase("Phase 6 — Resize", [
-        test_sigwinch_no_crash,
-        test_resize_shrink_grow,
-    ])
-
-    total_failed += run_phase("Phase 7 — Count Prefixes", [
-        test_count_3j,
-        test_count_5l,
-        test_count_resets_on_esc,
-    ])
-
-    total_failed += run_phase("Phase 8 — Edit Operations", [
-        test_dd_deletes_line,
-        test_2dd_deletes_two_lines,
-        test_dw_deletes_word,
-        test_D_deletes_to_end,
-        test_yy_p_paste_line,
-        test_yy_P_paste_above,
-        test_cw_changes_word,
-        test_cc_changes_line,
-        test_C_changes_to_end,
-        test_dd_on_last_line,
-        test_p_charwise_paste,
-    ])
-
-    total_failed += run_phase("Phase 9 — Visual Edit", [
-        test_visual_delete,
-        test_visual_yank_paste,
-        test_visual_change,
-        test_visual_line_delete,
-        test_visual_x_same_as_d,
-    ])
-
-    total_failed += run_phase("Phase 10 — Search", [
-        test_search_forward,
-        test_search_backward,
-        test_search_n_repeats,
-        test_search_N_reverses,
-        test_search_not_found,
-        test_search_esc_cancels,
-    ])
-
-    total_failed += run_phase("Phase 11 — Replace", [
-        test_substitute_current_line,
-        test_substitute_global_flag,
-        test_substitute_whole_file,
-        test_substitute_line_range,
-        test_substitute_regex,
-        test_substitute_not_found,
-    ])
-
-    total_failed += run_phase("Phase 12 — Line Wrap", [
-        test_set_wrap,
-        test_wrap_long_line,
-        test_nowrap_truncates,
-        test_wrap_cursor_position,
-    ])
-
-    total_failed += run_phase("Phase 13 — Line Numbers", [
-        test_set_number,
-        test_set_relativenumber,
-        test_number_and_relnum,
-        test_number_with_wrap,
-    ])
-
-    total_failed += run_phase("Phase 14 — Insert Arrow Keys", [
-        test_insert_arrow_left_right,
-        test_insert_arrow_up_down,
-    ])
-
-    total_failed += run_phase("Phase 15 — Undo / Redo", [
-        test_undo_insert,
-        test_undo_dd,
-        test_redo_after_undo,
-        test_undo_paste,
-        test_undo_substitute,
-        test_undo_redo_dirty_flag,
-        test_undo_insert_word_checkpoint,
-        test_undo_visual_delete,
-        test_redo_cleared_on_new_edit,
-        test_undo_at_oldest,
-    ])
-
-    total_failed += run_phase("Phase 17 — gg and G Motions", [
-        test_G_goes_to_last_line,
-        test_gg_goes_to_first_line,
-        test_count_G,
-        test_zero_goes_to_column_zero,
-        test_dgg_deletes_to_first,
-    ])
-
-    total_failed += run_phase("Phase 18 — f t F T ; ,", [
-        test_f_motion,
-        test_t_motion,
-        test_F_motion,
-        test_semicolon_repeats_find,
-        test_comma_reverses_find,
-        test_dfl_deletes_to_char,
-    ])
-
-    total_failed += run_phase("Phase 19 — Indent >>  <<", [
-        test_indent_line,
-        test_dedent_line,
-        test_count_indent,
-    ])
-
-    total_failed += run_phase("Phase 20 — Autoindent", [
-        test_autoindent_on_enter,
-        test_autoindent_disabled,
-    ])
-
-    total_failed += run_phase("Phase 21 — % Bracket Match", [
-        test_percent_match_paren,
-        test_percent_match_brace,
-    ])
-
-    total_failed += run_phase("Phase 22 — O and o", [
-        test_o_opens_below,
-        test_O_opens_above,
-        test_o_autoindent,
-    ])
-
-    total_failed += run_phase("Phase 23 — iw/aw Text Objects", [
-        test_diw_deletes_word,
-        test_daw_deletes_word_with_space,
-        test_ciw_changes_word,
-    ])
-
-    total_failed += run_phase("Phase 24 — Bracket/Quote Objects", [
-        test_di_paren,
-        test_da_bracket,
-        test_di_quote,
-    ])
-
-    total_failed += run_phase("Phase 25 — Comment Toggle", [
-        test_gcc_comments_line,
-        test_gcc_uncomments_line,
-        test_visual_gc,
-        test_set_comment_char,
-    ])
-
-    total_failed += run_phase("Phase 26 — Dot Repeat", [
-        test_dot_repeat_dd,
-        test_dot_repeat_insert,
-        test_dot_repeat_indent,
-    ])
-
-    total_failed += run_phase("Phase 27 — :read :! :read !", [
-        test_read_file,
-        test_read_command,
-        test_bang_command,
-    ])
-
-    total_failed += run_phase("Phase 28 — Multi-buffer", [
-        test_multi_file_argv,
-        test_next_prev_buffer,
-        test_ls_lists_buffers,
-        test_quit_closes_buffer,
-        test_e_adds_buffer,
-        test_bdelete_removes_buffer,
-        test_bdelete_dirty_blocked,
-        test_bdelete_last_refused,
-        test_qa_checks_all_dirty,
-        test_wq_closes_buffer,
-    ])
-
-    total_failed += run_phase("Phase 29 — x/X and space-leader", [
-        test_x_deletes_char,
-        test_x_with_count,
-        test_X_deletes_before,
-        test_space_k_deletes_buffer,
-    ])
+    for phase_id, phase_name, tests in phase_defs:
+        if selected is None or phase_id in selected:
+            total_failed += run_phase(phase_name, tests)
 
     print(f"\n{'=' * 60}")
     if total_failed:
         print(f"  TOTAL: {total_failed} test(s) FAILED")
         sys.exit(1)
-    else:
-        print("  ALL TESTS PASSED")
-        sys.exit(0)
+    print("  ALL TESTS PASSED")
+    sys.exit(0)
 
 if __name__ == "__main__":
     main()

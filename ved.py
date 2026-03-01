@@ -527,53 +527,77 @@ class Editor:
         + ["LEFT", "RIGHT", "DOWN", "UP", "HOME", "END", "gg"]
     )
 
+    def _motion_h(self):
+        self.cx -= 1
+        self._clamp_cursor()
+
+    def _motion_l(self):
+        self.cx += 1
+        self._clamp_cursor()
+
+    def _motion_j(self):
+        self.cy += 1
+        self._clamp_cursor()
+
+    def _motion_k(self):
+        self.cy -= 1
+        self._clamp_cursor()
+
+    def _motion_G_count(self, n, extra_n):
+        self.cy = min(n - 1, len(self.buf.lines) - 1) if extra_n is not None else len(self.buf.lines) - 1
+        self.cx = 0
+
+    def _motion_gg_count(self, n, extra_n):
+        self.cy = min(n - 1, len(self.buf.lines) - 1) if extra_n is not None else 0
+        self.cx = 0
+
+    def _motion_zero(self):
+        self.cx = 0
+
+    def _motion_caret(self):
+        line = self.buf.lines[self.cy]
+        self.cx = len(line) - len(line.lstrip())
+
+    def _motion_dollar(self):
+        self.cx = len(self.buf.lines[self.cy])
+
+    def _motion_home(self):
+        self.cx = 0
+
+    def _motion_end(self):
+        self.cx = len(self.buf.lines[self.cy])
+
     def _exec_motion(self, key, n=1, extra_n=None):
         """Execute a motion key n times. Returns True if key was a motion.
         extra_n is the raw count (None if no count given) for motions like G/gg."""
         if key not in self._MOTION_KEYS:
             return False
-        for _ in range(n if key not in ("G", "gg", "0") else 1):
-            if key == "h" or key == "LEFT":
-                self.cx -= 1
-                self._clamp_cursor()
-            elif key == "l" or key == "RIGHT":
-                self.cx += 1
-                self._clamp_cursor()
-            elif key == "j" or key == "DOWN":
-                self.cy += 1
-                self._clamp_cursor()
-            elif key == "k" or key == "UP":
-                self.cy -= 1
-                self._clamp_cursor()
-            elif key == "w":
-                self.motion_w(big=False)
-            elif key == "W":
-                self.motion_w(big=True)
-            elif key == "b":
-                self.motion_b(big=False)
-            elif key == "B":
-                self.motion_b(big=True)
-            elif key == "e":
-                self.motion_e(big=False)
-            elif key == "E":
-                self.motion_e(big=True)
-            elif key == "G":
-                self.cy = min(n - 1, len(self.buf.lines) - 1) if extra_n is not None else len(self.buf.lines) - 1
-                self.cx = 0
-            elif key == "gg":
-                self.cy = min(n - 1, len(self.buf.lines) - 1) if extra_n is not None else 0
-                self.cx = 0
-            elif key == "0":
-                self.cx = 0
-            elif key == "^":
-                line = self.buf.lines[self.cy]
-                self.cx = len(line) - len(line.lstrip())
-            elif key == "$":
-                self.cx = len(self.buf.lines[self.cy])
-            elif key == "HOME":
-                self.cx = 0
-            elif key == "END":
-                self.cx = len(self.buf.lines[self.cy])
+        handlers = {
+            "h": self._motion_h,
+            "LEFT": self._motion_h,
+            "l": self._motion_l,
+            "RIGHT": self._motion_l,
+            "j": self._motion_j,
+            "DOWN": self._motion_j,
+            "k": self._motion_k,
+            "UP": self._motion_k,
+            "w": lambda: self.motion_w(big=False),
+            "W": lambda: self.motion_w(big=True),
+            "b": lambda: self.motion_b(big=False),
+            "B": lambda: self.motion_b(big=True),
+            "e": lambda: self.motion_e(big=False),
+            "E": lambda: self.motion_e(big=True),
+            "G": lambda: self._motion_G_count(n, extra_n),
+            "gg": lambda: self._motion_gg_count(n, extra_n),
+            "0": self._motion_zero,
+            "^": self._motion_caret,
+            "$": self._motion_dollar,
+            "HOME": self._motion_home,
+            "END": self._motion_end,
+        }
+        repeat = 1 if key in ("G", "gg", "0", "^", "$", "HOME", "END") else n
+        for _ in range(repeat):
+            handlers[key]()
         return True
 
     # ── Find character motions (f/t/F/T) ─────────────────────────────
