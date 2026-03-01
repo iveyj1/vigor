@@ -523,8 +523,8 @@ class Editor:
     # ── Motion dispatch (shared by normal, visual, operator-pending) ──
 
     _MOTION_KEYS = frozenset(
-        "h l j k w W b B e E G 0".split()
-        + ["LEFT", "RIGHT", "DOWN", "UP", "gg"]
+        "h l j k w W b B e E G 0 ^ $".split()
+        + ["LEFT", "RIGHT", "DOWN", "UP", "HOME", "END", "gg"]
     )
 
     def _exec_motion(self, key, n=1, extra_n=None):
@@ -565,6 +565,15 @@ class Editor:
                 self.cx = 0
             elif key == "0":
                 self.cx = 0
+            elif key == "^":
+                line = self.buf.lines[self.cy]
+                self.cx = len(line) - len(line.lstrip())
+            elif key == "$":
+                self.cx = len(self.buf.lines[self.cy])
+            elif key == "HOME":
+                self.cx = 0
+            elif key == "END":
+                self.cx = len(self.buf.lines[self.cy])
         return True
 
     # ── Find character motions (f/t/F/T) ─────────────────────────────
