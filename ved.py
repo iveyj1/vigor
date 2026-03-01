@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""ved — a modal, vi-inspired terminal text editor. ANSI only. Radical simplicity."""
 
 import sys
 import os
@@ -195,7 +194,7 @@ class Editor:
         self.opt_number = False  # :set number
         self.opt_relnum = False  # :set relativenumber
         self.opt_scrolloff = 0  # :set scrolloff=N
-        self.opt_clipboard = "auto"  # :set clipboard=osc52|auto|off
+        self.opt_clipboard = "osc52"  # :set clipboard=osc52|auto|off
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
         self.last_find = None       # (cmd, ch) for f/t/F/T repeat
@@ -212,8 +211,43 @@ class Editor:
         self._pending_find = None   # 'f'/'t'/'F'/'T' waiting for char
         self._pending_find_for_op = None  # (cmd, ch) find for operator
         self._pending_textobj = None  # 'i'/'a' waiting for object key
+        self.last_key = ""  # last decoded key read from terminal
         self.term = Terminal()
         self._update_size()
+
+    def _format_exception_report(self, exc):
+        """Build a plain-text crash report for unexpected exceptions."""
+        lines = [
+            "ved crash report",
+            f"pid: {os.getpid()}",
+            f"cwd: {os.getcwd()}",
+            f"mode: {self.mode.value}",
+            f"last_key: {self.last_key!r}",
+            f"cursor: cy={self.cy} cx={self.cx}",
+            f"exception: {exc.__class__.__name__}: {exc}",
+            "traceback:",
+        ]
+        tb = exc.__traceback__
+        while tb is not None:
+            frame = tb.tb_frame
+            code = frame.f_code
+            lines.append(
+                f"  File \"{code.co_filename}\", line {tb.tb_lineno}, in {code.co_name}"
+            )
+            tb = tb.tb_next
+        return "\n".join(lines) + "\n"
+
+    def _write_crash_report(self, exc):
+        """Persist crash report to disk. Returns report path or None."""
+        report = self._format_exception_report(exc)
+        report_path = os.path.expanduser("~/.ved-crash.log")
+        try:
+            with open(report_path, "a") as f:
+                f.write(report)
+                f.write("\n")
+            return report_path
+        except Exception:
+            return None
 
     @staticmethod
     def _resolve_startup_path(path):
@@ -2231,37 +2265,49 @@ class Editor:
     def run(self):
         self.term.enter_raw()
         signal.signal(signal.SIGWINCH, lambda *_: self._handle_resize())
+        try:
+            while self.running:
+                self.render()
+                key = self.term.read_key()
+                if not key:
+                    continue
+                self.last_key = key
+                # Clear message on any key (unless entering command/search mode)
+                if self.mode not in (Mode.COMMAND, Mode.SEARCH):
+                    self.msg = ""
 
-        while self.running:
-            self.render()
-            key = self.term.read_key()
-            if not key:
-                continue
-            # Clear message on any key (unless entering command/search mode)
-            if self.mode not in (Mode.COMMAND, Mode.SEARCH):
-                self.msg = ""
-
-            if self.mode == Mode.NORMAL:
-                self.handle_normal(key)
-            elif self.mode == Mode.INSERT:
-                self.handle_insert(key)
-            elif self.mode == Mode.COMMAND:
-                self.handle_command(key)
-            elif self.mode in (Mode.VISUAL, Mode.VISUAL_LINE):
-                self.handle_visual(key)
-            elif self.mode == Mode.SEARCH:
-                self.handle_search(key)
-
-        sys.stdout.write("\x1b[0 q")  # reset cursor shape to default
-        sys.stdout.flush()
-        self.term.restore()
+                if self.mode == Mode.NORMAL:
+                    self.handle_normal(key)
+                elif self.mode == Mode.INSERT:
+                    self.handle_insert(key)
+                elif self.mode == Mode.COMMAND:
+                    self.handle_command(key)
+                elif self.mode in (Mode.VISUAL, Mode.VISUAL_LINE):
+                    self.handle_visual(key)
+                elif self.mode == Mode.SEARCH:
+                    self.handle_search(key)
+        finally:
+            sys.stdout.write("\x1b[0 q")  # reset cursor shape to default
+            sys.stdout.flush()
+            self.term.restore()
 
 # ── Entry point ────────────────────────────────────────────────────────────
 
 def main():
     paths = sys.argv[1:] if len(sys.argv) > 1 else None
     ed = Editor(paths)
-    ed.run()
+    try:
+        ed.run()
+    except Exception as e:
+        report_path = ed._write_crash_report(e)
+        if report_path:
+            sys.stderr.write(f"ved crashed: {e}\n")
+            sys.stderr.write(f"crash report written to {report_path}\n")
+        else:
+            sys.stderr.write(f"ved crashed: {e}\n")
+            sys.stderr.write("failed to write crash report\n")
+        sys.stderr.flush()
+        raise
 
 if __name__ == "__main__":
     main()
