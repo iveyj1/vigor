@@ -1754,26 +1754,41 @@ class Editor:
             self.running = False
         elif cmd in ("w", "write"):
             path = self._resolve_cmd_path(arg) if arg else self.buf.path
-            if self.buf.save(path):
-                self._undo_save_depth = len(self._undo_stack)
-                self._undo_branched = False
-                self._update_dirty()
-                n = len(self.buf.lines)
-                self.msg = f'"{self.buf.path}" {n}L written'
-            else:
+            if not path:
                 self.msg = "No file name"
+                self.mode = Mode.NORMAL
+                return
+            try:
+                if self.buf.save(path):
+                    self._undo_save_depth = len(self._undo_stack)
+                    self._undo_branched = False
+                    self._update_dirty()
+                    n = len(self.buf.lines)
+                    self.msg = f'"{self.buf.path}" {n}L written'
+                else:
+                    self.msg = "No file name"
+            except OSError as e:
+                self.msg = f"Can't write \"{path}\": {e.strerror or str(e)}"
             self.mode = Mode.NORMAL
         elif cmd == "wq":
             path = self._resolve_cmd_path(arg) if arg else self.buf.path
-            if self.buf.save(path):
-                self._undo_save_depth = len(self._undo_stack)
-                self._undo_branched = False
-                if len(self.buffers) > 1:
-                    self._close_buffer()
-                else:
-                    self.running = False
-            else:
+            if not path:
                 self.msg = "No file name"
+                self.mode = Mode.NORMAL
+                return
+            try:
+                if self.buf.save(path):
+                    self._undo_save_depth = len(self._undo_stack)
+                    self._undo_branched = False
+                    if len(self.buffers) > 1:
+                        self._close_buffer()
+                    else:
+                        self.running = False
+                else:
+                    self.msg = "No file name"
+                    self.mode = Mode.NORMAL
+            except OSError as e:
+                self.msg = f"Can't write \"{path}\": {e.strerror or str(e)}"
                 self.mode = Mode.NORMAL
         elif cmd in ("e", "edit"):
             if arg:

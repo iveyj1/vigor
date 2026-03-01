@@ -1920,6 +1920,21 @@ def test_argv_expands_tilde_path():
     assert "homefile" in screen, "Expected file opened from ~ path"
     print("  PASS: argv expands ~ path")
 
+def test_write_path_error_shows_message_no_crash():
+    """:w to invalid target reports error instead of crashing."""
+    tmp = tempfile.mkdtemp(prefix="ved_p32_")
+    main_path = os.path.join(tmp, "main.txt")
+    with open(main_path, "w") as f:
+        f.write("abc\n")
+
+    keys = f":w {tmp}\r:q!\r".encode()
+    screen, _, code = run_ved(keys, file_path=main_path)
+    os.unlink(main_path)
+    os.rmdir(tmp)
+    assert code == 0
+    assert "Can't write" in screen, f"Expected write error message, got {screen!r}"
+    print("  PASS: write path error handled")
+
 # ── Phase 33: Ctrl-D / Ctrl-U motions ──────────────────────────────────────
 
 def test_ctrl_d_moves_half_page_down():
@@ -2199,6 +2214,7 @@ def main():
             test_edit_relative_to_current_buffer_dir,
             test_write_relative_to_current_buffer_dir,
             test_argv_expands_tilde_path,
+            test_write_path_error_shows_message_no_crash,
         ]),
         ("33", "Phase 33 — Ctrl-D / Ctrl-U motions", [
             test_ctrl_d_moves_half_page_down,

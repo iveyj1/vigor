@@ -12,7 +12,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 **Files**
 
 - `ved.py` — the entire editor (~2060 lines)
-- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 145 tests)
+- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 146 tests)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
 
@@ -153,7 +153,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 145 tests across 34 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4), insert arrow keys (2), undo/redo (10), gg/G/0 (5), f/t/F/T/;/, (8), indent (3), autoindent (2), % (2), o/O (3), word objects (3), bracket/quote objects (3), comment (4), dot repeat (3), read/bang (3), multi-buffer (10), x/X and space-leader (4), ^/$ Home/End Tab/Delete (5), J join and visual ^/$ (4), :e/:w/argv path handling (3), Ctrl-D/Ctrl-U motions (2), scrolloff (2). Run with `python3 test_ved.py`.
+**Coverage** — 146 tests across 34 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4), insert arrow keys (2), undo/redo (10), gg/G/0 (5), f/t/F/T/;/, (8), indent (3), autoindent (2), % (2), o/O (3), word objects (3), bracket/quote objects (3), comment (4), dot repeat (3), read/bang (3), multi-buffer (10), x/X and space-leader (4), ^/$ Home/End Tab/Delete (6), J join and visual ^/$ (4), :e/:w/argv path handling (4), Ctrl-D/Ctrl-U motions (2), scrolloff (2). Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents
