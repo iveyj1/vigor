@@ -1581,8 +1581,18 @@ class Editor:
                 self.cx = len(prev)
                 self.buf.lines[self.cy] = prev + cur
                 self.buf.dirty = True
-        elif key in ("LEFT", "RIGHT", "UP", "DOWN"):
+        elif key in ("LEFT", "RIGHT", "UP", "DOWN", "HOME", "END"):
             self._exec_motion(key, 1)
+        elif key == "TAB":
+            line = self.buf.lines[self.cy]
+            self.buf.lines[self.cy] = line[:self.cx] + "    " + line[self.cx:]
+            self.cx += 4
+            self.buf.dirty = True
+        elif key == "DEL":
+            line = self.buf.lines[self.cy]
+            if self.cx < len(line):
+                self.buf.lines[self.cy] = line[:self.cx] + line[self.cx + 1:]
+                self.buf.dirty = True
         elif len(key) == 1:
             # WORD boundary checkpoint: snapshot every 2 WORDs
             is_space = key.isspace()

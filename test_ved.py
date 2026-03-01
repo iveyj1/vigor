@@ -1733,6 +1733,47 @@ def test_space_k_deletes_buffer():
     assert code == 0
     print("  PASS: <space>k deletes buffer")
 
+# ── Phase 30: ^/$ Home/End + Insert Tab/Delete ────────────────────────────
+
+def test_caret_motion_first_nonblank():
+    """^ moves to first non-blank character."""
+    path = write_temp("    hello\n")
+    screen, content, code = run_ved(b"$i!\x1b^iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "    Xhello!\n", f"Expected first-nonblank insert, got {content!r}"
+    print("  PASS: ^ moves to first non-blank")
+
+def test_home_end_normal_mode():
+    """Home/End work as start/end motions in Normal mode."""
+    path = write_temp("hello\n")
+    # End then append !, Home then insert ^
+    screen, content, code = run_ved(b"\x1b[Fi!\x1b\x1b[Hi^\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "^hello!\n", f"Expected '^hello!', got {content!r}"
+    print("  PASS: Home/End in normal mode")
+
+def test_insert_home_end_tab():
+    """Insert mode handles Home/End and Tab (4 spaces)."""
+    path = write_temp("abc\n")
+    # i TAB X HOME ^ END ! ESC
+    keys = b"i\tX\x1b[H^\x1b[F!\x1b:wq\r"
+    screen, content, code = run_ved(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "^    Xabc!\n", f"Expected '^    Xabc!', got {content!r}"
+    print("  PASS: insert Home/End/Tab")
+
+def test_insert_delete_key():
+    """Insert mode Delete removes character under cursor."""
+    path = write_temp("abc\n")
+    screen, content, code = run_ved(b"i\x1b[C\x1b[3~\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "ac\n", f"Expected 'ac', got {content!r}"
+    print("  PASS: insert Delete key")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -1944,6 +1985,12 @@ def main():
             test_x_with_count,
             test_X_deletes_before,
             test_space_k_deletes_buffer,
+        ]),
+        ("30", "Phase 30 — ^/$ Home/End Tab/Delete", [
+            test_caret_motion_first_nonblank,
+            test_home_end_normal_mode,
+            test_insert_home_end_tab,
+            test_insert_delete_key,
         ]),
     ]
 

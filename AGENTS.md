@@ -12,7 +12,7 @@ ved is a modal, vi-inspired terminal text editor written in Python. It uses raw 
 **Files**
 
 - `ved.py` — the entire editor (~2060 lines)
-- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 128 tests)
+- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 132 tests)
 - `PLAN.md` — phased development plan with specifications
 - `AGENTS.md` — this document
 
@@ -40,11 +40,11 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 - VISUAL / VISUAL LINE — selection with reverse video highlight
 - SEARCH — `/` or `?` prompt for pattern input, Enter executes
 
-**Normal mode commands** — `h j k l` (movement), `w W b B e E` (word motions), `gg` / `G` (go to first/last line, or line N with count), `0` (column 0), `^` (first non-blank), `$` (end of line), `Home` / `End` (line start/end), `f t F T` (find char on line), `;` `,` (repeat/reverse find), `%` (match bracket), `i I a A` (enter insert), `o` / `O` (open line below/above), `v V` (enter visual), `:` (enter command), `/` `?` (search forward/backward), `n` `N` (repeat search same/opposite direction), `u` (undo), `Ctrl-R` (redo), `.` (dot repeat last change), `x` (delete char under cursor), `X` (delete char before cursor), `<space>` (leader key for shortcuts: `<space>k` deletes buffer). All motions accept a count prefix (`3j`, `5w`, `3G`, etc.). Operators `d y c` enter operator-pending mode and combine with a motion (`dw`, `cw`, `yj`). Operators also combine with text objects (`diw`, `ci(`, `da"`, etc.). Doubled operators (`dd`, `yy`, `cc`) act linewise. `>>` / `<<` indent/dedent lines by 4 spaces. `gcc` toggles line comment. Shortcuts `D Y C` operate from cursor to end-of-line (D/C) or yank the whole line (Y). `p` / `P` paste from the unnamed register after/before the cursor.
+**Normal mode commands** — `h j k l` (movement), `w W b B e E` (word motions), `gg` / `G` (go to first/last line, or line N with count), `0` (column 0), `^` (first non-blank), `$` (end of line), `Home` / `End` (start/end of line), `f t F T` (find char on line), `;` `,` (repeat/reverse find), `%` (match bracket), `i I a A` (enter insert), `o` / `O` (open line below/above), `v V` (enter visual), `:` (enter command), `/` `?` (search forward/backward), `n` `N` (repeat search same/opposite direction), `u` (undo), `Ctrl-R` (redo), `.` (dot repeat last change), `x` (delete char under cursor), `X` (delete char before cursor), `<space>` (leader key for shortcuts: `<space>k` deletes buffer). All motions accept a count prefix (`3j`, `5w`, `3G`, etc.). Operators `d y c` enter operator-pending mode and combine with a motion (`dw`, `cw`, `yj`). Operators also combine with text objects (`diw`, `ci(`, `da"`, etc.). Doubled operators (`dd`, `yy`, `cc`) act linewise. `>>` / `<<` indent/dedent lines by 4 spaces. `gcc` toggles line comment. Shortcuts `D Y C` operate from cursor to end-of-line (D/C) or yank the whole line (Y). `p` / `P` paste from the unnamed register after/before the cursor.
 
 **Command mode** — `:new`, `:e[dit] <path>` (adds a new buffer), `:w[rite] [path]`, `:q[uit]` (closes buffer if >1, else quits; refuses if dirty), `:q!` (force), `:wq` (write and close buffer/quit), `:qa` / `:qall` / `:qa!` / `:qall!` (quit all buffers), `:n` / `:next` / `:bn` (next buffer), `:p` / `:prev` / `:bp` (prev buffer), `:ls` (list buffers), `:k` / `:bdelete` (delete buffer, blocks if dirty), `:k!` / `:bdelete!` (force delete buffer), `:[range]s/pat/repl/[g]` (substitute), `:set <option>` (set wrap/nowrap/number/nonumber/relativenumber/norelativenumber/autoindent/noautoindent/comment=X), `:read <file>` (insert file below cursor), `:read !<cmd>` (insert command output below cursor), `:! <cmd>` (run shell command and show output).
 
-**Insert mode** — printable characters insert at cursor. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Arrow keys (Up/Down/Left/Right) move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
+**Insert mode** — printable characters insert at cursor. Tab inserts 4 spaces. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
 **Full terminal** — ved uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Lines longer than the terminal width are truncated at the screen edge.
 
@@ -149,9 +149,11 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Timing** — a 300ms delay after fork lets ved start and render. Keys are sent one byte at a time with 30ms inter-key delay. CSI escape sequences (e.g. `\x1b[C` for Right arrow) are written atomically as a single chunk so the editor's 20ms `select` timeout decodes them correctly. Tests that send many keys (scroll test) use a longer timeout.
 
+**Phase-selective runs** — `test_ved.py` accepts optional phase selectors (e.g. `python3 test_ved.py 29` or `python3 test_ved.py 17 29`) to run only selected phases during development. Running with no arguments executes the full suite.
+
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 128 tests across 29 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4), insert arrow keys (2), undo/redo (10), gg/G/0 (5), f/t/F/T/;/, (6), indent (3), autoindent (2), % (2), o/O (3), word objects (3), bracket/quote objects (3), comment (4), dot repeat (3), read/bang (3), multi-buffer (10), x/X and space-leader (4). Run with `python3 test_ved.py`.
+**Coverage** — 132 tests across 30 phases: scaffold (5), editing (10), word motions (6), visual mode (4), polish (4), resize (2), count prefixes (3), edit operations (11), visual edit (5), search (6), replace (6), line wrap (4), line numbers (4), insert arrow keys (2), undo/redo (10), gg/G/0 (5), f/t/F/T/;/, (6), indent (3), autoindent (2), % (2), o/O (3), word objects (3), bracket/quote objects (3), comment (4), dot repeat (3), read/bang (3), multi-buffer (10), x/X and space-leader (4), ^/$ Home/End Tab/Delete (4). Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents
