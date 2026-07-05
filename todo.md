@@ -1,12 +1,15 @@
 ** Do
 
 ** Done
-1) :! ls produces compact message-bar output instead of raw newlines without carriage returns
-2) Add normal mode backspace that deletes char to left of cursor and moves cursor
-3) Add normal mode r,s commands
-4) Allow :!<command> with no space between ! and <command>
-5) Allow ^z backgrounding of app
-6) Fix dw at end of line so it does not merge lines
+1) dw at end of line no longer merges next line from last-character or one-past-EOL positions
+2) On ^z, move terminal cursor to the bottom of the screen before suspending
+3) Improve documents with r/s count behavior, Ctrl-Z resume behavior, and one-line shell output scope
+4) :! ls produces compact message-bar output instead of raw newlines without carriage returns
+5) Add normal mode backspace that deletes char to left of cursor and moves cursor
+6) Add normal mode r,s commands
+7) Allow :!<command> with no space between ! and <command>
+8) Allow ^z backgrounding of app
+9) Fix dw at end of line so it does not merge lines
 
 
 ** Hold for further definition

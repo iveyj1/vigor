@@ -286,6 +286,8 @@ class Editor:
     def _suspend(self):
         """Suspend ved with Ctrl-Z, then restore raw mode on foreground."""
         self.term.suspend_restore()
+        sys.stdout.write(f"\x1b[{self.rows + 2};1H")
+        sys.stdout.flush()
         os.kill(os.getpid(), signal.SIGTSTP)
         self.term.enter_raw()
         self._update_size()
@@ -1387,8 +1389,9 @@ class Editor:
             if not linewise and ty < len(self.buf.lines):
                 tx = min(tx, len(self.buf.lines[ty]))
 
-        if not linewise and sy != ty and sx >= len(self.buf.lines[sy]) and motion_key in ("w", "W"):
-            ty, tx = sy, sx
+        if not linewise and sy != ty and motion_key in ("w", "W"):
+            ty = sy
+            tx = len(self.buf.lines[sy])
 
         if op == "d":
             self._delete_range(sy, sx, ty, tx, linewise)

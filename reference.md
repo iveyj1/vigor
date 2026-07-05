@@ -29,8 +29,8 @@ ved is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `Y` | yank entire line |
 | `x` | delete char at cursor |
 | `X` / Backspace | delete char before cursor |
-| `r{c}` | replace char(s) under cursor with `c` |
-| `s` | substitute char(s): delete and enter Insert |
+| `r{c}` | replace char(s) under cursor with `c` (count: N chars) |
+| `s` | substitute char(s): delete and enter Insert (count: N chars) |
 | `J` | join current line with next |
 | Count prefix | `3dd`, `5j`, `2>>`, `2dw`, etc. |
 
@@ -89,7 +89,7 @@ ved is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
-| `:! <cmd>` / `:!<cmd>` | run shell command and show truncated output in message bar |
+| `:! <cmd>` / `:!<cmd>` | run shell command and show one-line truncated output in message bar |
 | `:set wrap` / `nowrap` | toggle line wrapping |
 | `:set number` / `nonumber` | toggle absolute line numbers |
 | `:set relativenumber` / `norelativenumber` | toggle relative line numbers |
@@ -125,5 +125,5 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker
 - SIGWINCH-aware terminal resize
-- Ctrl-Z suspends ved; foregrounding restores raw mode
+- Ctrl-Z moves the terminal cursor to the bottom line, suspends ved, and restores raw mode when foregrounded
 - Undo stack: 100 snapshot limit

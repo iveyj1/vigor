@@ -2142,12 +2142,18 @@ def test_s_substitutes_character():
     print("  PASS: s substitutes character")
 
 def test_dw_at_eol_does_not_join_lines():
-    """dw from one-past-EOL does not merge the next line."""
+    """dw from EOL positions does not merge the next line."""
+    path = write_temp("abc\ndef\n")
+    screen, content, code = run_ved(b"lldw:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "ab\ndef\n", f"dw on last char joined lines: {content!r}"
+
     path = write_temp("abc\ndef\n")
     screen, content, code = run_ved(b"$dw:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    assert content == "abc\ndef\n", f"dw at EOL joined lines: {content!r}"
+    assert content == "abc\ndef\n", f"dw one-past-EOL joined lines: {content!r}"
     print("  PASS: dw at EOL does not join lines")
 
 # ── Runner ─────────────────────────────────────────────────────────────────
