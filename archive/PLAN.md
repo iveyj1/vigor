@@ -1,4 +1,8 @@
-# ved — Development Plan
+# ved — Retired Original Development Plan
+
+This file is archived for historical context only. It describes the early minimal prototype plan and does not define the current project scope or requirements.
+
+Current scope is documented in `../AGENTS.md` and `../reference.md`: ved is a compact, single-file, vi-style terminal editor using raw ANSI escape codes, stdlib-only runtime code, and no curses.
 
 A modal, vi-inspired terminal text editor. ANSI escape codes only. Radical simplicity.
 

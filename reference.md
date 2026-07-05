@@ -1,5 +1,7 @@
 # ved — Command Reference
 
+ved is a compact, single-file, vi-style terminal editor. Runtime code lives in `ved.py`, uses Python stdlib only, and talks to the terminal with raw ANSI escape codes rather than curses.
+
 **Modes:** NORMAL, INSERT, VISUAL, VISUAL LINE, COMMAND, SEARCH
 
 ## Movement
@@ -63,7 +65,7 @@
 ## Search & Replace
 | Key / Command | Action |
 |---------------|--------|
-| `/pattern` | search forward (POSIX extended regex) |
+| `/pattern` | search forward (Python regular expression) |
 | `?pattern` | search backward |
 | `n` / `N` | next / previous match |
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; range: `%`, `N,M`) |
@@ -82,17 +84,17 @@
 | `:n` / `:next` / `:bn` | next buffer |
 | `:p` / `:prev` / `:bp` | previous buffer |
 | `:ls` | list buffers |
-| `:k` / `:bd` / `:bdelete` | close buffer (`:k!` to force) |
+| `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
-| `:! <cmd>` | run shell command (press Enter to return) |
+| `:! <cmd>` | run shell command and show truncated output in message bar |
 | `:set wrap` / `nowrap` | toggle line wrapping |
 | `:set number` / `nonumber` | toggle absolute line numbers |
 | `:set relativenumber` / `norelativenumber` | toggle relative line numbers |
 | `:set autoindent` / `noautoindent` | toggle autoindent |
 | `:set comment=<str>` | set comment prefix (default `#`) |
 | `:set scrolloff=<N>` | keep N-line vertical margin around cursor |
-| `:set clipboard=osc52|auto|off` | clipboard copy mode (default `auto`) |
+| `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `osc52`) |
 
 Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer directory.
 
