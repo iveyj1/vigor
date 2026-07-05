@@ -2213,6 +2213,17 @@ def test_edit_directory_shows_error_no_crash():
     assert "Cannot edit directory" in screen, f"Expected directory error: {screen[-500:]}"
     print("  PASS: :e directory error no crash")
 
+def test_insert_long_line_hscrolls_at_right_edge():
+    """In nowrap mode, the current long line scrolls left to keep cursor visible."""
+    path = write_temp("")
+    screen, _, code = run_ved(b"iabcdefghijklmnopqrstuvwxyz\x1b:q!\r", file_path=path, cols=20)
+    os.unlink(path)
+    assert code == 0
+    frame = last_frame(screen)
+    assert "hijklmnopqrstuvwxyz" in frame, f"Expected visible tail of long insert: {frame[-800:]}"
+    assert "abcdefghijklmnopqrstuvwxyz" not in frame, "Long line should not remain left anchored"
+    print("  PASS: insert long line hscrolls")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -2478,6 +2489,7 @@ def main():
             test_dw_at_eol_does_not_join_lines,
             test_ctrl_z_stops_process,
             test_edit_directory_shows_error_no_crash,
+            test_insert_long_line_hscrolls_at_right_edge,
         ]),
     ]
 

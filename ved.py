@@ -1108,7 +1108,7 @@ class Editor:
             return 1
         return (line_len + content_cols - 1) // content_cols
 
-    def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None):
+    def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None, hscroll=0):
         """Render a single buffer line (possibly wrapped). Returns number of screen rows used.
         max_rows limits output to at most that many screen rows (for partial rendering)."""
         gutter = self._gutter_str(buf_line, gutter_width)
@@ -1117,9 +1117,10 @@ class Editor:
         if content_cols <= 0:
             content_cols = 1
         if not self.opt_wrap:
-            visible = line[:content_cols]
+            hscroll = max(0, hscroll)
+            visible = line[hscroll:hscroll + content_cols]
             out.append(gutter)
-            self._render_visible(visible, buf_line, 0, sel, out)
+            self._render_visible(visible, buf_line, hscroll, sel, out)
             out.append("\x1b[K\r\n")
             return 1
         else:
@@ -1179,6 +1180,7 @@ class Editor:
 
         while screen_rows_used < self.rows and buf_line < len(self.buf.lines):
             line = self.buf.lines[buf_line]
+            hscroll = 0
             if buf_line == self.cy:
                 # Track cursor screen position
                 if self.opt_wrap and content_cols > 0:
@@ -1186,15 +1188,16 @@ class Editor:
                     cursor_screen_y = screen_rows_used + wrap_row
                     cursor_screen_x = self.cx % content_cols + gw
                 else:
+                    hscroll = max(0, self.cx - content_cols + 1)
                     cursor_screen_y = screen_rows_used
-                    cursor_screen_x = self.cx + gw
+                    cursor_screen_x = self.cx - hscroll + gw
 
             rows_available = self.rows - screen_rows_used
             if self.opt_wrap:
                 used = self._render_line(line, buf_line, sel, out, gw, max_rows=rows_available)
                 screen_rows_used += used
             else:
-                self._render_line(line, buf_line, sel, out, gw)
+                self._render_line(line, buf_line, sel, out, gw, hscroll=hscroll)
                 screen_rows_used += 1
             buf_line += 1
 

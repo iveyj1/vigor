@@ -14,7 +14,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 **Files**
 
 - `ved.py` — the entire editor (~2400 lines)
-- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 173 test functions)
+- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 174 test functions)
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
@@ -49,7 +49,7 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 
 **Insert mode** — printable characters insert at cursor. Tab inserts 4 spaces. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
-**Full terminal** — ved uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled.
+**Full terminal** — ved uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the current line horizontally scrolls as needed to keep the cursor visible.
 
 
 ## Divergences from vi
@@ -79,7 +79,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Line numbers** — `_gutter_width()` returns the gutter width (0 when disabled, otherwise `max(3, digits_in_total_lines) + 1`). `_gutter_str(buf_line, gutter_width)` formats the number: absolute when `opt_number` only, relative distance from cursor when `opt_relnum` only, or hybrid (absolute on cursor line, relative elsewhere) when both are set. Content columns are reduced by the gutter width. In wrap mode, only the first wrapped row of a line shows the number; continuation rows get blank padding.
 
-**Line wrap** — when `opt_wrap` is true, lines longer than content columns (total cols minus gutter) are split into chunks at the column boundary. `_line_screen_rows(line_idx)` computes how many screen rows a buffer line occupies. The render loop tracks `screen_rows_used` and `cursor_screen_y`/`cursor_screen_x` so cursor positioning works correctly on wrapped lines. `_ensure_scroll` sums wrapped screen rows from scroll to cursor to keep the cursor visible.
+**Line wrap / horizontal scroll** — when `opt_wrap` is true, lines longer than content columns (total cols minus gutter) are split into chunks at the column boundary. `_line_screen_rows(line_idx)` computes how many screen rows a buffer line occupies. The render loop tracks `screen_rows_used` and `cursor_screen_y`/`cursor_screen_x` so cursor positioning works correctly on wrapped lines. `_ensure_scroll` sums wrapped screen rows from scroll to cursor to keep the cursor visible. When wrap is off, only the current line receives a horizontal column offset so the cursor remains visible at the right edge.
 
 **Mode handlers** — `handle_normal`, `handle_insert`, `handle_command`, `handle_visual`. Each is a flat `if/elif` chain. The main loop dispatches based on `self.mode`.
 
@@ -156,7 +156,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 173 test functions organized into 36 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, and small command/edit fixes. Run with `python3 test_ved.py`.
+**Coverage** — 174 test functions organized into 36 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, and small command/edit fixes. Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents
