@@ -145,6 +145,8 @@ class Terminal:
             return "ENTER"
         if ch == 9:
             return "TAB"
+        if ch == 3:  # Ctrl-C
+            return "CTRL_C"
         if ch == 4:  # Ctrl-D
             return "CTRL_D"
         if ch == 21:  # Ctrl-U
@@ -288,7 +290,7 @@ class Editor:
         self.term.suspend_restore()
         sys.stdout.write(f"\x1b[{self.rows + 2};1H")
         sys.stdout.flush()
-        os.kill(os.getpid(), signal.SIGTSTP)
+        os.kill(os.getpid(), signal.SIGSTOP)
         self.term.enter_raw()
         self._update_size()
         self._clamp_cursor()
@@ -1863,7 +1865,7 @@ class Editor:
     # ── Command mode ───────────────────────────────────────────────────
 
     def handle_command(self, key):
-        if key == "ESC":
+        if key in ("ESC", "CTRL_C"):
             self.mode = Mode.NORMAL
             self.cmd = ""
             return
@@ -1969,11 +1971,18 @@ class Editor:
             if arg:
                 # Add new buffer and switch to it
                 path = self._resolve_cmd_path(arg)
-                self._save_buf_state()
-                new_bs = BufferState(path)
-                self.buffers.insert(self.buf_idx + 1, new_bs)
-                self._load_buf_state(self.buf_idx + 1)
-                self.msg = f'"{path}"'
+                if os.path.isdir(path):
+                    self.msg = f'Cannot edit directory: "{path}"'
+                else:
+                    try:
+                        new_bs = BufferState(path)
+                    except OSError as e:
+                        self.msg = f'Cannot edit "{path}": {e.strerror or str(e)}'
+                    else:
+                        self._save_buf_state()
+                        self.buffers.insert(self.buf_idx + 1, new_bs)
+                        self._load_buf_state(self.buf_idx + 1)
+                        self.msg = f'"{path}"'
             else:
                 self.msg = "No file name"
             self.mode = Mode.NORMAL
@@ -2378,6 +2387,18 @@ class Editor:
                 self.last_key = key
                 if key == "CTRL_Z":
                     self._suspend()
+                    continue
+                if key == "CTRL_C":
+                    self.pending_op = ""
+                    self._pending_g = False
+                    self._pending_space = False
+                    self._pending_g_op = False
+                    self._pending_find = None
+                    self._pending_textobj = None
+                    self._pending_replace = 0
+                    if self.mode != Mode.NORMAL:
+                        self.mode = Mode.NORMAL
+                        self.cmd = ""
                     continue
                 # Clear message on any key (unless entering command/search mode)
                 if self.mode not in (Mode.COMMAND, Mode.SEARCH):

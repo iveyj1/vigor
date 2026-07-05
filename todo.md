@@ -1,15 +1,18 @@
 ** Do
 
 ** Done
-1) dw at end of line no longer merges next line from last-character or one-past-EOL positions
-2) On ^z, move terminal cursor to the bottom of the screen before suspending
-3) Improve documents with r/s count behavior, Ctrl-Z resume behavior, and one-line shell output scope
-4) :! ls produces compact message-bar output instead of raw newlines without carriage returns
-5) Add normal mode backspace that deletes char to left of cursor and moves cursor
-6) Add normal mode r,s commands
-7) Allow :!<command> with no space between ! and <command>
-8) Allow ^z backgrounding of app
-9) Fix dw at end of line so it does not merge lines
+1) Fix Ctrl-Z suspension so ved actually stops and returns control to the shell
+2) Ctrl-C cancels pending editor state and returns to Normal mode
+3) :e <directory> reports an error instead of crashing
+4) dw at end of line no longer merges next line from last-character or one-past-EOL positions
+5) On ^z, move terminal cursor to the bottom of the screen before suspending
+6) Improve documents with r/s count behavior, Ctrl-Z resume behavior, and one-line shell output scope
+7) :! ls produces compact message-bar output instead of raw newlines without carriage returns
+8) Add normal mode backspace that deletes char to left of cursor and moves cursor
+9) Add normal mode r,s commands
+10) Allow :!<command> with no space between ! and <command>
+11) Allow ^z backgrounding of app
+12) Fix dw at end of line so it does not merge lines
 
 
 ** Hold for further definition

@@ -126,4 +126,5 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 - Single `write()` render — no flicker
 - SIGWINCH-aware terminal resize
 - Ctrl-Z moves the terminal cursor to the bottom line, suspends ved, and restores raw mode when foregrounded
+- Ctrl-C cancels pending input/state and returns to Normal mode
 - Undo stack: 100 snapshot limit

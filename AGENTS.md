@@ -14,7 +14,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 **Files**
 
 - `ved.py` — the entire editor (~2400 lines)
-- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 171 test functions)
+- `test_ved.py` — PTY-based smoke tests (plain asserts, no framework, 173 test functions)
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
@@ -127,7 +127,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 ## Implementation Notes
 
-**Raw mode** — `tty.setraw()` disables canonical mode, echo, and signal generation. The original `termios` attributes are saved and restored via `atexit`. The SIGWINCH handler re-queries terminal size and triggers a redraw. Ctrl-Z restores terminal state, moves the terminal cursor to the bottom line, sends `SIGTSTP`, and re-enters raw mode when the process returns to the foreground.
+**Raw mode** — `tty.setraw()` disables canonical mode, echo, and signal generation. The original `termios` attributes are saved and restored via `atexit`. The SIGWINCH handler re-queries terminal size and triggers a redraw. Ctrl-Z restores terminal state, moves the terminal cursor to the bottom line, sends `SIGSTOP`, and re-enters raw mode when the process returns to the foreground. Ctrl-C cancels pending input/state and returns to Normal mode.
 
 **Key reading** — `os.read(fd, 1)` gets one byte. If it's `0x1B`, a `select` with 20ms timeout checks for follow-up bytes to decode arrow keys and other escape sequences. Bare Esc (no follow-up) returns `"ESC"`. This approach avoids blocking on ambiguous escape sequences.
 
@@ -156,7 +156,7 @@ ved is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 171 test functions organized into 36 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, and small command/edit fixes. Run with `python3 test_ved.py`.
+**Coverage** — 173 test functions organized into 36 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, and small command/edit fixes. Run with `python3 test_ved.py`.
 
 
 ## Workflow for AI Agents

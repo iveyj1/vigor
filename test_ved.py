@@ -2156,6 +2156,63 @@ def test_dw_at_eol_does_not_join_lines():
     assert content == "abc\ndef\n", f"dw one-past-EOL joined lines: {content!r}"
     print("  PASS: dw at EOL does not join lines")
 
+def test_ctrl_z_stops_process():
+    """Ctrl-Z restores terminal position and stops the process."""
+    path = write_temp("abc\n")
+    master, slave = pty.openpty()
+    import struct, fcntl, termios as tm
+    fcntl.ioctl(master, tm.TIOCSWINSZ, struct.pack("HHHH", 24, 80, 0, 0))
+    pid = os.fork()
+    if pid == 0:
+        os.close(master)
+        os.setsid()
+        fcntl.ioctl(slave, tm.TIOCSCTTY, 0)
+        os.dup2(slave, 0)
+        os.dup2(slave, 1)
+        os.dup2(slave, 2)
+        if slave > 2:
+            os.close(slave)
+        os.execvp(sys.executable, [sys.executable, VED, path])
+        os._exit(1)
+    os.close(slave)
+    output = b""
+    try:
+        time.sleep(0.3)
+        os.write(master, b"\x1a")
+        deadline = time.time() + 1.5
+        stopped = False
+        while time.time() < deadline:
+            r, _, _ = select.select([master], [], [], 0.05)
+            if r:
+                try:
+                    output += os.read(master, 4096)
+                except OSError:
+                    pass
+            wpid, status = os.waitpid(pid, os.WNOHANG | os.WUNTRACED)
+            if wpid == pid and os.WIFSTOPPED(status):
+                stopped = True
+                break
+        assert stopped, "Ctrl-Z did not stop ved"
+        assert b"\x1b[24;1H" in output, "Ctrl-Z did not move cursor to bottom"
+    finally:
+        try:
+            os.kill(pid, signal.SIGKILL)
+            os.waitpid(pid, 0)
+        except OSError:
+            pass
+        os.close(master)
+        os.unlink(path)
+    print("  PASS: Ctrl-Z stops process")
+
+def test_edit_directory_shows_error_no_crash():
+    """:e <directory> reports an error instead of crashing."""
+    path = write_temp("abc\n")
+    screen, _, code = run_ved(f":e {os.getcwd()}\r:q\r".encode(), file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "Cannot edit directory" in screen, f"Expected directory error: {screen[-500:]}"
+    print("  PASS: :e directory error no crash")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -2419,6 +2476,8 @@ def main():
             test_r_replaces_character,
             test_s_substitutes_character,
             test_dw_at_eol_does_not_join_lines,
+            test_ctrl_z_stops_process,
+            test_edit_directory_shows_error_no_crash,
         ]),
     ]
 
