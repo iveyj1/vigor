@@ -1,6 +1,11 @@
 ** Do
 
 ** Done
+1) When writing file, if directory doesn't exist, prompt to create
+2) :e! resets the file to its state when last saved or first opened
+3) When yanking, highlight the yanked text for about 300ms.
+4) When there is room, and relativenumber is active, shift the line number of the cursor row left 1 character.
+5) Make tab respect tab columns rather than adding 4 spaces from current cursor pos
 1) Add <ctrl>-c <ctrl>-c in normal mode as an alias for :qall and <ctrl>-c q as an alias for :qall!
 2) Add startup config files with default settings (`~/.vigrc`, `$XDG_CONFIG_HOME/vig/config`, or `VIG_CONFIG`)
 1) Fix Ctrl-Z suspension so vig actually stops and returns control to the shell

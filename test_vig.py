@@ -1061,7 +1061,7 @@ def test_set_relativenumber():
     os.unlink(path)
     assert code == 0
     # Current line shows 0, next lines show 1, 2, 3
-    assert "0 alpha" in screen, f"Expected '0 alpha' in screen: {screen[:400]}"
+    assert "0  alpha" in screen, f"Expected shifted '0  alpha' in screen: {screen[:400]}"
     assert "1 beta" in screen, f"Expected '1 beta' in screen: {screen[:400]}"
     assert "2 gamma" in screen, f"Expected '2 gamma' in screen: {screen[:400]}"
     print("  PASS: :set relativenumber")
@@ -2281,7 +2281,7 @@ def test_config_file_sets_options():
     os.unlink(path)
     assert code == 0
     frame = last_frame(screen)
-    assert "  1 alpha" in frame, f"Expected numbered line from config: {frame[-500:]}"
+    assert " 1  alpha" in frame, f"Expected shifted numbered line from config: {frame[-500:]}"
     print("  PASS: config file sets options")
 
 # ── Phase 38: ripgrep quickfix ─────────────────────────────────────────────
@@ -2322,6 +2322,79 @@ def test_space_buffer_keymaps_and_rghidden():
     assert p2 in screen, f"Expected <space>n to switch to second buffer: {screen[-800:]}"
     assert p1 in screen, f"Expected <space>N to switch back to first buffer: {screen[-800:]}"
     print("  PASS: leader buffer keymaps and rghidden")
+
+# ── Phase 39: todo.md 1-5 ─────────────────────────────────────────────────
+
+def test_write_missing_directory_prompts_and_creates():
+    """:w to a missing directory prompts, then y creates it and writes."""
+    src = write_temp("abc\n")
+    root = tempfile.mkdtemp()
+    target = os.path.join(root, "newdir", "out.txt")
+    screen, _, code = run_vig(f":w {target}\ry:q\r".encode(), file_path=src, timeout=4.0)
+    os.unlink(src)
+    try:
+        with open(target, "r") as f:
+            content = f.read()
+    finally:
+        import shutil as _shutil
+        _shutil.rmtree(root, ignore_errors=True)
+    assert code == 0
+    assert "Create directory" in screen, f"Expected create-directory prompt: {screen[-800:]}"
+    assert content == "abc\n", f"Expected written file, got {content!r}"
+    print("  PASS: write missing directory prompts and creates")
+
+def test_write_missing_directory_no_cancels():
+    """:w to a missing directory with n does not create or write."""
+    src = write_temp("abc\n")
+    root = tempfile.mkdtemp()
+    target = os.path.join(root, "newdir", "out.txt")
+    screen, _, code = run_vig(f":w {target}\rn:q\r".encode(), file_path=src)
+    os.unlink(src)
+    exists = os.path.exists(target)
+    import shutil as _shutil
+    _shutil.rmtree(root, ignore_errors=True)
+    assert code == 0
+    assert "Write cancelled" in screen, f"Expected cancel message: {screen[-800:]}"
+    assert not exists, "Declining directory creation should not write target"
+    print("  PASS: write missing directory prompt can be declined")
+
+def test_edit_bang_reloads_file_from_disk():
+    """:e! discards unsaved changes and reloads the file."""
+    path = write_temp("original\n")
+    screen, content, code = run_vig(b"A dirty\x1b:e!\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "original\n", f"Expected reload to discard changes, got {content!r}"
+    assert "reloaded" in screen, f"Expected reload message: {screen[-800:]}"
+    print("  PASS: :e! reloads file")
+
+def test_yank_flashes_highlight():
+    """Yanking briefly renders reverse-video highlight."""
+    path = write_temp("alpha\nbeta\n")
+    screen, _, code = run_vig(b":set clipboard=off\ryy:q\r", file_path=path, timeout=4.0)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[7m" in screen and "alpha" in screen, f"Expected yank highlight: {screen[-800:]}"
+    print("  PASS: yank flashes highlight")
+
+def test_relativenumber_cursor_row_shifted_left():
+    """Relative-number cursor row uses spare gutter space to shift left."""
+    path = write_temp("alpha\nbeta\ngamma\n")
+    screen, _, code = run_vig(b":set relativenumber\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[H 0  alpha" in screen, f"Expected shifted current relative number: {screen[-800:]}"
+    print("  PASS: relative number cursor row shifts left")
+
+def test_insert_tab_uses_tab_columns():
+    """Tab advances to the next 4-column tab stop."""
+    path = write_temp("abc\n")
+    keys = b"A\tX\x1b:wq\r"
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "abc X\n", f"Expected one space to next tab stop, got {content!r}"
+    print("  PASS: insert tab uses tab columns")
 
 # ── Runner ─────────────────────────────────────────────────────────────────
 
@@ -2601,6 +2674,14 @@ def main():
             test_rg_creates_quickfix_buffer,
             test_space_o_opens_rg_location,
             test_space_buffer_keymaps_and_rghidden,
+        ]),
+        ("39", "Phase 39 — todo.md 1-5", [
+            test_write_missing_directory_prompts_and_creates,
+            test_write_missing_directory_no_cancels,
+            test_edit_bang_reloads_file_from_disk,
+            test_yank_flashes_highlight,
+            test_relativenumber_cursor_row_shifted_left,
+            test_insert_tab_uses_tab_columns,
         ]),
     ]
 

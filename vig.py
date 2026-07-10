@@ -11,6 +11,7 @@ import signal
 import shutil
 import select
 import shlex
+import time
 from enum import Enum
 
 # ── Modes ──────────────────────────────────────────────────────────────────
@@ -235,6 +236,8 @@ class Editor:
         self._pending_textobj = None  # 'i'/'a' waiting for object key
         self._pending_replace = 0    # count for normal-mode r{char}
         self._pending_ctrl_c = False # Ctrl-C prefix for quit-all shortcuts
+        self._pending_mkdir_write = None  # (path, close_after) waiting for y/n
+        self._yank_flash = None     # (expires, sy, sx, ey, ex, linewise)
         self.quickfix_state = None  # BufferState holding last :rg results
         self.last_key = ""  # last decoded key read from terminal
         self._load_config()
@@ -294,6 +297,76 @@ class Editor:
         if self.buf.path:
             return os.path.normpath(os.path.join(os.path.dirname(self.buf.path), p))
         return os.path.abspath(p)
+
+    def _write_buffer_to_path(self, path, close_after=False):
+        """Write current buffer, prompting first if parent directories are missing."""
+        parent = os.path.dirname(path) or "."
+        if parent and not os.path.isdir(parent):
+            self._pending_mkdir_write = (path, close_after)
+            self.msg = f'Create directory "{parent}"? (y/n)'
+            self.mode = Mode.NORMAL
+            return False
+        try:
+            if self.buf.save(path):
+                self._undo_save_depth = len(self._undo_stack)
+                self._undo_branched = False
+                self._update_dirty()
+                if close_after:
+                    if len(self.buffers) > 1:
+                        self._close_buffer()
+                    else:
+                        self.running = False
+                else:
+                    n = len(self.buf.lines)
+                    self.msg = f'"{self.buf.path}" {n}L written'
+            else:
+                self.msg = "No file name"
+        except OSError as e:
+            self.msg = f"Can't write \"{path}\": {e.strerror or str(e)}"
+        self.mode = Mode.NORMAL
+        return True
+
+    def _answer_mkdir_prompt(self, key):
+        """Handle y/n answer for missing-directory write prompt."""
+        if not self._pending_mkdir_write:
+            return False
+        path, close_after = self._pending_mkdir_write
+        if key.lower() not in ("y", "n"):
+            self.msg = "Create directory? (y/n)"
+            return True
+        self._pending_mkdir_write = None
+        if key.lower() == "n":
+            self.msg = "Write cancelled"
+            return True
+        parent = os.path.dirname(path) or "."
+        try:
+            os.makedirs(parent, exist_ok=True)
+        except OSError as e:
+            self.msg = f"Can't create \"{parent}\": {e.strerror or str(e)}"
+            return True
+        self._write_buffer_to_path(path, close_after=close_after)
+        return True
+
+    def _reload_current_buffer(self):
+        """Reload current buffer from disk, discarding unsaved changes."""
+        if not self.buf.path:
+            self.buf.lines = [""]
+        else:
+            try:
+                with open(self.buf.path, "r") as f:
+                    self.buf.lines = f.read().splitlines() or [""]
+            except OSError as e:
+                self.msg = f'Cannot reload "{self.buf.path}": {e.strerror or str(e)}'
+                self.mode = Mode.NORMAL
+                return
+        self.buf.dirty = False
+        self.cx = self.cy = self.scroll = 0
+        self._undo_stack.clear()
+        self._redo_stack.clear()
+        self._undo_save_depth = 0
+        self._undo_branched = False
+        self.msg = f'"{self.buf.path}" reloaded' if self.buf.path else "[No Name] reloaded"
+        self.mode = Mode.NORMAL
 
     def _update_size(self):
         sz = shutil.get_terminal_size()
@@ -1181,7 +1254,11 @@ class Editor:
                 num = abs(buf_line - self.cy)
         else:
             num = buf_line + 1
-        return f"{num:>{gutter_width - 1}} "
+        num_s = str(num)
+        pad = gutter_width - 1 - len(num_s)
+        if self.opt_relnum and buf_line == self.cy and pad > 0:
+            return " " * (pad - 1) + num_s + "  "
+        return " " * max(0, pad) + num_s + " "
 
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""
@@ -1257,6 +1334,15 @@ class Editor:
         out.append("\x1b[H")     # cursor home
 
         sel = self._selection_range()
+        if sel is None and self._yank_flash:
+            expires, sy, sx, ey, ex, linewise = self._yank_flash
+            if time.monotonic() < expires:
+                if linewise:
+                    sel = (sy, 0, ey, len(self.buf.lines[ey]))
+                else:
+                    sel = (sy, sx, ey, ex)
+            else:
+                self._yank_flash = None
         gw = self._gutter_width()
         content_cols = max(1, self.cols - gw)
 
@@ -1395,6 +1481,11 @@ class Editor:
         self.reg_linewise = linewise
         self._copy_to_system_clipboard(text)
 
+    def _flash_yank(self, sy, sx, ey, ex, linewise=False):
+        """Briefly highlight freshly yanked text."""
+        self._yank_flash = (time.monotonic() + 0.3, sy, sx, ey, ex, linewise)
+        self.render()
+
     # ── Operator-pending motion execution ──────────────────────────────
 
     def _apply_motion(self, motion_key, n, extra_n=None):
@@ -1465,6 +1556,7 @@ class Editor:
         if linewise:
             text = "\n".join(self.buf.lines[sy:ey + 1])
             self._set_register(text, linewise=True)
+            self._flash_yank(sy, 0, ey, len(self.buf.lines[ey]), linewise=True)
         else:
             if sy == ey:
                 text = self.buf.lines[sy][sx:ex]
@@ -1475,6 +1567,7 @@ class Editor:
                 parts.append(self.buf.lines[ey][:ex])
                 text = "\n".join(parts)
             self._set_register(text, linewise=False)
+            self._flash_yank(sy, sx, ey, ex, linewise=False)
         return text
 
     def _delete_to_eol(self):
@@ -1977,8 +2070,9 @@ class Editor:
             self._exec_motion(key, 1)
         elif key == "TAB":
             line = self.buf.lines[self.cy]
-            self.buf.lines[self.cy] = line[:self.cx] + "    " + line[self.cx:]
-            self.cx += 4
+            spaces = 4 - (self.cx % 4)
+            self.buf.lines[self.cy] = line[:self.cx] + " " * spaces + line[self.cx:]
+            self.cx += spaces
             self.buf.dirty = True
         elif key == "DEL":
             line = self.buf.lines[self.cy]
@@ -2067,38 +2161,16 @@ class Editor:
                 self.msg = "No file name"
                 self.mode = Mode.NORMAL
                 return
-            try:
-                if self.buf.save(path):
-                    self._undo_save_depth = len(self._undo_stack)
-                    self._undo_branched = False
-                    self._update_dirty()
-                    n = len(self.buf.lines)
-                    self.msg = f'"{self.buf.path}" {n}L written'
-                else:
-                    self.msg = "No file name"
-            except OSError as e:
-                self.msg = f"Can't write \"{path}\": {e.strerror or str(e)}"
-            self.mode = Mode.NORMAL
+            self._write_buffer_to_path(path)
         elif cmd == "wq":
             path = self._resolve_cmd_path(arg) if arg else self.buf.path
             if not path:
                 self.msg = "No file name"
                 self.mode = Mode.NORMAL
                 return
-            try:
-                if self.buf.save(path):
-                    self._undo_save_depth = len(self._undo_stack)
-                    self._undo_branched = False
-                    if len(self.buffers) > 1:
-                        self._close_buffer()
-                    else:
-                        self.running = False
-                else:
-                    self.msg = "No file name"
-                    self.mode = Mode.NORMAL
-            except OSError as e:
-                self.msg = f"Can't write \"{path}\": {e.strerror or str(e)}"
-                self.mode = Mode.NORMAL
+            self._write_buffer_to_path(path, close_after=True)
+        elif cmd in ("e!", "edit!"):
+            self._reload_current_buffer()
         elif cmd in ("e", "edit"):
             if arg:
                 # Add new buffer and switch to it
@@ -2612,6 +2684,10 @@ class Editor:
                     self.mode = Mode.NORMAL
                     self.cmd = ""
                     continue
+                if self.mode == Mode.NORMAL and self._pending_mkdir_write:
+                    self._answer_mkdir_prompt(key)
+                    continue
+
                 # Clear message on any key (unless entering command/search mode)
                 if self.mode not in (Mode.COMMAND, Mode.SEARCH):
                     self.msg = ""

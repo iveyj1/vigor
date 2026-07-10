@@ -77,13 +77,14 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 ## Ex Commands
 | Command | Action |
 |---------|--------|
-| `:w` [path] | write file |
+| `:w` [path] | write file; prompts before creating missing parent directories |
 | `:q` | quit (closes buffer if >1, else exits) |
 | `:q!` | force quit |
 | `:wq` | write and quit |
 | `:qa` / `:qall` | quit all buffers |
 | `:qa!` / `:qall!` | force quit all |
 | `:e <path>` | open file in new buffer |
+| `:e!` | reload current buffer from disk, discarding unsaved changes |
 | `:new` | create empty buffer |
 | `:n` / `:next` / `:bn` | next buffer |
 | `:p` / `:prev` / `:bp` | previous buffer |
@@ -102,7 +103,7 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `osc52`) |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
 
-Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer directory.
+Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer directory. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 
 ## Multi-Buffer
 | Key / Command | Action |
@@ -120,7 +121,7 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 | Key | Action |
 |-----|--------|
 | Printable chars | insert at cursor |
-| Tab | insert 4 spaces |
+| Tab | insert spaces to the next 4-column tab stop |
 | Enter | split line (copies indent if autoindent) |
 | Backspace | delete char / join with previous line |
 | Delete | delete char at cursor |
