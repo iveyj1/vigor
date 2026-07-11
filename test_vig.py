@@ -2476,6 +2476,28 @@ def test_wrapmove_j_moves_display_row():
     assert "\x1b[2;1H" in frame, f"Expected j to move to wrapped row on same line: {frame[-800:]}"
     print("  PASS: wrapmove j moves display row")
 
+# ── Phase 41: bracketed paste ──────────────────────────────────────────────
+
+def test_bracketed_paste_insert_literal_text():
+    """Bracketed paste inserts text without treating tabs as Tab keypresses."""
+    path = write_temp("")
+    paste = b"\x1b[200~a\tb\n\tc\x1b[201~"
+    _, content, code = run_vig(b"i" + paste + b"\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "a\tb\n\tc\n", f"Bracketed paste should preserve literal tabs/newlines: {content!r}"
+    print("  PASS: bracketed paste inserts literal text")
+
+def test_bracketed_paste_does_not_execute_escape_commands():
+    """Command-looking bytes inside bracketed paste are inserted literally."""
+    path = write_temp("")
+    paste = b"\x1b[200~hello\x1b:q!\rworld\x1b[201~"
+    _, content, code = run_vig(b"i" + paste + b"\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "hello\x1b:q!\nworld\n", f"Bracketed paste interpreted commands: {content!r}"
+    print("  PASS: bracketed paste does not execute commands")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -2772,6 +2794,10 @@ def main():
             test_nodelcopy_does_not_change_register,
             test_yd_deletes_and_copies_with_nodelcopy,
             test_wrapmove_j_moves_display_row,
+        ]),
+        ("41", "Phase 41 — bracketed paste", [
+            test_bracketed_paste_insert_literal_text,
+            test_bracketed_paste_does_not_execute_escape_commands,
         ]),
     ]
 

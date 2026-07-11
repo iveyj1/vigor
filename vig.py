@@ -80,11 +80,13 @@ class Terminal:
 
     def enter_raw(self):
         tty.setraw(self.fd)
+        sys.stdout.write("\x1b[?2004h")  # enable bracketed paste
+        sys.stdout.flush()
 
     def restore(self):
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_attrs)
-        # Show cursor, clear screen on exit
-        sys.stdout.write("\x1b[?25h\x1b[2J\x1b[H")
+        # Disable bracketed paste, show cursor, clear screen on exit
+        sys.stdout.write("\x1b[?2004l\x1b[?25h\x1b[2J\x1b[H")
         sys.stdout.flush()
 
     def suspend_restore(self):
@@ -100,7 +102,7 @@ class Terminal:
         attrs[6][termios.VMIN] = 1
         attrs[6][termios.VTIME] = 0
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, attrs)
-        sys.stdout.write("\x1b[0 q\x1b[?25h")
+        sys.stdout.write("\x1b[?2004l\x1b[0 q\x1b[?25h")
         sys.stdout.flush()
 
     def read_key(self):
@@ -117,7 +119,17 @@ class Terminal:
             if first == b"[":
                 if not self._has_data():
                     return "ESC"
-                code = os.read(self.fd, 1)
+                seq = bytearray()
+                while True:
+                    c = os.read(self.fd, 1)
+                    if not c:
+                        return "ESC"
+                    seq.extend(c)
+                    if 0x40 <= c[0] <= 0x7E:
+                        break
+                    if len(seq) > 16:
+                        return "ESC"
+                code = bytes(seq)
                 if code == b"A":
                     return "UP"
                 if code == b"B":
@@ -130,16 +142,14 @@ class Terminal:
                     return "HOME"
                 if code == b"F":
                     return "END"
-                # Read more for extended sequences (e.g. \x1b[3~)
-                if code and code[0:1].isdigit():
-                    extra = os.read(self.fd, 1) if self._has_data() else b""
-                    if extra == b"~":
-                        if code == b"1" or code == b"7":
-                            return "HOME"
-                        if code == b"4" or code == b"8":
-                            return "END"
-                        if code == b"3":
-                            return "DEL"
+                if code == b"200~":
+                    return ("PASTE", self._read_bracketed_paste())
+                if code in (b"1~", b"7~"):
+                    return "HOME"
+                if code in (b"4~", b"8~"):
+                    return "END"
+                if code == b"3~":
+                    return "DEL"
                 return "ESC"
             if first == b"O":
                 if not self._has_data():
@@ -170,6 +180,20 @@ class Terminal:
         if ch < 32:
             return ""
         return chr(ch)
+
+    def _read_bracketed_paste(self):
+        """Read bytes until the bracketed-paste end marker."""
+        end = b"\x1b[201~"
+        data = bytearray()
+        while True:
+            b = os.read(self.fd, 1)
+            if not b:
+                break
+            data.extend(b)
+            if data.endswith(end):
+                del data[-len(end):]
+                break
+        return bytes(data).decode("utf-8", errors="replace")
 
     def _has_data(self):
         """Check if stdin has data available (non-blocking)."""
@@ -2079,6 +2103,33 @@ class Editor:
 
     # ── Insert mode ────────────────────────────────────────────────────
 
+    def handle_paste(self, text):
+        """Handle bracketed paste without interpreting bytes as commands."""
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        if self.mode == Mode.INSERT:
+            if not text:
+                return
+            line = self.buf.lines[self.cy]
+            before, after = line[:self.cx], line[self.cx:]
+            parts = text.split("\n")
+            if len(parts) == 1:
+                self.buf.lines[self.cy] = before + parts[0] + after
+                self.cx += len(parts[0])
+            else:
+                self.buf.lines[self.cy] = before + parts[0]
+                insert = parts[1:-1]
+                tail = parts[-1] + after
+                self.buf.lines[self.cy + 1:self.cy + 1] = insert + [tail]
+                self.cy += len(parts) - 1
+                self.cx = len(parts[-1])
+            self.buf.dirty = True
+            self._clamp_cursor()
+            self._ensure_scroll()
+        elif self.mode in (Mode.COMMAND, Mode.SEARCH):
+            self.cmd += text.replace("\n", " ")
+        else:
+            self.msg = "Paste ignored outside Insert/Command/Search"
+
     def handle_insert(self, key):
         # Dot repeat recording in insert mode
         if self._recording and not self._replaying_dot:
@@ -2738,6 +2789,10 @@ class Editor:
                         continue
                 key = self.term.read_key()
                 if not key:
+                    continue
+                if isinstance(key, tuple) and key[0] == "PASTE":
+                    self.last_key = "PASTE"
+                    self.handle_paste(key[1])
                     continue
                 self.last_key = key
                 if key == "CTRL_Z":

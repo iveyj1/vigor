@@ -125,6 +125,7 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 | Key | Action |
 |-----|--------|
 | Printable chars | insert at cursor |
+| Bracketed paste | insert pasted text literally; tabs/newlines are not treated as typed keys |
 | Tab | insert spaces to the next 4-column tab stop |
 | Enter | split line (copies indent if autoindent) |
 | Backspace | delete char / join with previous line |

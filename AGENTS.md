@@ -14,7 +14,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 **Files**
 
 - `vig.py` — the entire editor (~2400 lines)
-- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 196 test functions)
+- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 198 test functions)
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
@@ -47,7 +47,7 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 
 **Command mode** — `:new`, `:e[dit] <path>` (adds a new buffer), `:e[dit]!` (reloads current buffer from disk and discards unsaved changes), `:w[rite] [path]`, `:q[uit]` (closes buffer if >1, else quits; refuses if dirty), `:q!` (force), `:wq` (write and close buffer/quit), `:qa` / `:qall` / `:qa!` / `:qall!` (quit all buffers), `:n` / `:next` / `:bn` (next buffer), `:p` / `:prev` / `:bp` (prev buffer), `:ls` (list buffers), `:k` / `:bdelete` (delete buffer, blocks if dirty), `:k!` / `:bdelete!` (force delete buffer), `:[range]s/pat/repl/[g]` (substitute), `:set <option>` (set wrap/nowrap/wrapmove/nowrapmove/number/nonumber/relativenumber/norelativenumber/autoindent/noautoindent/comment=X/scrolloff=N/clipboard=osc52|auto|off/yankflash=N/delcopy/nodelcopy/rghidden/norghidden), `:rg <pattern> [path]` (run `rg -n --column`, plus `-H` when `rghidden` is set, into a quickfix buffer), `:read <file>` (insert file below cursor), `:read !<cmd>` (insert command output below cursor), `:! <cmd>` / `:!<cmd>` (run shell command and show one-line truncated output in the message bar). Path arguments for `:e`/`:w` expand `~`; relative paths resolve from the current buffer's directory. If `:w`/`:wq` targets a missing parent directory, vigor prompts to create it before writing.
 
-**Insert mode** — printable characters insert at cursor. Tab inserts spaces to the next 4-column tab stop. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
+**Insert mode** — printable characters insert at cursor. Bracketed paste inserts pasted text literally, normalizing CRLF/CR to LF and not interpreting tabs, Esc, or newlines as typed keys. Tab inserts spaces to the next 4-column tab stop. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
 **Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines.
 
@@ -129,7 +129,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 ## Implementation Notes
 
-**Raw mode** — `tty.setraw()` disables canonical mode, echo, and signal generation. The original `termios` attributes are saved and restored via `atexit`. The SIGWINCH handler re-queries terminal size and triggers a redraw. Ctrl-Z restores terminal state, moves the terminal cursor to the bottom line, sends `SIGTSTP` for normal job control, and re-enters raw mode when the process returns to the foreground. Ctrl-C cancels pending input/state and returns to Normal mode; in Normal mode `Ctrl-C Ctrl-C` aliases `:qall` and `Ctrl-C q` aliases `:qall!`.
+**Raw mode** — `tty.setraw()` disables canonical mode, echo, and signal generation. Bracketed paste is enabled while vigor owns the terminal and disabled on restore/suspend. The original `termios` attributes are saved and restored via `atexit`. The SIGWINCH handler re-queries terminal size and triggers a redraw. Ctrl-Z restores terminal state, moves the terminal cursor to the bottom line, sends `SIGTSTP` for normal job control, and re-enters raw mode when the process returns to the foreground. Ctrl-C cancels pending input/state and returns to Normal mode; in Normal mode `Ctrl-C Ctrl-C` aliases `:qall` and `Ctrl-C q` aliases `:qall!`.
 
 **Key reading** — `os.read(fd, 1)` gets one byte. If it's `0x1B`, a `select` with 20ms timeout checks for follow-up bytes to decode arrow keys and other escape sequences. Bare Esc (no follow-up) returns `"ESC"`. This approach avoids blocking on ambiguous escape sequences.
 
@@ -158,7 +158,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 196 test functions organized into 40 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, and ripgrep quickfix. Run with `python3 test_vig.py`.
+**Coverage** — 198 test functions organized into 41 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, and ripgrep quickfix. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents
