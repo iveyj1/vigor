@@ -222,6 +222,10 @@ class Editor:
         self._undo_branched = bs._undo_branched
         self.mode = Mode.NORMAL
         self.cmd = ""  # command-line input
+        self.cmd_history = []
+        self.search_history = []
+        self._hist_idx = None
+        self._hist_draft = ""
         self.msg = ""  # status message
         self.vx = 0  # visual anchor column
         self.vy = 0  # visual anchor row
@@ -2198,22 +2202,93 @@ class Editor:
 
     # ── Command mode ───────────────────────────────────────────────────
 
+    def _reset_history_nav(self):
+        self._hist_idx = None
+        self._hist_draft = ""
+
+    def _history_nav(self, hist, older):
+        if not hist:
+            return
+        if self._hist_idx is None:
+            self._hist_draft = self.cmd
+            self._hist_idx = len(hist)
+        self._hist_idx += -1 if older else 1
+        if self._hist_idx < 0:
+            self._hist_idx = 0
+        if self._hist_idx >= len(hist):
+            self._hist_idx = None
+            self.cmd = self._hist_draft
+        else:
+            self.cmd = hist[self._hist_idx]
+
+    def _add_history(self, hist, text):
+        if text and (not hist or hist[-1] != text):
+            hist.append(text)
+
+    def _complete_path(self, shell=False):
+        s = self.cmd
+        if shell:
+            body = s[1:].lstrip()
+            if " " in body:
+                before, token = body.rsplit(None, 1)
+                head = "!" + before + " "
+            else:
+                head, token = "!", body
+            base_dir = os.getcwd()
+        else:
+            parts = s.split(None, 1)
+            if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read"):
+                return
+            head, token = parts[0], (parts[1] if len(parts) > 1 else "")
+            base_dir = os.path.dirname(self.buf.path) if self.buf.path else os.getcwd()
+        expanded = os.path.expanduser(token)
+        dpart, prefix = os.path.split(expanded)
+        search_dir = dpart if os.path.isabs(dpart) else os.path.join(base_dir, dpart)
+        try:
+            names = sorted(n for n in os.listdir(search_dir or ".") if n.startswith(prefix))
+        except OSError:
+            return
+        if not names:
+            return
+        common = os.path.commonprefix(names)
+        name = names[0] if len(names) == 1 else common
+        if len(names) == 1 and os.path.isdir(os.path.join(search_dir, name)):
+            name += "/"
+        new_token = os.path.join(os.path.dirname(token), name) if os.path.dirname(token) else name
+        sep = "" if shell else " "
+        self.cmd = (head + sep + new_token).strip() if head else new_token
+
     def handle_command(self, key):
         if key in ("ESC", "CTRL_C"):
             self.mode = Mode.NORMAL
             self.cmd = ""
+            self._reset_history_nav()
+            return
+        if key == "UP":
+            self._history_nav(self.cmd_history, older=True)
+            return
+        if key == "DOWN":
+            self._history_nav(self.cmd_history, older=False)
+            return
+        if key == "TAB":
+            self._complete_path(shell=self.cmd.startswith("!"))
             return
         if key == "ENTER":
-            self._exec_command(self.cmd)
+            cmd = self.cmd
+            self._add_history(self.cmd_history, cmd.strip())
+            self._reset_history_nav()
+            self._exec_command(cmd)
             self.cmd = ""
             return
         if key == "BACKSPACE":
             if self.cmd:
+                self._reset_history_nav()
                 self.cmd = self.cmd[:-1]
             else:
                 self.mode = Mode.NORMAL
             return
         if len(key) == 1:
+            self._reset_history_nav()
             self.cmd += key
 
     def _exec_command(self, raw):
@@ -2722,23 +2797,34 @@ class Editor:
         if key == "ESC":
             self.mode = Mode.NORMAL
             self.cmd = ""
+            self._reset_history_nav()
+            return
+        if key == "UP":
+            self._history_nav(self.search_history, older=True)
+            return
+        if key == "DOWN":
+            self._history_nav(self.search_history, older=False)
             return
         if key == "ENTER":
             pattern = self.cmd
             self.cmd = ""
             self.mode = Mode.NORMAL
+            self._reset_history_nav()
             if pattern:
                 self.search_pattern = pattern
+                self._add_history(self.search_history, pattern)
             if self.search_pattern:
                 self._search_next(self.search_dir)
             return
         if key == "BACKSPACE":
             if self.cmd:
+                self._reset_history_nav()
                 self.cmd = self.cmd[:-1]
             else:
                 self.mode = Mode.NORMAL
             return
         if len(key) == 1:
+            self._reset_history_nav()
             self.cmd += key
 
     def _search_next(self, direction):

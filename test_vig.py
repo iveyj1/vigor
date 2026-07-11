@@ -2518,6 +2518,78 @@ def test_normal_delete_key_aliases_x():
     assert content == "bc\n", f"Normal Delete should behave like x: {content!r}"
     print("  PASS: normal Delete aliases x")
 
+# ── Phase 43: completion and history ───────────────────────────────────────
+
+def test_command_complete_no_path_from_buffer_dir():
+    """:e Tab completes a filename with no path component."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        target = os.path.join(d, "alpha_complete.txt")
+        open(base, "w").write("base\n")
+        open(target, "w").write("opened\n")
+        screen, _, code = run_vig(b":e alpha_com\t\r:q\r:q\r", file_path=base)
+    assert code == 0
+    assert "opened" in screen, f"Expected completed file opened: {screen[-800:]}"
+    print("  PASS: command complete no path")
+
+def test_command_complete_absolute_path():
+    """:e Tab completes an absolute path."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        target = os.path.join(d, "abs_complete.txt")
+        open(base, "w").write("base\n")
+        open(target, "w").write("absolute\n")
+        prefix = target[:-4]
+        screen, _, code = run_vig(f":e {prefix}\t\r:q\r:q\r".encode(), file_path=base)
+    assert code == 0
+    assert "absolute" in screen, f"Expected absolute completion opened: {screen[-800:]}"
+    print("  PASS: command complete absolute path")
+
+def test_command_complete_relative_subdir():
+    """:e Tab completes a relative subdirectory path."""
+    with tempfile.TemporaryDirectory() as d:
+        os.mkdir(os.path.join(d, "sub"))
+        base = os.path.join(d, "base.txt")
+        target = os.path.join(d, "sub", "rel_complete.txt")
+        open(base, "w").write("base\n")
+        open(target, "w").write("relative\n")
+        screen, _, code = run_vig(b":e sub/rel_com\t\r:q\r:q\r", file_path=base)
+    assert code == 0
+    assert "relative" in screen, f"Expected relative completion opened: {screen[-800:]}"
+    print("  PASS: command complete relative path")
+
+def test_bang_complete_path():
+    """:! Tab completes shell command paths relative to cwd."""
+    name = "tmp_vig_complete_script.sh"
+    with open(name, "w") as f:
+        f.write("#!/bin/sh\necho completed-shell\n")
+    os.chmod(name, 0o755)
+    try:
+        screen, _, code = run_vig(b":! ./tmp_vig_complete_scr\t\r:q\r")
+    finally:
+        os.unlink(name)
+    assert code == 0
+    assert "completed-shell" in screen, f"Expected completed shell command output: {screen[-800:]}"
+    print("  PASS: bang complete path")
+
+def test_command_history_up_down():
+    """: command history uses Up/Down and restores draft after newest."""
+    path = write_temp("alpha\n")
+    screen, _, code = run_vig(b":set number\r:set nonumber\r:draft\x1b[A\x1b[A\x1b[B\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "number off" in screen, f"Expected recalled command execution: {screen[-800:]}"
+    print("  PASS: command history up/down")
+
+def test_search_history_shared_by_slash_and_question():
+    """/ and ? share search history navigated by Up."""
+    path = write_temp("foo\nbar\n")
+    screen, _, code = run_vig(b"/bar\r?\x1b[A\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "2:1" in screen, f"Expected recalled search pattern from shared history: {screen[-800:]}"
+    print("  PASS: search history shared")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -2822,6 +2894,14 @@ def main():
         ("42", "Phase 42 — todo.md Do items", [
             test_edit_bang_no_file_name_errors,
             test_normal_delete_key_aliases_x,
+        ]),
+        ("43", "Phase 43 — completion and history", [
+            test_command_complete_no_path_from_buffer_dir,
+            test_command_complete_absolute_path,
+            test_command_complete_relative_subdir,
+            test_bang_complete_path,
+            test_command_history_up_down,
+            test_search_history_shared_by_slash_and_question,
         ]),
     ]
 

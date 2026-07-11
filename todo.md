@@ -6,6 +6,8 @@
 
 ** On hold
 ** Done
+1) Add tab filename complete for appropriate : and :! operations. Support no-path (pwd), absolute, and relative path cases.
+2) Add history for : / ? operations. / and ? share a history list. Up-down arrow scrolls through list, enter accepts, esc cancels.
 1) :e! command rereads the current buffer from disk. If no file name show an error.
 2) Add <del> as alias for x in normal mode.
 1) / and ? s searches find second hits on the same line in the direction of search.
@@ -32,6 +34,8 @@
 12) Fix dw at end of line so it does not merge lines
 
 ** Hold for further definition
+1) marks
+2) macros
 3) add column-select mode. From normal mode <ctrl>-v to enter, esc, y, or d, to exit.  y copies, d deletes  (interaction with yd?) moving non-deleted text on affected lines to the left.  
 3) configurable keymaps
 4) :g commands 

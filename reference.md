@@ -75,6 +75,11 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `n` / `N` | next / previous match |
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; range: `%`, `N,M`) |
 
+## Command/Search Input
+- In `:` command mode, Up/Down browse command history.
+- In `/` and `?` search prompts, Up/Down browse shared search history.
+- Tab completes path arguments for `:e`, `:w`, `:read`, and shell paths in `:!` commands.
+
 ## Ex Commands
 | Command | Action |
 |---------|--------|
