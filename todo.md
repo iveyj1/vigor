@@ -2,6 +2,15 @@
 1) Do not support legacy configurations, file formats, or removed behaviors.  Remove any dead code due to changes.  There are no existing implementations or configuration files. 
 2) Review proposed changes for estimated change size.  If the net increase in number of lines of code for an individual item exceeds about 50, notify me before implementation.
 ** Do
+1) add :e <no argument> command that rereads the current buffer from disk, providing an option to continue/abort if the current buffer is dirty.
+2) Add <del> as alias for x in normal mode.
+
+** On hold
+1) add column-select mode. From normal mode <ctrl>-v to enter, esc, y, or d, to exit.  y copies  (interaction with yd?) Selected text, d deletes, moving non-deleted text on affected lines to the left.  
+2) add :e <no argument> command that rereads the current buffer from disk, providing an option to continue/abort if the current buffer is dirty.
+
+** On hold
+1) add column-select mode from normal mode <ctrl-v> to enter, esc, y, or d, to exit
 
 ** Done
 1) / and ? s searches find second hits on the same line in the direction of search.
