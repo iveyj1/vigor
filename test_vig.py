@@ -2532,6 +2532,64 @@ def test_command_complete_no_path_from_buffer_dir():
     assert "opened" in screen, f"Expected completed file opened: {screen[-800:]}"
     print("  PASS: command complete no path")
 
+def test_completion_menu_enter_accepts_first_match():
+    """Multiple completion matches show a menu; Enter accepts selected filename."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        first = os.path.join(d, "aa_one.txt")
+        second = os.path.join(d, "aa_two.txt")
+        open(base, "w").write("base\n")
+        open(first, "w").write("first\n")
+        open(second, "w").write("second\n")
+        screen, _, code = run_vig(b":e aa_\t\r\r:q\r:q\r", file_path=base)
+    assert code == 0
+    assert "\x1b[7maa_one.txt" in screen, f"Expected highlighted first completion: {screen[-1000:]}"
+    assert "first" in screen, f"Expected accepted first file opened: {screen[-1000:]}"
+    print("  PASS: completion menu Enter accepts first match")
+
+def test_completion_menu_down_selects_match():
+    """Down changes completion selection before Enter accepts it."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        first = os.path.join(d, "bb_one.txt")
+        second = os.path.join(d, "bb_two.txt")
+        open(base, "w").write("base\n")
+        open(first, "w").write("first\n")
+        open(second, "w").write("second\n")
+        screen, _, code = run_vig(b":e bb_\t\x1b[B\r\r:q\r:q\r", file_path=base)
+    assert code == 0
+    assert "\x1b[7mbb_two.txt" in screen, f"Expected highlighted second completion: {screen[-1000:]}"
+    assert "second" in screen, f"Expected selected second file opened: {screen[-1000:]}"
+    print("  PASS: completion menu Down selects match")
+
+def test_completion_menu_typing_updates_filter():
+    """Typing while completion menu is open updates the filename filter."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        first = os.path.join(d, "cc_a.txt")
+        second = os.path.join(d, "cc_z.txt")
+        open(base, "w").write("base\n")
+        open(first, "w").write("first\n")
+        open(second, "w").write("filtered\n")
+        screen, _, code = run_vig(b":e cc_\tz\r\r:q\r:q\r", file_path=base)
+    assert code == 0
+    assert "filtered" in screen, f"Expected typed filter to choose cc_z: {screen[-1000:]}"
+    print("  PASS: completion menu typing updates filter")
+
+def test_completion_menu_esc_hides_list():
+    """Esc hides completion menu and keeps editing command text."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        open(base, "w").write("base\n")
+        open(os.path.join(d, "dd_one.txt"), "w").write("one\n")
+        open(os.path.join(d, "dd_two.txt"), "w").write("two\n")
+        screen, _, code = run_vig(b":e dd_\t\x1b", file_path=base, timeout=1.0)
+    frame = last_frame(screen)
+    assert code == -99
+    assert "dd_one.txt" not in frame and "dd_two.txt" not in frame, f"Expected Esc to hide list: {frame[-1000:]}"
+    assert ":e dd_" in frame, f"Expected command text preserved: {frame[-1000:]}"
+    print("  PASS: completion menu Esc hides list")
+
 def test_command_complete_absolute_path():
     """:e Tab completes an absolute path."""
     with tempfile.TemporaryDirectory() as d:
@@ -2897,6 +2955,10 @@ def main():
         ]),
         ("43", "Phase 43 — completion and history", [
             test_command_complete_no_path_from_buffer_dir,
+            test_completion_menu_enter_accepts_first_match,
+            test_completion_menu_down_selects_match,
+            test_completion_menu_typing_updates_filter,
+            test_completion_menu_esc_hides_list,
             test_command_complete_absolute_path,
             test_command_complete_relative_subdir,
             test_bang_complete_path,

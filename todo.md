@@ -6,6 +6,7 @@
 
 ** On hold
 ** Done
+1) Filename completion shows a vertical match menu for multiple matches, supports selection with Up/Down/Tab, Enter accepts the selected filename, Esc hides the menu, and typing updates the filter.
 1) Add tab filename complete for appropriate : and :! operations. Support no-path (pwd), absolute, and relative path cases.
 2) Add history for : / ? operations. / and ? share a history list. Up-down arrow scrolls through list, enter accepts, esc cancels.
 1) :e! command rereads the current buffer from disk. If no file name show an error.

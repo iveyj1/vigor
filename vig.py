@@ -226,6 +226,12 @@ class Editor:
         self.search_history = []
         self._hist_idx = None
         self._hist_draft = ""
+        self.comp_matches = []
+        self.comp_index = 0
+        self.comp_head = ""
+        self.comp_token = ""
+        self.comp_base_dir = ""
+        self.comp_shell = False
         self.msg = ""  # status message
         self.vx = 0  # visual anchor column
         self.vy = 0  # visual anchor row
@@ -1410,8 +1416,10 @@ class Editor:
         cursor_screen_x = self.cx + gw
         buf_line = self.scroll
         window_hscroll = 0 if self.opt_wrap else max(0, self.cx - content_cols + 1)
+        comp_rows = min(len(self.comp_matches), max(0, self.rows - 1)) if self.mode == Mode.COMMAND else 0
+        content_limit = self.rows - comp_rows
 
-        while screen_rows_used < self.rows and buf_line < len(self.buf.lines):
+        while screen_rows_used < content_limit and buf_line < len(self.buf.lines):
             line = self.buf.lines[buf_line]
             if buf_line == self.cy:
                 # Track cursor screen position
@@ -1423,7 +1431,7 @@ class Editor:
                     cursor_screen_y = screen_rows_used
                     cursor_screen_x = self.cx - window_hscroll + gw
 
-            rows_available = self.rows - screen_rows_used
+            rows_available = content_limit - screen_rows_used
             if self.opt_wrap:
                 used = self._render_line(line, buf_line, sel, out, gw, max_rows=rows_available)
                 screen_rows_used += used
@@ -1432,11 +1440,22 @@ class Editor:
                 screen_rows_used += 1
             buf_line += 1
 
-        # Fill remaining rows with tildes
-        while screen_rows_used < self.rows:
+        # Fill remaining content rows with tildes
+        while screen_rows_used < content_limit:
             out.append("~")
             out.append("\x1b[K\r\n")
             screen_rows_used += 1
+
+        if comp_rows:
+            start = max(0, min(self.comp_index - comp_rows + 1, len(self.comp_matches) - comp_rows))
+            for i, name in enumerate(self.comp_matches[start:start + comp_rows], start):
+                text = name[:self.cols]
+                if i == self.comp_index:
+                    out.append("\x1b[7m" + text + "\x1b[m")
+                else:
+                    out.append(text)
+                out.append("\x1b[K\r\n")
+                screen_rows_used += 1
 
         # Status bar (reverse video)
         out.append("\x1b[7m")
@@ -2225,44 +2244,88 @@ class Editor:
         if text and (not hist or hist[-1] != text):
             hist.append(text)
 
-    def _complete_path(self, shell=False):
+    def _clear_completion(self):
+        self.comp_matches = []
+        self.comp_index = 0
+
+    def _completion_context(self):
         s = self.cmd
-        if shell:
+        if s.startswith("!"):
             body = s[1:].lstrip()
             if " " in body:
                 before, token = body.rsplit(None, 1)
                 head = "!" + before + " "
             else:
                 head, token = "!", body
-            base_dir = os.getcwd()
-        else:
-            parts = s.split(None, 1)
-            if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read"):
-                return
-            head, token = parts[0], (parts[1] if len(parts) > 1 else "")
-            base_dir = os.path.dirname(self.buf.path) if self.buf.path else os.getcwd()
+            return head, token, os.getcwd(), True
+        parts = s.split(None, 1)
+        if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read"):
+            return None
+        base_dir = os.path.dirname(self.buf.path) if self.buf.path else os.getcwd()
+        return parts[0], (parts[1] if len(parts) > 1 else ""), base_dir, False
+
+    def _completion_names(self, token, base_dir):
         expanded = os.path.expanduser(token)
         dpart, prefix = os.path.split(expanded)
         search_dir = dpart if os.path.isabs(dpart) else os.path.join(base_dir, dpart)
         try:
             names = sorted(n for n in os.listdir(search_dir or ".") if n.startswith(prefix))
         except OSError:
+            return [], search_dir
+        shown = [n + ("/" if os.path.isdir(os.path.join(search_dir, n)) else "") for n in names]
+        return shown, search_dir
+
+    def _set_completed_token(self, name):
+        new_token = os.path.join(os.path.dirname(self.comp_token), name) if os.path.dirname(self.comp_token) else name
+        sep = "" if self.comp_shell else " "
+        self.cmd = (self.comp_head + sep + new_token).strip() if self.comp_head else new_token
+
+    def _start_completion(self):
+        ctx = self._completion_context()
+        if not ctx:
             return
-        if not names:
+        self.comp_head, self.comp_token, self.comp_base_dir, self.comp_shell = ctx
+        self.comp_matches, _ = self._completion_names(self.comp_token, self.comp_base_dir)
+        self.comp_index = 0
+        if len(self.comp_matches) == 1:
+            self._set_completed_token(self.comp_matches[0])
+            self._clear_completion()
+
+    def _refresh_completion(self):
+        if not self.comp_matches:
             return
-        common = os.path.commonprefix(names)
-        name = names[0] if len(names) == 1 else common
-        if len(names) == 1 and os.path.isdir(os.path.join(search_dir, name)):
-            name += "/"
-        new_token = os.path.join(os.path.dirname(token), name) if os.path.dirname(token) else name
-        sep = "" if shell else " "
-        self.cmd = (head + sep + new_token).strip() if head else new_token
+        ctx = self._completion_context()
+        if not ctx:
+            self._clear_completion()
+            return
+        self.comp_head, self.comp_token, self.comp_base_dir, self.comp_shell = ctx
+        self.comp_matches, _ = self._completion_names(self.comp_token, self.comp_base_dir)
+        self.comp_index = min(self.comp_index, max(0, len(self.comp_matches) - 1))
+
+    def _accept_completion(self):
+        if self.comp_matches:
+            self._set_completed_token(self.comp_matches[self.comp_index])
+            self._clear_completion()
 
     def handle_command(self, key):
+        if self.comp_matches:
+            if key == "ESC":
+                self._clear_completion()
+                return
+            if key == "ENTER":
+                self._accept_completion()
+                return
+            if key == "UP":
+                self.comp_index = max(0, self.comp_index - 1)
+                return
+            if key in ("DOWN", "TAB"):
+                self.comp_index = min(len(self.comp_matches) - 1, self.comp_index + 1)
+                return
         if key in ("ESC", "CTRL_C"):
             self.mode = Mode.NORMAL
             self.cmd = ""
             self._reset_history_nav()
+            self._clear_completion()
             return
         if key == "UP":
             self._history_nav(self.cmd_history, older=True)
@@ -2271,12 +2334,13 @@ class Editor:
             self._history_nav(self.cmd_history, older=False)
             return
         if key == "TAB":
-            self._complete_path(shell=self.cmd.startswith("!"))
+            self._start_completion()
             return
         if key == "ENTER":
             cmd = self.cmd
             self._add_history(self.cmd_history, cmd.strip())
             self._reset_history_nav()
+            self._clear_completion()
             self._exec_command(cmd)
             self.cmd = ""
             return
@@ -2284,12 +2348,14 @@ class Editor:
             if self.cmd:
                 self._reset_history_nav()
                 self.cmd = self.cmd[:-1]
+                self._refresh_completion()
             else:
                 self.mode = Mode.NORMAL
             return
         if len(key) == 1:
             self._reset_history_nav()
             self.cmd += key
+            self._refresh_completion()
 
     def _exec_command(self, raw):
         stripped = raw.strip()

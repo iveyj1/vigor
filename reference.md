@@ -79,6 +79,7 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 - In `:` command mode, Up/Down browse command history.
 - In `/` and `?` search prompts, Up/Down browse shared search history.
 - Tab completes path arguments for `:e`, `:w`, `:read`, and shell paths in `:!` commands.
+- A single completion fills the command line. Multiple completions show a vertical menu above the status bar; Up/Down moves the reverse-video selection, Tab advances it, Enter copies the selected filename into the command line, and Esc hides the menu.
 
 ## Ex Commands
 | Command | Action |
