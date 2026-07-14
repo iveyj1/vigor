@@ -2649,6 +2649,15 @@ def test_search_history_shared_by_slash_and_question():
     assert "2:1" in screen, f"Expected recalled search pattern from shared history: {screen[-800:]}"
     print("  PASS: search history shared")
 
+# ── Phase 44: splash screen ───────────────────────────────────────────────
+
+def test_file_startup_shows_splash():
+    """Opening a file briefly renders the Vigor startup logo."""
+    screen, _, code = run_vig(b":q\r")
+    assert code == 0
+    assert "| |  / (_)___ _____  _____" in screen, f"Expected splash logo: {screen[-800:]}"
+    print("  PASS: file startup splash")
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -2965,6 +2974,9 @@ def main():
             test_bang_complete_path,
             test_command_history_up_down,
             test_search_history_shared_by_slash_and_question,
+        ]),
+        ("44", "Phase 44 — splash screen", [
+            test_file_startup_shows_splash,
         ]),
     ]
 

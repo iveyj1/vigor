@@ -24,6 +24,15 @@ class Mode(Enum):
     VISUAL_LINE = "VISUAL LINE"
     SEARCH = "SEARCH"
 
+SPLASH = (
+    " _    ___                 ",
+    "| |  / (_)___ _____  _____",
+    "| | / / / __ `/ __ \\/ ___/",
+    "| |/ / / /_/ / /_/ / /    ",
+    "|___/_/\\__, /\\____/_/     ",
+    "      /____/",
+)
+
 # ── Buffer ─────────────────────────────────────────────────────────────────
 
 class Buffer:
@@ -280,6 +289,8 @@ class Editor:
         self._load_config()
         self.term = Terminal()
         self._update_size()
+        self._splash = True
+        self._splash_until = time.monotonic() + 1 if paths else None
 
     def _format_exception_report(self, exc):
         """Build a plain-text crash report for unexpected exceptions."""
@@ -1416,7 +1427,21 @@ class Editor:
             out.append("│")
         out.append(f"\x1b[{top + box_h - 1};{left}H╰" + "─" * inner_w + "╯")
 
+    def _render_splash(self):
+        """Draw the centered startup logo without an editor cursor."""
+        logo_width = max(len(line) for line in SPLASH)
+        top = max(1, (self.rows + 2 - len(SPLASH)) // 2 + 1)
+        left = max(1, (self.cols - logo_width) // 2 + 1)
+        out = ["\x1b[?25l\x1b[2J"]
+        for row, line in enumerate(SPLASH, top):
+            out.append(f"\x1b[{row};{left}H{line}")
+        sys.stdout.write("".join(out))
+        sys.stdout.flush()
+
     def render(self):
+        if self._splash:
+            self._render_splash()
+            return
         out = []
         out.append("\x1b[?25l")  # hide cursor
         out.append("\x1b[H")     # cursor home
@@ -2948,7 +2973,14 @@ class Editor:
         try:
             while self.running:
                 self.render()
-                if self._yank_flash:
+                if self._splash:
+                    timeout = None if self._splash_until is None else max(0.0, self._splash_until - time.monotonic())
+                    ready, _, _ = select.select([self.term.fd], [], [], timeout)
+                    if not ready:
+                        self._splash = False
+                        continue
+                    self._splash = False
+                elif self._yank_flash:
                     timeout = max(0.0, self._yank_flash[0] - time.monotonic())
                     ready, _, _ = select.select([self.term.fd], [], [], timeout)
                     if not ready:
