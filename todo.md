@@ -3,7 +3,7 @@
 2) Review proposed changes for estimated change size.  If the net increase in number of lines of code for an individual item exceeds about 50, notify me before implementation.
 
 ** Do
-
+1) Add a blank space left right top bottom betweem the text and the frame
 ** On hold
 1. Discuss
 ** Done
