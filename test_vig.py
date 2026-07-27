@@ -2663,7 +2663,7 @@ def test_rgf_selected_rows_open_quickfix():
         os.mkdir(bindir)
         open(path, "w").write("alpha needle beta\n")
         fzf = os.path.join(bindir, "fzf")
-        open(fzf, "w").write("#!/bin/sh\nprintf '\\033[31m%s\\033[0m\\n' \"$VIG_RGF_LINE\"\n")
+        open(fzf, "w").write("#!/bin/sh\ncase \"$*\" in *enter:select-all+accept*) ;; *) exit 2;; esac\nprintf '\\033[31m%s\\033[0m\\n' \"$VIG_RGF_LINE\"\n")
         os.chmod(fzf, 0o755)
         line = f"{path}:1:7:alpha needle beta"
         env = {"PATH": bindir + os.pathsep + os.environ["PATH"], "VIG_RGF_LINE": line}

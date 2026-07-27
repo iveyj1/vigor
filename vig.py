@@ -2715,7 +2715,8 @@ class Editor:
         reload_cmd = f"{rg_cmd} -- {{q}} {shlex.quote(path)} || true"
         cmd = ["fzf", "--ansi", "--phony", "--disabled", "--multi",
                "--bind", f"change:reload:{reload_cmd}",
-               "--bind", f"start:reload:{reload_cmd}"]
+               "--bind", f"start:reload:{reload_cmd}",
+               "--bind", "enter:select-all+accept"]
         import subprocess
         self.term.suspend_restore()
         try:
