@@ -93,6 +93,7 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `:e <path>` | open file in new buffer |
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
+| `:help` | open `vighelp` beside the vigor executable |
 | `:n` / `:next` / `:bn` | next buffer |
 | `:p` / `:prev` / `:bp` | previous buffer |
 | `:ls` | list buffers |

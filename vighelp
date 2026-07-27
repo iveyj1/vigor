@@ -1,0 +1,37 @@
+VIGOR HELP
+
+KEY / COMMAND       ACTION
+
+h j k l             move left/down/up/right
+w b e / W B E       word / WORD motions
+0 ^ $               line start, first text, line end
+gg / G              first / last line; counts select line
+f t F T ; ,         find character; repeat / reverse
+%                   match bracket
+Ctrl-D / Ctrl-U     half-page down / up
+
+ i a I A            insert at cursor/after/start/end
+o O                 open line below / above
+x X                 delete at cursor / before cursor
+d y c + motion      delete, yank, change
+p P                 paste after / before
+u / Ctrl-R           undo / redo
+v V                 visual character / line selection
+
+/pattern ?pattern   search forward / backward
+n N                 repeat search / reverse
+:command             enter command prompt
+:w :q :wq            write, quit, write and quit
+:e path              open file in a new buffer
+:help                open this help buffer
+:rg pattern [path]  ripgrep results in quickfix
+
+<space>c            switch to quickfix
+<space>o            open quickfix location
+<space>n / N         next / previous buffer
+
+Esc                 return to Normal / cancel prompt
+Ctrl-C Ctrl-C        quit all buffers
+Ctrl-C q             force quit all buffers
+
+See reference.md for the complete command reference.

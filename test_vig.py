@@ -2653,6 +2653,18 @@ def test_search_history_shared_by_slash_and_question():
 
 # ── Phase 45: todo polish ─────────────────────────────────────────────────
 
+# ── Phase 46: help ────────────────────────────────────────────────────────
+
+def test_help_opens_vighelp_buffer():
+    """:help opens the executable-directory help buffer."""
+    path = write_temp("source\n")
+    screen, _, code = run_vig(b":help\r:q\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
+    print("  PASS: :help opens vighelp")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3052,6 +3064,9 @@ def main():
             test_prompt_cursor_is_visible,
             test_ctrl_c_cancels_mkdir_prompt,
             test_sticky_vertical_column,
+        ]),
+        ("46", "Phase 46 — help", [
+            test_help_opens_vighelp_buffer,
         ]),
     ]
 

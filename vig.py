@@ -2549,6 +2549,16 @@ class Editor:
             self._write_buffer_to_path(path, close_after=True)
         elif cmd in ("e!", "edit!"):
             self._reload_current_buffer()
+        elif cmd == "help":
+            path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vighelp")
+            if not os.path.isfile(path):
+                self.msg = "Help file not found"
+            else:
+                self._save_buf_state()
+                self.buffers.insert(self.buf_idx + 1, BufferState(path))
+                self._load_buf_state(self.buf_idx + 1)
+                self.msg = '"vighelp"'
+            self.mode = Mode.NORMAL
         elif cmd in ("e", "edit"):
             if arg:
                 # Add new buffer and switch to it
