@@ -98,6 +98,7 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `:ls` | list buffers |
 | `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
 | `:rg <pattern> [path]` | run `rg -n --column` into quickfix buffer |
+| `:rgf [path]` | open optional `fzf` live ripgrep picker; selected rows become quickfix entries |
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
 | `:! <cmd>` / `:!<cmd>` | run shell command and show one-line truncated output in message bar |
