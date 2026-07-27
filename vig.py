@@ -538,6 +538,17 @@ class Editor:
         self._undo_save_depth = bs._undo_save_depth
         self._undo_branched = bs._undo_branched
 
+    def _add_buffer(self, bs):
+        """Add and switch to bs, replacing an untouched initial buffer."""
+        if (len(self.buffers) == 1 and self.buf.path is None
+                and self.buf.lines == [""] and not self.buf.dirty):
+            self.buffers[0] = bs
+            self._load_buf_state(0)
+        else:
+            self._save_buf_state()
+            self.buffers.insert(self.buf_idx + 1, bs)
+            self._load_buf_state(self.buf_idx + 1)
+
     def _switch_buffer(self, idx):
         """Switch to buffer at idx, saving current state first."""
         if idx == self.buf_idx:
@@ -586,9 +597,7 @@ class Editor:
             except OSError as e:
                 self.msg = f'Cannot edit "{path}": {e.strerror or str(e)}'
                 return False
-            self._save_buf_state()
-            self.buffers.insert(self.buf_idx + 1, bs)
-            self._load_buf_state(self.buf_idx + 1)
+            self._add_buffer(bs)
         else:
             self._switch_buffer(idx)
         self.cy = max(0, line - 1)
@@ -2585,9 +2594,7 @@ class Editor:
             if not os.path.isfile(path):
                 self.msg = "Help file not found"
             else:
-                self._save_buf_state()
-                self.buffers.insert(self.buf_idx + 1, BufferState(path))
-                self._load_buf_state(self.buf_idx + 1)
+                self._add_buffer(BufferState(path))
                 self.msg = '"vighelp"'
             self.mode = Mode.NORMAL
         elif cmd in ("e", "edit"):
@@ -2602,18 +2609,13 @@ class Editor:
                     except OSError as e:
                         self.msg = f'Cannot edit "{path}": {e.strerror or str(e)}'
                     else:
-                        self._save_buf_state()
-                        self.buffers.insert(self.buf_idx + 1, new_bs)
-                        self._load_buf_state(self.buf_idx + 1)
+                        self._add_buffer(new_bs)
                         self.msg = f'"{path}"'
             else:
                 self.msg = "No file name"
             self.mode = Mode.NORMAL
         elif cmd == "new":
-            self._save_buf_state()
-            new_bs = BufferState()
-            self.buffers.insert(self.buf_idx + 1, new_bs)
-            self._load_buf_state(self.buf_idx + 1)
+            self._add_buffer(BufferState())
             self.msg = "[New]"
             self.mode = Mode.NORMAL
         elif cmd in ("n", "next", "bn"):
@@ -2724,9 +2726,7 @@ class Editor:
             bs.buf.lines = lines
             bs.buf.dirty = False
             self.quickfix_state = bs
-            self._save_buf_state()
-            self.buffers.insert(self.buf_idx + 1, bs)
-            self._load_buf_state(self.buf_idx + 1)
+            self._add_buffer(bs)
         self.msg = f"{source}: {len(lines)} line(s)"
         self._clamp_cursor()
         self._ensure_scroll()

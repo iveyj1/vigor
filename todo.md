@@ -8,8 +8,9 @@
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 3. Proposal: Add `*`, `#`, `g*`, and `g#` word-under-cursor searches. `*`/`#` search whole words forward/backward; `g*`/`g#` search partial matches forward/backward, using existing search state and repeat commands.
-4. Discuss
+4. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 ** Done
+1) Replace an untouched initial unnamed buffer when opening or creating a buffer.
 1. Add `:help` to open executable-directory `vighelp`, with terse two-column guidance.
 2. Add `:rgf [path]`: an fzf-backed live ripgrep picker with Enter selecting filtered rows into quickfix; document quickfix navigation.
 3. Add automatic line-local regex syntax highlighting for comments and strings in Python, C, and Bash files.
@@ -22,7 +23,7 @@
 2. Make `:rg` report no hits without opening quickfix.
 3. Add `~`, `g~`, `gU`, and `gu` case commands.
 4. Add forward/backspace/delete editing of `:`, `/`, and `?` prompts.
-5. Add sticky cursor-column tracking for vertical navigation.
+5. Add sticky cursor-column tracking for vertical navigation.dd
 1) Filename completion shows a vertical match menu for multiple matches, supports selection with Up/Down/Tab, Enter accepts the selected filename, Esc hides the menu, and typing updates the filter.
 1) Add tab filename complete for appropriate : and :! operations. Support no-path (pwd), absolute, and relative path cases.
 2) Add history for : / ? operations. / and ? share a history list. Up-down arrow scrolls through list, enter accepts, esc cancels.
@@ -31,7 +32,7 @@
 1) / and ? s searches find second hits on the same line in the direction of search.
 2) Add delcopy/nodelcopy (delcopy == default == vim behavior) option that changes semantics of normal d<motion> operator and adds yd<motion>.  When delcopy is set, behavior is vim-like.  When nodelcopy is set, d<motion> deletes without modifying the default copy register, and yd<motion> deletes and copies.
 3) Add wrapmove option that modifies line up/down movement to move up and down by displayed rows rather than text lines.
-1) When writing file, if directory doesn't exist, prompt to create
+1) When writing file, if directory doesn't exist, prompt to crevate
 2) :e! resets the file to its state when last saved or first opened
 3) When yanking, highlight the yanked text for about 300ms.
 4) When there is room, and relativenumber is active, shift the line number of the cursor row left 1 character.

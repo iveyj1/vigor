@@ -14,7 +14,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 **Files**
 
 - `vig.py` — the entire editor (~3,200 lines)
-- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 221 test functions)
+- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 222 test functions)
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
@@ -74,7 +74,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Buffer** — a `list[str]` where each element is one line of text (no trailing newline stored). A `path` and `dirty` flag track file association and modification state. Saving writes each line followed by `\n`.
 
-**BufferState** — bundles a `Buffer` with per-buffer state: cursor position (`cx`, `cy`), scroll offset, and undo/redo history (`_undo_stack`, `_redo_stack`, `_undo_save_depth`, `_undo_branched`). Uses `__slots__` for efficiency. Created once per opened file.
+**BufferState** — bundles a `Buffer` with per-buffer state: cursor position (`cx`, `cy`), scroll offset, and undo/redo history (`_undo_stack`, `_redo_stack`, `_undo_save_depth`, `_undo_branched`). Uses `__slots__` for efficiency. Created once per opened file. Opening or creating a buffer replaces an untouched initial unnamed buffer rather than retaining it.
 
 **Editor** — top-level state container. Holds a list of `BufferState` objects (`self.buffers`) and a current index (`self.buf_idx`). Working attributes (`self.buf`, `self.cx`, `self.cy`, `self.scroll`, undo stacks) point to the current buffer's state. `_save_buf_state()` syncs working attrs back to the current `BufferState`; `_load_buf_state(idx)` loads from a `BufferState` into working attrs; `_switch_buffer(idx)` does save + load + clamp + scroll + reset mode. Also holds current mode, command-line input, status message, visual anchor, terminal dimensions, count prefix accumulator, and run flag. One instance, created in `main()`. The unnamed register is shared across all buffers.
 
@@ -163,7 +163,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 221 test functions organized into 47 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 222 test functions organized into 48 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, and recent polish. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents

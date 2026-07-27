@@ -29,7 +29,7 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
         keys = keys.encode()
 
     cleanup_file = False
-    if file_paths:
+    if file_paths is not None:
         all_paths = file_paths
     elif file_path is None:
         fd_tmp, file_path = tempfile.mkstemp(suffix=".txt")
@@ -2686,6 +2686,19 @@ def test_rgf_selected_rows_open_quickfix():
 
 # ── Phase 48: syntax highlighting ─────────────────────────────────────────
 
+# ── Phase 49: initial buffer replacement ──────────────────────────────────
+
+def test_opening_replaces_untouched_initial_buffer():
+    """:e, :new, and :help replace rather than retain the initial buffer."""
+    with tempfile.TemporaryDirectory() as d:
+        target = os.path.join(d, "target.txt")
+        open(target, "w").write("target\n")
+        for keys in (f":e {target}\r:q\r", b":new\r:q\r", b":help\r:q\r"):
+            _, _, code = run_vig(keys, file_paths=[])
+            assert code == 0, f"Expected initial buffer replacement for {keys!r}"
+    print("  PASS: initial buffer replaced")
+
+
 def test_syntax_highlights_comments_and_strings():
     """Recognized Python, C, and Bash files color line-local strings/comments."""
     cases = [
@@ -3112,6 +3125,9 @@ def main():
         ]),
         ("48", "Phase 48 — syntax highlighting", [
             test_syntax_highlights_comments_and_strings,
+        ]),
+        ("49", "Phase 49 — initial buffer replacement", [
+            test_opening_replaces_untouched_initial_buffer,
         ]),
     ]
 
