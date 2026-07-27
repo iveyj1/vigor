@@ -67,6 +67,10 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `c` | change selection |
 | `gc` | toggle comment on selected lines |
 
+## Syntax Highlighting
+
+Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight line-local strings in yellow and comments in green. Multiline strings, block comments spanning lines, and heredocs are intentionally not tracked.
+
 ## Search & Replace
 | Key / Command | Action |
 |---------------|--------|

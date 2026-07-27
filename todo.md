@@ -9,6 +9,7 @@
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 3. Discuss
 ** Done
+1. Add automatic line-local regex syntax highlighting for comments and strings in Python, C, and Bash files.
 1. Update project documentation counts and phase references.
 2. Consolidate pending-input cancellation.
 3. Speed up the PTY test harness without weakening escape-sequence handling.

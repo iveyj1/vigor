@@ -2653,6 +2653,26 @@ def test_search_history_shared_by_slash_and_question():
 
 # ── Phase 45: todo polish ─────────────────────────────────────────────────
 
+# ── Phase 46: syntax highlighting ─────────────────────────────────────────
+
+def test_syntax_highlights_comments_and_strings():
+    """Recognized Python, C, and Bash files color line-local strings/comments."""
+    cases = [
+        ("code.py", 'x = "# string"\n# comment\n', '"# string"', "# comment"),
+        ("code.c", 'char *s = "// string"; // comment\n', '"// string"', "// comment"),
+        ("code.sh", 'echo "# string"\n# comment\n', '"# string"', "# comment"),
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        for name, content, string, comment in cases:
+            path = os.path.join(d, name)
+            open(path, "w").write(content)
+            screen, _, code = run_vig(b"\x1b:q\r", file_path=path)
+            assert code == 0
+            assert f"\x1b[33m{string}\x1b[m" in screen, f"Missing string color for {name}"
+            assert f"\x1b[32m{comment}\x1b[m" in screen, f"Missing comment color for {name}"
+    print("  PASS: syntax comments and strings")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3052,6 +3072,9 @@ def main():
             test_prompt_cursor_is_visible,
             test_ctrl_c_cancels_mkdir_prompt,
             test_sticky_vertical_column,
+        ]),
+        ("46", "Phase 46 — syntax highlighting", [
+            test_syntax_highlights_comments_and_strings,
         ]),
     ]
 
