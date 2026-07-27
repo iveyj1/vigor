@@ -24,6 +24,8 @@ class Mode(Enum):
     VISUAL_LINE = "VISUAL LINE"
     SEARCH = "SEARCH"
 
+ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
 SPLASH = (
     " _    ___                 ",
     "| |  / (_)___ _____  _____",
@@ -2626,6 +2628,9 @@ class Editor:
         elif cmd == "rg":
             self._exec_rg(arg)
             self.mode = Mode.NORMAL
+        elif cmd == "rgf":
+            self._exec_rgf(arg)
+            self.mode = Mode.NORMAL
         elif cmd == "read" or cmd == "r":
             self._exec_read(arg)
             self.mode = Mode.NORMAL
@@ -2673,6 +2678,10 @@ class Editor:
         if not lines:
             self.msg = "rg: no matches"
             return
+        self._show_quickfix(lines, "rg")
+
+    def _show_quickfix(self, lines, source):
+        """Replace the quickfix buffer with lines and make it current."""
         if self.quickfix_state in self.buffers:
             bs = self.quickfix_state
             bs.buf.lines = lines
@@ -2689,9 +2698,52 @@ class Editor:
             self._save_buf_state()
             self.buffers.insert(self.buf_idx + 1, bs)
             self._load_buf_state(self.buf_idx + 1)
-        self.msg = f"rg: {len(lines)} line(s)"
+        self.msg = f"{source}: {len(lines)} line(s)"
         self._clamp_cursor()
         self._ensure_scroll()
+
+    def _exec_rgf(self, arg):
+        """Launch an fzf-backed live ripgrep picker into quickfix."""
+        try:
+            parts = shlex.split(arg or "")
+        except ValueError as e:
+            self.msg = f"rgf: {e}"
+            return
+        if len(parts) > 1:
+            self.msg = "Usage: rgf [path]"
+            return
+        if not shutil.which("fzf"):
+            self.msg = "fzf: command not found"
+            return
+        if not shutil.which("rg"):
+            self.msg = "rg: command not found"
+            return
+        path = self._resolve_cmd_path(parts[0]) if parts else os.getcwd()
+        rg_cmd = "rg --line-number --column --no-heading --color=always"
+        if self.opt_rghidden:
+            rg_cmd += " -H"
+        reload_cmd = f"{rg_cmd} -- {{q}} {shlex.quote(path)} || true"
+        cmd = ["fzf", "--ansi", "--phony", "--disabled", "--multi",
+               "--bind", f"change:reload:{reload_cmd}",
+               "--bind", f"start:reload:{reload_cmd}",
+               "--bind", "enter:select-all+accept"]
+        import subprocess
+        self.term.suspend_restore()
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        except Exception as e:
+            self.msg = f"rgf: {e}"
+            return
+        finally:
+            self.term.enter_raw()
+        if result.returncode not in (0, 1, 130):
+            self.msg = f"fzf: exited {result.returncode}"
+            return
+        lines = [ANSI_ESCAPE.sub("", line) for line in result.stdout.splitlines() if line]
+        if not lines:
+            self.msg = "rgf cancelled"
+            return
+        self._show_quickfix(lines, "rgf")
 
     def _open_quickfix_location(self):
         """Open the file:line:column location under the cursor, if present."""

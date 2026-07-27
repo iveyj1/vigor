@@ -10,6 +10,9 @@
 3. Discuss
 ** Done
 1. Add `:help` to open executable-directory `vighelp`, with terse two-column guidance.
+1. Make `:rgf` Enter select all currently filtered fzf result rows into quickfix.
+2. Document quickfix navigation.
+1. Add `:rgf [path]`: an fzf-backed live ripgrep picker with multi-selection into quickfix.
 1. Update project documentation counts and phase references.
 2. Consolidate pending-input cancellation.
 3. Speed up the PTY test harness without weakening escape-sequence handling.

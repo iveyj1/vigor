@@ -2664,6 +2664,26 @@ def test_help_opens_vighelp_buffer():
     assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
     print("  PASS: :help opens vighelp")
 
+# ── Phase 47: fzf ripgrep picker ──────────────────────────────────────────
+
+def test_rgf_selected_rows_open_quickfix():
+    """:rgf strips fzf ANSI output and opens selected rows in quickfix."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "a.txt")
+        bindir = os.path.join(d, "bin")
+        os.mkdir(bindir)
+        open(path, "w").write("alpha needle beta\n")
+        fzf = os.path.join(bindir, "fzf")
+        open(fzf, "w").write("#!/bin/sh\ncase \"$*\" in *enter:select-all+accept*) ;; *) exit 2;; esac\nprintf '\\033[31m%s\\033[0m\\n' \"$VIG_RGF_LINE\"\n")
+        os.chmod(fzf, 0o755)
+        line = f"{path}:1:7:alpha needle beta"
+        env = {"PATH": bindir + os.pathsep + os.environ["PATH"], "VIG_RGF_LINE": line}
+        screen, _, code = run_vig(f":rgf {d}\r:q!\r:q\r", file_path=path, env=env)
+    assert code == 0
+    assert "[quickfix]" in screen and line in screen, f"Expected rgf quickfix: {screen[-800:]}"
+    assert "\x1b[31m" not in screen, "Expected ANSI color removed from quickfix rows"
+    print("  PASS: rgf selected rows open quickfix")
+
 
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
@@ -3067,6 +3087,9 @@ def main():
         ]),
         ("46", "Phase 46 — help", [
             test_help_opens_vighelp_buffer,
+        ]),
+        ("47", "Phase 47 — fzf ripgrep picker", [
+            test_rgf_selected_rows_open_quickfix,
         ]),
     ]
 
