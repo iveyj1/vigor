@@ -18,6 +18,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
+- `scripts/update_cloc_by_commit.sh` — saves per-commit `vig.py` cloc history to `scripts/cloc_by_commit.md`
 
 ## Management
 In this chat, I'll provide requirements for numbered development phases.  When each phase is complete and functional, update AGENTS, commit the code, and move to the next phase.  Review the phases for guidance when they are provided and ask for any needed clarifications.  If a feature is asked for in the chat, add it to the requirements.
@@ -51,6 +52,10 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 
 **Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, the Vigor logo remains until a keypress for an unnamed buffer, or displays for up to one second when a file is opened.
 
+
+**Project tooling**
+
+- `scripts/update_cloc_by_commit.sh` records cloc counts and short commit subjects for every commit reachable from the current branch.
 
 ## Divergences from vi
 

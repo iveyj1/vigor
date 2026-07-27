@@ -1,6 +1,6 @@
 ### vig.py cloc by commit
 
-Generated with `perl cloc.pl` against each commit version of `vig.py` (or historical `ved.py`).
+Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or historical `ved.py`).
 
 | Commit | Code | Blank | Comment | Added | Subject |
 |---|---:|---:|---:|---:|---|
@@ -67,3 +67,17 @@ Generated with `perl cloc.pl` against each commit version of `vig.py` (or histor
 | `e4bcefc` | 2589 | 207 | 226 | 11 | Center completion menu |
 | `40e77ed` | 2589 | 207 | 226 | 0 | make scripts dir |
 | `0bbf019` | 2618 | 209 | 227 | 29 | Add startup splash screen |
+| `e7ca9c6` | 2618 | 209 | 227 | 0 | add splash |
+| `609c934` | 2618 | 209 | 227 | 0 | move install, update todo |
+| `14c94d6` | 2725 | 210 | 228 | 107 | Implement current todo items |
+| `a03587d` | 2728 | 210 | 228 | 3 | Show cursor in command prompts |
+| `aacd657` | 2713 | 212 | 230 | -15 | Deduplicate prompt and case editing |
+| `8680dc7` | 2713 | 212 | 230 | 0 | Merge branch 'main' of github.com:iveyj1/vigor |
+| `6b4c65c` | 2713 | 212 | 230 | 0 | update todo.md: |
+| `0175aa6` | 2721 | 213 | 231 | 8 | Improve cancellation and test speed |
+| `272284b` | 2721 | 213 | 231 | 0 | Record visual block mode proposal |
+| `d4ad8b6` | 2767 | 216 | 233 | 46 | Add fzf ripgrep quickfix picker |
+| `fcc718d` | 2768 | 216 | 233 | 1 | Select filtered rgf results on enter |
+| `e987a43` | 2731 | 213 | 231 | -37 | Add executable directory help |
+| `e98ad49` | 2731 | 213 | 231 | 0 | tweak help |
+| `62c2302` | 2778 | 216 | 233 | 47 | Merge rgf and help features |
