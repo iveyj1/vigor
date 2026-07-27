@@ -24,6 +24,14 @@ class Mode(Enum):
     VISUAL_LINE = "VISUAL LINE"
     SEARCH = "SEARCH"
 
+SYNTAX_PATTERNS = {
+    ".py": re.compile(r"(?P<string>(?:[rRuUbBfF]{0,2})(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'))|(?P<comment>#.*)"),
+    ".c": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>//.*|/\*.*?\*/)"),
+    ".h": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>//.*|/\*.*?\*/)"),
+    ".sh": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
+    ".bash": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
+}
+SYNTAX_COLORS = {"string": "\x1b[33m", "comment": "\x1b[32m"}
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 SPLASH = (
@@ -1409,25 +1417,46 @@ class Editor:
                 rows_used += 1
             return rows_used
 
+    def _syntax_spans(self, line):
+        """Return colored string/comment spans for the current buffer's language."""
+        ext = os.path.splitext(self.buf.path or "")[1].lower()
+        pattern = SYNTAX_PATTERNS.get(ext)
+        if not pattern:
+            return ()
+        return tuple((m.start(), m.end(), SYNTAX_COLORS[m.lastgroup]) for m in pattern.finditer(line))
+
     def _render_visible(self, visible, buf_line, col_offset, sel, out):
-        """Render a visible string segment with optional selection highlight."""
+        """Render a segment with line-local syntax and optional reverse video."""
+        if not visible:
+            return
+        start, end = col_offset, col_offset + len(visible)
+        spans = self._syntax_spans(self.buf.lines[buf_line])
+        bounds = {start, end}
+        for sx, ex, _ in spans:
+            if sx < end and ex > start:
+                bounds.update((max(start, sx), min(end, ex)))
+        select_start = select_end = None
         if sel:
             sy, sx, ey, ex = sel
             if sy <= buf_line <= ey:
-                hl_start = (sx - col_offset) if buf_line == sy else 0
-                hl_end = (ex - col_offset) if buf_line == ey else len(visible)
-                hl_start = max(0, min(hl_start, len(visible)))
-                hl_end = max(0, min(hl_end, len(visible)))
-                before = visible[:hl_start]
-                highlighted = visible[hl_start:hl_end]
-                after = visible[hl_end:]
-                out.append(before)
+                select_start = max(start, sx if buf_line == sy else start)
+                select_end = min(end, ex if buf_line == ey else end)
+                if select_start < select_end:
+                    bounds.update((select_start, select_end))
+        spans = iter(spans)
+        active = next(spans, None)
+        for left, right in zip(sorted(bounds), sorted(bounds)[1:]):
+            while active and active[1] <= left:
+                active = next(spans, None)
+            color = active[2] if active and active[0] <= left < active[1] else ""
+            selected = select_start is not None and select_start <= left < select_end
+            if color:
+                out.append(color)
+            if selected:
                 out.append("\x1b[7m")
-                out.append(highlighted)
+            out.append(visible[left - start:right - start])
+            if color or selected:
                 out.append("\x1b[m")
-                out.append(after)
-                return
-        out.append(visible)
 
     def _append_completion_box(self, out):
         """Overlay centered completion menu with a rounded border."""

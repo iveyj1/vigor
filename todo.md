@@ -7,12 +7,12 @@
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
-3. Discuss
+3. Proposal: Add `*`, `#`, `g*`, and `g#` word-under-cursor searches. `*`/`#` search whole words forward/backward; `g*`/`g#` search partial matches forward/backward, using existing search state and repeat commands.
+4. Discuss
 ** Done
 1. Add `:help` to open executable-directory `vighelp`, with terse two-column guidance.
-1. Make `:rgf` Enter select all currently filtered fzf result rows into quickfix.
-2. Document quickfix navigation.
-1. Add `:rgf [path]`: an fzf-backed live ripgrep picker with multi-selection into quickfix.
+2. Add `:rgf [path]`: an fzf-backed live ripgrep picker with Enter selecting filtered rows into quickfix; document quickfix navigation.
+3. Add automatic line-local regex syntax highlighting for comments and strings in Python, C, and Bash files.
 1. Update project documentation counts and phase references.
 2. Consolidate pending-input cancellation.
 3. Speed up the PTY test harness without weakening escape-sequence handling.

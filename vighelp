@@ -25,6 +25,9 @@ n N                 repeat search / reverse
 :e path             open file in a new buffer
 :help               open this help buffer
 :rg pattern [path]  ripgrep results in quickfix
+:rgf [path]         fzf live ripgrep; Enter adds filtered rows
+
+.py .c .h .sh .bash  automatic string/comment highlighting
 
 <space>c            switch to quickfix
 <space>o            open quickfix location

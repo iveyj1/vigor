@@ -2684,6 +2684,25 @@ def test_rgf_selected_rows_open_quickfix():
     assert "\x1b[31m" not in screen, "Expected ANSI color removed from quickfix rows"
     print("  PASS: rgf selected rows open quickfix")
 
+# ── Phase 48: syntax highlighting ─────────────────────────────────────────
+
+def test_syntax_highlights_comments_and_strings():
+    """Recognized Python, C, and Bash files color line-local strings/comments."""
+    cases = [
+        ("code.py", 'x = "# string"\n# comment\n', '"# string"', "# comment"),
+        ("code.c", 'char *s = "// string"; // comment\n', '"// string"', "// comment"),
+        ("code.sh", 'echo "# string"\n# comment\n', '"# string"', "# comment"),
+    ]
+    with tempfile.TemporaryDirectory() as d:
+        for name, content, string, comment in cases:
+            path = os.path.join(d, name)
+            open(path, "w").write(content)
+            screen, _, code = run_vig(b"\x1b:q\r", file_path=path)
+            assert code == 0
+            assert f"\x1b[33m{string}\x1b[m" in screen, f"Missing string color for {name}"
+            assert f"\x1b[32m{comment}\x1b[m" in screen, f"Missing comment color for {name}"
+    print("  PASS: syntax comments and strings")
+
 
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
@@ -3090,6 +3109,9 @@ def main():
         ]),
         ("47", "Phase 47 — fzf ripgrep picker", [
             test_rgf_selected_rows_open_quickfix,
+        ]),
+        ("48", "Phase 48 — syntax highlighting", [
+            test_syntax_highlights_comments_and_strings,
         ]),
     ]
 
