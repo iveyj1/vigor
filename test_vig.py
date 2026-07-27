@@ -2658,10 +2658,11 @@ def test_search_history_shared_by_slash_and_question():
 def test_help_opens_vighelp_buffer():
     """:help opens the executable-directory help buffer."""
     path = write_temp("source\n")
-    screen, _, code = run_vig(b":help\r:q\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":help\r32j:q\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
+    assert "OPTIONS" in screen and ":set wrap" in screen and ":set nowrap" in screen
     print("  PASS: :help opens vighelp")
 
 # ── Phase 47: fzf ripgrep picker ──────────────────────────────────────────

@@ -27,6 +27,18 @@ n N                 repeat search / reverse
 :rg pattern [path]  ripgrep results in quickfix
 :rgf [path]         fzf live ripgrep; Enter adds filtered rows
 
+OPTIONS
+
+:set wrap            wrap long lines           :set nowrap          truncate long lines
+:set wrapmove        j/k move display rows     :set nowrapmove      j/k move text lines
+:set number          show line numbers         :set nonumber        hide line numbers
+:set relativenumber  show relative numbers     :set norelativenumber hide relative numbers
+:set autoindent      copy indent on new lines  :set noautoindent    disable autoindent
+:set comment=X       comment prefix             :set scrolloff=N     cursor screen margin
+:set clipboard=MODE  osc52, auto, or off       :set yankflash=N     yank highlight ms
+:set delcopy         deletes update register   :set nodelcopy       preserve register
+:set rghidden        rg includes filenames     :set norghidden      default rg filenames
+
 .py .c .h .sh .bash  automatic string/comment highlighting
 
 <space>c            switch to quickfix
