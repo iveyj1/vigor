@@ -493,6 +493,18 @@ class Editor:
         self._ensure_scroll()
         self.render()
 
+    def _cancel_pending(self):
+        """Clear incomplete normal-mode input sequences."""
+        self.count = 0
+        self.pending_op = ""
+        self.pending_count = 0
+        self.pending_extra_n = None
+        self._pending_g = self._pending_space = self._pending_g_op = False
+        self._pending_find = self._pending_find_for_op = self._pending_textobj = None
+        self._pending_replace = 0
+        self._pending_ctrl_c = False
+        self._pending_mkdir_write = None
+
     # ── Buffer management ──────────────────────────────────────────────
 
     def _save_buf_state(self):
@@ -3099,19 +3111,17 @@ class Editor:
                     self._suspend()
                     continue
                 if key == "CTRL_C" and self.mode != Mode.NORMAL:
-                    self.pending_op = ""
-                    self._pending_g = False
-                    self._pending_space = False
-                    self._pending_g_op = False
-                    self._pending_find = None
-                    self._pending_textobj = None
-                    self._pending_replace = 0
-                    self._pending_ctrl_c = False
+                    self._cancel_pending()
                     self.mode = Mode.NORMAL
                     self.cmd = ""
+                    self.cmd_cx = 0
                     continue
                 if self.mode == Mode.NORMAL and self._pending_mkdir_write:
-                    self._answer_mkdir_prompt(key)
+                    if key == "CTRL_C":
+                        self._cancel_pending()
+                        self.msg = "Write cancelled"
+                    else:
+                        self._answer_mkdir_prompt(key)
                     continue
 
                 # Clear message on any key (unless entering command/search mode)

@@ -3,10 +3,14 @@
 2) Review proposed changes for estimated change size.  If the net increase in number of lines of code for an individual item exceeds about 50, notify me before implementation.
 
 ** Do
+
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 1. Discuss
 ** Done
+1. Update project documentation counts and phase references.
+2. Consolidate pending-input cancellation.
+3. Speed up the PTY test harness without weakening escape-sequence handling.
 1. Extract shared command/search prompt editing and centralize case-operation lookup.
 1. Show a cursor on `:`, `/`, and `?` command lines.
 1. Add one space around completion dialog filenames between text and frame.

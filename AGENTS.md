@@ -13,8 +13,8 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 
 **Files**
 
-- `vig.py` — the entire editor (~2400 lines)
-- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 210 test functions)
+- `vig.py` — the entire editor (~3,200 lines)
+- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 218 test functions)
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
@@ -152,13 +152,13 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **PTY sizing** — the harness sets the PTY window size to 24×80 via `TIOCSWINSZ` before forking. Resize tests change the size and send `SIGWINCH` to the child.
 
-**Timing** — a 300ms delay after fork lets vig start and render. Keys are sent one byte at a time with 30ms inter-key delay. CSI escape sequences (e.g. `\x1b[C` for Right arrow) are written atomically as a single chunk so the editor's 20ms `select` timeout decodes them correctly. Tests that send many keys (scroll test) use a longer timeout.
+**Timing** — a 300ms delay after fork lets vig start and render. Keys are sent one byte at a time with a 20ms inter-key delay; bare Esc waits 30ms so the editor's 20ms decoder can distinguish it from a sequence. CSI escape sequences (e.g. `\x1b[C` for Right arrow) are written atomically as a single chunk. Tests that send many keys (scroll test) use a longer timeout.
 
 **Phase-selective runs** — `test_vig.py` accepts optional phase selectors (e.g. `python3 test_vig.py 29` or `python3 test_vig.py 17 29`) to run only selected phases during development. Running with no arguments executes the full suite.
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 210 test functions organized into 43 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, and ripgrep quickfix. Run with `python3 test_vig.py`.
+**Coverage** — 218 test functions organized into 44 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, and recent polish. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents

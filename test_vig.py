@@ -10,6 +10,8 @@ import tempfile
 import select
 
 VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig.py")
+KEY_DELAY = 0.02
+ESC_DELAY = 0.03
 
 # ── Harness ────────────────────────────────────────────────────────────────
 
@@ -69,9 +71,8 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
     # Wait a moment for vig to start and render
     time.sleep(0.3)
 
-    # Send keys — escape sequences are sent atomically so the editor
-    # decodes them correctly (its select timeout is 20ms, shorter than
-    # our inter-key delay of 30ms).
+    # Send keys quickly; bare Esc waits long enough for its 20ms decoder
+    # timeout, while CSI/SS3 sequences are written atomically.
     i = 0
     while i < len(keys):
         try:
@@ -98,7 +99,7 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
                 i += 1
         except OSError:
             break
-        time.sleep(0.03)
+        time.sleep(ESC_DELAY if keys[i - 1] == 0x1B else KEY_DELAY)
 
     # Read output until child exits or timeout
     deadline = time.time() + timeout
@@ -2697,6 +2698,16 @@ def test_prompt_cursor_is_visible():
     assert code == -99 and "\x1b[24;5H" in last_frame(screen)
     print("  PASS: prompt cursor is visible")
 
+def test_ctrl_c_cancels_mkdir_prompt():
+    """Ctrl-C cancels a pending missing-directory write."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "source.txt")
+        target = os.path.join(d, "newdir", "out.txt")
+        open(path, "w").write("source\n")
+        _, _, code = run_vig(f"\x1b:w {target}\r\x03:q\r".encode(), file_path=path)
+        assert code == 0 and not os.path.exists(target)
+    print("  PASS: Ctrl-C cancels mkdir prompt")
+
 def test_sticky_vertical_column():
     """Vertical movement restores the desired column after a short line."""
     path = write_temp("abcdef\na\nabcdef\n")
@@ -3039,6 +3050,7 @@ def main():
             test_case_commands,
             test_prompt_cursor_editing,
             test_prompt_cursor_is_visible,
+            test_ctrl_c_cancels_mkdir_prompt,
             test_sticky_vertical_column,
         ]),
     ]
