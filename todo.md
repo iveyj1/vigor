@@ -10,6 +10,9 @@
 3. Proposal: Add `*`, `#`, `g*`, and `g#` word-under-cursor searches. `*`/`#` search whole words forward/backward; `g*`/`g#` search partial matches forward/backward, using existing search state and repeat commands.
 4. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 ** Done
+1. Add `:rgf [path]` directory argument completion.
+2. Add Shift-Tab reverse filename-completion selection.
+3. Wrap Tab/Shift-Tab filename-completion selection.
 1) Replace an untouched initial unnamed buffer when opening or creating a buffer.
 1. Add `:help` to open executable-directory `vighelp`, with terse two-column guidance.
 2. Add `:rgf [path]`: an fzf-backed live ripgrep picker with Enter selecting filtered rows into quickfix; document quickfix navigation.

@@ -2563,6 +2563,30 @@ def test_completion_menu_down_selects_match():
     assert "second" in screen, f"Expected selected second file opened: {screen[-1000:]}"
     print("  PASS: completion menu Down selects match")
 
+def test_completion_menu_tab_wraps_selection():
+    """Tab wraps from the last completion match to the first."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        open(base, "w").write("base\n")
+        open(os.path.join(d, "tab_one.txt"), "w").write("one\n")
+        open(os.path.join(d, "tab_two.txt"), "w").write("two\n")
+        screen, _, code = run_vig(b":e tab_\t\t\t\r\r:q\r:q\r", file_path=base)
+    assert code == 0 and "one" in screen
+    assert "\x1b[7m tab_one.txt " in screen, f"Expected wrapped first selection: {screen[-1000:]}"
+    print("  PASS: completion Tab wraps")
+
+def test_completion_menu_shift_tab_wraps_selection():
+    """Shift-Tab wraps from the first completion match to the last."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        open(base, "w").write("base\n")
+        open(os.path.join(d, "shift_one.txt"), "w").write("one\n")
+        open(os.path.join(d, "shift_two.txt"), "w").write("two\n")
+        screen, _, code = run_vig(b":e shift_\t\x1b[Z\r\r:q\r:q\r", file_path=base)
+    assert code == 0 and "two" in screen
+    assert "\x1b[7m shift_two.txt " in screen, f"Expected wrapped last selection: {screen[-1000:]}"
+    print("  PASS: completion Shift-Tab wraps")
+
 def test_completion_menu_typing_updates_filter():
     """Typing while completion menu is open updates the filename filter."""
     with tempfile.TemporaryDirectory() as d:
@@ -2666,6 +2690,27 @@ def test_help_opens_vighelp_buffer():
     print("  PASS: :help opens vighelp")
 
 # ── Phase 47: fzf ripgrep picker ──────────────────────────────────────────
+
+def test_rgf_path_argument_completes():
+    """:rgf completes its optional starting-directory argument."""
+    with tempfile.TemporaryDirectory() as d:
+        base = os.path.join(d, "base.txt")
+        search = os.path.join(d, "searchdir")
+        bindir = os.path.join(d, "bin")
+        os.mkdir(search)
+        os.mkdir(bindir)
+        open(base, "w").write("base\n")
+        target = os.path.join(search, "a.txt")
+        open(target, "w").write("needle\n")
+        fzf = os.path.join(bindir, "fzf")
+        open(fzf, "w").write("#!/bin/sh\ncase \"$*\" in *\"$VIG_RGF_DIR\"*) ;; *) exit 2;; esac\nprintf '%s\\n' \"$VIG_RGF_LINE\"\n")
+        os.chmod(fzf, 0o755)
+        line = f"{target}:1:1:needle"
+        env = {"PATH": bindir + os.pathsep + os.environ["PATH"],
+               "VIG_RGF_DIR": search, "VIG_RGF_LINE": line}
+        screen, _, code = run_vig(b":rgf search\t\r:q!\r:q\r", file_path=base, env=env)
+    assert code == 0 and line in screen, f"Expected completed rgf path: {screen[-800:]}"
+    print("  PASS: rgf path completion")
 
 def test_rgf_selected_rows_open_quickfix():
     """:rgf strips fzf ANSI output and opens selected rows in quickfix."""
@@ -3098,6 +3143,8 @@ def main():
             test_command_complete_no_path_from_buffer_dir,
             test_completion_menu_enter_accepts_first_match,
             test_completion_menu_down_selects_match,
+            test_completion_menu_tab_wraps_selection,
+            test_completion_menu_shift_tab_wraps_selection,
             test_completion_menu_typing_updates_filter,
             test_completion_menu_esc_hides_list,
             test_command_complete_absolute_path,
@@ -3122,6 +3169,7 @@ def main():
             test_help_opens_vighelp_buffer,
         ]),
         ("47", "Phase 47 — fzf ripgrep picker", [
+            test_rgf_path_argument_completes,
             test_rgf_selected_rows_open_quickfix,
         ]),
         ("48", "Phase 48 — syntax highlighting", [

@@ -169,6 +169,8 @@ class Terminal:
                     return "END"
                 if code == b"3~":
                     return "DEL"
+                if code == b"Z":
+                    return "SHIFT_TAB"
                 return "ESC"
             if first == b"O":
                 if not self._has_data():
@@ -2440,7 +2442,7 @@ class Editor:
                 head, token = "!", body
             return head, token, os.getcwd(), True
         parts = s.split(None, 1)
-        if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read"):
+        if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read", "rgf"):
             return None
         base_dir = os.path.dirname(self.buf.path) if self.buf.path else os.getcwd()
         return parts[0], (parts[1] if len(parts) > 1 else ""), base_dir, False
@@ -2500,8 +2502,14 @@ class Editor:
             if key == "UP":
                 self.comp_index = max(0, self.comp_index - 1)
                 return
-            if key in ("DOWN", "TAB"):
+            if key == "DOWN":
                 self.comp_index = min(len(self.comp_matches) - 1, self.comp_index + 1)
+                return
+            if key == "TAB":
+                self.comp_index = (self.comp_index + 1) % len(self.comp_matches)
+                return
+            if key == "SHIFT_TAB":
+                self.comp_index = (self.comp_index - 1) % len(self.comp_matches)
                 return
         if key in ("ESC", "CTRL_C"):
             self.mode = Mode.NORMAL
