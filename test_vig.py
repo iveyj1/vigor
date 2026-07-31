@@ -1041,47 +1041,52 @@ def test_wrap_cursor_position():
 # ── Phase 13: Line Numbers ────────────────────────────────────────────────
 
 def test_set_number():
-    """:set number shows absolute line numbers."""
+    """:set number shows absolute line numbers right-aligned in five columns."""
     path = write_temp("alpha\nbeta\ngamma\n")
     keys = b":set number\r:q\r"
     screen, _, code = run_vig(keys, file_path=path, cols=40)
     os.unlink(path)
     assert code == 0
-    assert "1 alpha" in screen, f"Expected '1 alpha' in screen: {screen[:300]}"
-    assert "2 beta" in screen, f"Expected '2 beta' in screen: {screen[:300]}"
-    assert "3 gamma" in screen, f"Expected '3 gamma' in screen: {screen[:300]}"
+    assert "    1 alpha" in screen, f"Expected right-aligned line 1: {screen[:300]}"
+    assert "    2 beta" in screen, f"Expected right-aligned line 2: {screen[:300]}"
+    assert "    3 gamma" in screen, f"Expected right-aligned line 3: {screen[:300]}"
     assert "number on" in screen, f"Expected 'number on' message in screen"
     print("  PASS: :set number")
 
 def test_set_relativenumber():
-    """:set relativenumber shows relative line numbers (0 at cursor)."""
+    """:set relativenumber left-aligns the absolute cursor line and right-aligns distances."""
     path = write_temp("alpha\nbeta\ngamma\ndelta\n")
-    # Cursor on line 1 (0-indexed: 0), so distances are 0,1,2,3
     keys = b":set relativenumber\r:q\r"
     screen, _, code = run_vig(keys, file_path=path, cols=40)
     os.unlink(path)
     assert code == 0
-    # Current line shows 0, next lines show 1, 2, 3
-    assert "0  alpha" in screen, f"Expected shifted '0  alpha' in screen: {screen[:400]}"
-    assert "1 beta" in screen, f"Expected '1 beta' in screen: {screen[:400]}"
-    assert "2 gamma" in screen, f"Expected '2 gamma' in screen: {screen[:400]}"
+    assert "1     alpha" in screen, f"Expected left-aligned absolute cursor line: {screen[:400]}"
+    assert "    1 beta" in screen, f"Expected right-aligned relative line 1: {screen[:400]}"
+    assert "    2 gamma" in screen, f"Expected right-aligned relative line 2: {screen[:400]}"
     print("  PASS: :set relativenumber")
 
 def test_number_and_relnum():
-    """Both number + relativenumber: current line shows absolute, others show relative."""
+    """Both number + relativenumber use the relative-number layout."""
     path = write_temp("alpha\nbeta\ngamma\ndelta\nepsilon\n")
-    # Move to line 3 (0-indexed: 2), then enable both
     keys = b"2j:set number\r:set relativenumber\r:q\r"
     screen, _, code = run_vig(keys, file_path=path, cols=40)
     os.unlink(path)
     assert code == 0
-    # Line 3 (cursor) should show absolute '3', others relative
-    assert "3 gamma" in screen, f"Expected '3 gamma' for cursor line: {screen[:400]}"
-    assert "2 alpha" in screen, f"Expected '2 alpha' (relative) in screen: {screen[:400]}"
-    assert "1 beta" in screen, f"Expected '1 beta' (relative) in screen: {screen[:400]}"
-    assert "1 delta" in screen, f"Expected '1 delta' (relative) in screen: {screen[:400]}"
-    assert "2 epsilon" in screen, f"Expected '2 epsilon' (relative) in screen: {screen[:400]}"
+    assert "3     gamma" in screen, f"Expected left-aligned absolute cursor line: {screen[:400]}"
+    assert "    2 alpha" in screen, f"Expected relative line 2: {screen[:400]}"
+    assert "    1 beta" in screen, f"Expected relative line 1: {screen[:400]}"
+    assert "    1 delta" in screen, f"Expected relative line 1: {screen[:400]}"
+    assert "    2 epsilon" in screen, f"Expected relative line 2: {screen[:400]}"
     print("  PASS: number + relativenumber")
+
+def test_number_gutter_expands_past_five_digits():
+    """The number field expands when the file has more than 99,999 lines."""
+    path = write_temp("x\n" * 100000)
+    screen, _, code = run_vig(b":set number\r:q\r", file_path=path, cols=40)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[H     1 x" in screen, f"Expected six-column number field: {screen[-500:]}"
+    print("  PASS: number gutter expands past five digits")
 
 def test_number_with_wrap():
     """:set number with :set wrap — only first wrapped row gets the line number."""
@@ -2300,7 +2305,7 @@ def test_config_file_sets_options():
     os.unlink(path)
     assert code == 0
     frame = last_frame(screen)
-    assert " 1  alpha" in frame, f"Expected shifted numbered line from config: {frame[-500:]}"
+    assert "1     alpha" in frame, f"Expected relative-number cursor layout: {frame[-500:]}"
     print("  PASS: config file sets options")
 
 # ── Phase 38: ripgrep quickfix ─────────────────────────────────────────────
@@ -2408,14 +2413,14 @@ def test_yank_flash_clears_after_configured_time():
     assert "\x1b[7malpha" not in frame, f"Expected highlight cleared in final frame: {frame[-800:]}"
     print("  PASS: yank flash clears after configured time")
 
-def test_relativenumber_cursor_row_shifted_left():
-    """Relative-number cursor row uses spare gutter space to shift left."""
+def test_relativenumber_cursor_row_flush_left():
+    """Relative-number cursor row is absolute and flush left in the number field."""
     path = write_temp("alpha\nbeta\ngamma\n")
-    screen, _, code = run_vig(b":set relativenumber\r:q\r", file_path=path)
+    screen, _, code = run_vig(b"j:set relativenumber\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    assert "\x1b[H 0  alpha" in screen, f"Expected shifted current relative number: {screen[-800:]}"
-    print("  PASS: relative number cursor row shifts left")
+    assert "2     beta" in screen, f"Expected flush-left absolute cursor number: {screen[-800:]}"
+    print("  PASS: relative number cursor row is flush left")
 
 def test_insert_tab_uses_tab_columns():
     """Tab advances to the next 4-column tab stop."""
@@ -2960,6 +2965,7 @@ def main():
             test_set_number,
             test_set_relativenumber,
             test_number_and_relnum,
+            test_number_gutter_expands_past_five_digits,
             test_number_with_wrap,
         ]),
         ("14", "Phase 14 — Insert Arrow Keys", [
@@ -3121,7 +3127,7 @@ def main():
             test_edit_bang_reloads_file_from_disk,
             test_yank_flashes_highlight,
             test_yank_flash_clears_after_configured_time,
-            test_relativenumber_cursor_row_shifted_left,
+            test_relativenumber_cursor_row_flush_left,
             test_insert_tab_uses_tab_columns,
         ]),
         ("40", "Phase 40 — todo.md Do items", [

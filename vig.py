@@ -1361,24 +1361,17 @@ class Editor:
         """Width of line number gutter (0 if line numbers disabled)."""
         if not self.opt_number and not self.opt_relnum:
             return 0
-        return max(3, len(str(len(self.buf.lines)))) + 1
+        return max(5, len(str(len(self.buf.lines)))) + 1
 
     def _gutter_str(self, buf_line, gutter_width):
         """Format the line number string for a given buffer line."""
         if gutter_width == 0:
             return ""
-        if self.opt_relnum:
-            if buf_line == self.cy:
-                num = (buf_line + 1) if self.opt_number else 0
-            else:
-                num = abs(buf_line - self.cy)
-        else:
-            num = buf_line + 1
-        num_s = str(num)
-        pad = gutter_width - 1 - len(num_s)
-        if self.opt_relnum and buf_line == self.cy and pad > 0:
-            return " " * (pad - 1) + num_s + "  "
-        return " " * max(0, pad) + num_s + " "
+        width = gutter_width - 1
+        if self.opt_relnum and buf_line == self.cy:
+            return str(buf_line + 1).ljust(width) + " "
+        num = abs(buf_line - self.cy) if self.opt_relnum else buf_line + 1
+        return str(num).rjust(width) + " "
 
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""
