@@ -76,8 +76,17 @@ Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or his
 | `6b4c65c` | 2713 | 212 | 230 | 0 | update todo.md: |
 | `0175aa6` | 2721 | 213 | 231 | 8 | Improve cancellation and test speed |
 | `272284b` | 2721 | 213 | 231 | 0 | Record visual block mode proposal |
-| `d4ad8b6` | 2767 | 216 | 233 | 46 | Add fzf ripgrep quickfix picker |
+| `26e40f8` | 2746 | 215 | 234 | 25 | Add regex syntax highlighting |
+| `5fddcaf` | 2746 | 215 | 234 | 0 | Record word search proposal |
+| `d4ad8b6` | 2767 | 216 | 233 | 21 | Add fzf ripgrep quickfix picker |
 | `fcc718d` | 2768 | 216 | 233 | 1 | Select filtered rgf results on enter |
 | `e987a43` | 2731 | 213 | 231 | -37 | Add executable directory help |
 | `e98ad49` | 2731 | 213 | 231 | 0 | tweak help |
 | `62c2302` | 2778 | 216 | 233 | 47 | Merge rgf and help features |
+| `f2044ca` | 2778 | 216 | 233 | 0 | Improve cloc history script |
+| `95697a4` | 2803 | 217 | 236 | 25 | Merge syntax highlighting |
+| `9d958f3` | 2801 | 218 | 237 | -2 | Replace untouched initial buffer |
+| `657754c` | 2801 | 218 | 237 | 0 | Expand help options reference |
+| `91b22c9` | 2809 | 218 | 237 | 8 | Improve filename completion navigation |
+| `285aca9` | 2802 | 218 | 237 | -7 | Revise line number alignment |
+| `5bb7957` | 2802 | 218 | 237 | 0 | add backlog doc and block select proposal |
