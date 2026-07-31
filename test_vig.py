@@ -2855,12 +2855,57 @@ def test_sticky_vertical_column():
     print("  PASS: sticky vertical column")
 
 
-def test_file_startup_shows_splash():
-    """Opening a file briefly renders the Vigor startup logo."""
-    screen, _, code = run_vig(b":q\r")
+def test_file_startup_shows_framed_splash_over_editor():
+    """Startup draws a colored, rounded, triple-size logo box over the editor."""
+    path = write_temp("underlay\n")
+    screen, _, code = run_vig(b":q\r", file_path=path)
+    os.unlink(path)
     assert code == 0
-    assert "| |  / (_)___ _____  _____" in screen, f"Expected splash logo: {screen[-800:]}"
-    print("  PASS: file startup splash")
+    border = "\x1b[49m\x1b[96m╭" + "─" * 76 + "╮"
+    assert border in screen, f"Expected 78-column rounded splash frame: {screen[-2000:]}"
+    assert screen.count("│") == 32, "Expected 18-row splash frame"
+    assert "\x1b[49m\x1b[96m│\x1b[97m" in screen, "Expected default background and colored logo"
+    assert screen.index("underlay") < screen.index("╭"), "Editor frame must be drawn before splash overlay"
+    assert "| |  / (_)___ _____  _____" in screen, f"Expected splash logo: {screen[-2000:]}"
+    print("  PASS: framed splash overlays editor")
+
+
+def test_splash_dismisses_and_input_executes():
+    """The first input dismisses the splash and still executes normally."""
+    path = write_temp("alpha\n")
+    screen, _, code = run_vig(b"iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "╭" in screen, "Expected initial splash frame"
+    assert "╭" not in last_frame(screen), "Expected redraw without splash after input"
+    print("  PASS: splash dismisses and input executes")
+
+
+def test_file_splash_times_out():
+    """A command-line file splash disappears after the startup timeout."""
+    path = write_temp("alpha\n")
+    screen, _, code = run_vig(b"", file_path=path, timeout=1.3)
+    os.unlink(path)
+    assert code == -99
+    assert "╭" in screen, "Expected initial splash frame"
+    assert "╭" not in last_frame(screen), "Expected timed redraw without splash"
+    print("  PASS: file splash times out")
+
+
+def test_unnamed_splash_has_no_timeout():
+    """Without command-line files, the splash remains until input."""
+    screen, _, code = run_vig(b"", file_paths=[], timeout=1.3)
+    assert code == -99
+    assert "╭" in last_frame(screen), "Unnamed splash should remain without input"
+    print("  PASS: unnamed splash has no timeout")
+
+
+def test_splash_clamps_to_small_terminal():
+    """Splash padding and logo crop safely when the terminal is small."""
+    screen, _, code = run_vig(b":q\r", rows=8, cols=20)
+    assert code == 0
+    assert "╭" + "─" * 18 + "╮" in screen, f"Expected clamped splash frame: {screen[-1000:]}"
+    print("  PASS: splash clamps to small terminal")
 
 # ── Runner ─────────────────────────────────────────────────────────────────
 
@@ -3185,7 +3230,11 @@ def main():
             test_search_history_shared_by_slash_and_question,
         ]),
         ("44", "Phase 44 — splash screen", [
-            test_file_startup_shows_splash,
+            test_file_startup_shows_framed_splash_over_editor,
+            test_splash_dismisses_and_input_executes,
+            test_file_splash_times_out,
+            test_unnamed_splash_has_no_timeout,
+            test_splash_clamps_to_small_terminal,
         ]),
         ("45", "Phase 45 — todo polish", [
             test_completion_menu_has_filename_padding,

@@ -50,7 +50,7 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 
 **Insert mode** — printable characters insert at cursor. Bracketed paste inserts pasted text literally, normalizing CRLF/CR to LF and not interpreting tabs, Esc, or newlines as typed keys. Tab inserts spaces to the next 4-column tab stop. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
-**Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, the Vigor logo remains until a keypress for an unnamed buffer, or displays for up to one second when a file is opened.
+**Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, vigor renders the initial editor frame and overlays a centered, rounded, colored rectangle approximately three times the logo's width and height. The overlay remains until a keypress for an unnamed buffer, or for up to one second when a command-line file is opened; the dismissing key still executes normally.
 
 
 **Project tooling**
@@ -163,7 +163,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 226 test functions organized into 48 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 232 test functions organized into 48 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, and recent polish. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents

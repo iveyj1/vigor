@@ -157,6 +157,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 - Blank lines and lines starting with `#` are ignored.
 
 ## Terminal Features
+- Startup first renders the editor, then overlays a centered rounded logo frame. Input dismisses it and still executes; command-line file startup also dismisses it after one second.
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker
 - The visible window horizontally scrolls in nowrap mode to keep the cursor visible

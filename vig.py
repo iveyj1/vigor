@@ -42,6 +42,9 @@ SPLASH = (
     "|___/_/\\__, /\\____/_/     ",
     "      /____/",
 )
+SPLASH_BG = "\x1b[49m"  # terminal default background
+SPLASH_FRAME = "\x1b[96m"
+SPLASH_FG = "\x1b[97m"
 
 # ── Buffer ─────────────────────────────────────────────────────────────────
 
@@ -1489,21 +1492,34 @@ class Editor:
             out.append("│")
         out.append(f"\x1b[{top + box_h - 1};{left}H╰" + "─" * inner_w + "╯")
 
-    def _render_splash(self):
-        """Draw the centered startup logo without an editor cursor."""
+    def _append_splash(self, out):
+        """Overlay a centered framed logo on the completed editor frame."""
+        total_rows = self.rows + 2
+        if self.cols < 2 or total_rows < 2:
+            return
         logo_width = max(len(line) for line in SPLASH)
-        top = max(1, (self.rows + 2 - len(SPLASH)) // 2 + 1)
-        left = max(1, (self.cols - logo_width) // 2 + 1)
-        out = ["\x1b[?25l\x1b[2J"]
-        for row, line in enumerate(SPLASH, top):
-            out.append(f"\x1b[{row};{left}H{line}")
-        sys.stdout.write("".join(out))
-        sys.stdout.flush()
+        box_width = min(self.cols, max(logo_width + 2, logo_width * 3))
+        box_height = min(total_rows, max(len(SPLASH) + 2, len(SPLASH) * 3))
+        inner_width, inner_height = box_width - 2, box_height - 2
+        top = (total_rows - box_height) // 2 + 1
+        left = (self.cols - box_width) // 2 + 1
+        out.append(f"\x1b[{top};{left}H{SPLASH_BG}{SPLASH_FRAME}╭" + "─" * inner_width + "╮\x1b[m")
+
+        logo_rows = min(len(SPLASH), inner_height)
+        logo_start = max(0, (len(SPLASH) - logo_rows) // 2)
+        logo_top = max(0, (inner_height - logo_rows) // 2)
+        crop = max(0, (logo_width - inner_width) // 2)
+        for i in range(inner_height):
+            text = " " * inner_width
+            if logo_top <= i < logo_top + logo_rows:
+                line = SPLASH[logo_start + i - logo_top].ljust(logo_width)
+                line = line[crop:crop + inner_width]
+                text = line.center(inner_width)
+            row = top + i + 1
+            out.append(f"\x1b[{row};{left}H{SPLASH_BG}{SPLASH_FRAME}│{SPLASH_FG}{text}{SPLASH_FRAME}│\x1b[m")
+        out.append(f"\x1b[{top + box_height - 1};{left}H{SPLASH_BG}{SPLASH_FRAME}╰" + "─" * inner_width + "╯\x1b[m")
 
     def render(self):
-        if self._splash:
-            self._render_splash()
-            return
         out = []
         out.append("\x1b[?25l")  # hide cursor
         out.append("\x1b[H")     # cursor home
@@ -1588,20 +1604,23 @@ class Editor:
             out.append(self.msg[:self.cols] if self.msg else "")
         out.append("\x1b[K")
 
-        # Cursor shape: block for normal/visual/command, bar for insert
-        if self.mode == Mode.INSERT:
-            out.append("\x1b[6 q")  # steady bar
+        if self._splash:
+            self._append_splash(out)
         else:
-            out.append("\x1b[2 q")  # steady block
+            # Cursor shape: block for normal/visual/command, bar for insert
+            if self.mode == Mode.INSERT:
+                out.append("\x1b[6 q")  # steady bar
+            else:
+                out.append("\x1b[2 q")  # steady block
 
-        # Position real cursor (use prompt cursor while editing a prompt)
-        if self.mode in (Mode.COMMAND, Mode.SEARCH):
-            screen_y, screen_x = self.rows + 2, min(self.cols, self.cmd_cx + 2)
-        else:
-            screen_y = cursor_screen_y + 1  # 1-indexed
-            screen_x = cursor_screen_x + 1  # 1-indexed
-        out.append(f"\x1b[{screen_y};{screen_x}H")
-        out.append("\x1b[?25h")  # show cursor
+            # Position real cursor (use prompt cursor while editing a prompt)
+            if self.mode in (Mode.COMMAND, Mode.SEARCH):
+                screen_y, screen_x = self.rows + 2, min(self.cols, self.cmd_cx + 2)
+            else:
+                screen_y = cursor_screen_y + 1  # 1-indexed
+                screen_x = cursor_screen_x + 1  # 1-indexed
+            out.append(f"\x1b[{screen_y};{screen_x}H")
+            out.append("\x1b[?25h")  # show cursor
 
         sys.stdout.write("".join(out))
         sys.stdout.flush()
