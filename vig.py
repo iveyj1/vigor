@@ -99,13 +99,16 @@ class Terminal:
 
     def enter_raw(self):
         tty.setraw(self.fd)
-        sys.stdout.write("\x1b[?2004h")  # enable bracketed paste
+        # Disable autowrap while vigor owns the terminal. The renderer clears
+        # each line after writing it; if a full-width line autowraps first,
+        # that clear can hit the next row and smear scrolling/status text.
+        sys.stdout.write("\x1b[?2004h\x1b[?7l")
         sys.stdout.flush()
 
     def restore(self):
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_attrs)
-        # Disable bracketed paste, show cursor, clear screen on exit
-        sys.stdout.write("\x1b[?2004l\x1b[?25h\x1b[2J\x1b[H")
+        # Disable bracketed paste, restore autowrap, show cursor, clear screen on exit
+        sys.stdout.write("\x1b[?2004l\x1b[?7h\x1b[?25h\x1b[2J\x1b[H")
         sys.stdout.flush()
 
     def suspend_restore(self):
@@ -121,7 +124,7 @@ class Terminal:
         attrs[6][termios.VMIN] = 1
         attrs[6][termios.VTIME] = 0
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, attrs)
-        sys.stdout.write("\x1b[?2004l\x1b[0 q\x1b[?25h")
+        sys.stdout.write("\x1b[?2004l\x1b[?7h\x1b[0 q\x1b[?25h")
         sys.stdout.flush()
 
     def read_key(self):
@@ -1504,6 +1507,8 @@ class Editor:
         out = []
         out.append("\x1b[?25l")  # hide cursor
         out.append("\x1b[H")     # cursor home
+        out.append("\x1b[J")     # clear old frame before drawing leading blanks
+        out.append("\x1b[?7l")   # no autowrap during full-frame redraws
 
         sel = self._selection_range()
         if sel is None and self._yank_flash:

@@ -217,6 +217,29 @@ def test_scroll_down():
     assert code == 0, f"Expected exit 0, got {code}"
     print("  PASS: scroll down")
 
+
+def test_render_disables_autowrap_for_full_width_lines():
+    """Full-width rows must not autowrap before line-clear escapes."""
+    content = "\n".join("X" * 20 for _ in range(30)) + "\n"
+    path = write_temp(content)
+    screen, _, code = run_vig(b"j" * 20 + b"k" * 10 + b":q\r", file_path=path, rows=10, cols=20, timeout=6.0)
+    os.unlink(path)
+    assert code == 0, f"Expected exit 0, got {code}"
+    assert "\x1b[?7l" in screen, "Expected autowrap disabled during redraw"
+    assert "\x1b[?7h" in screen, "Expected autowrap restored on exit"
+    print("  PASS: autowrap disabled for full-width redraws")
+
+
+def test_render_clears_old_frame_for_indented_scroll():
+    """Indented rows should not inherit text from previous scrolled frames."""
+    content = "\n".join(f"    item {i}" if i % 2 else f"line {i}" for i in range(40)) + "\n"
+    path = write_temp(content)
+    screen, _, code = run_vig(b"j" * 25 + b"k" * 15 + b":q\r", file_path=path, rows=10, cols=30, timeout=6.0)
+    os.unlink(path)
+    assert code == 0, f"Expected exit 0, got {code}"
+    assert "\x1b[H\x1b[J" in screen, "Expected each redraw to clear the old frame"
+    print("  PASS: old frame cleared for indented scroll")
+
 # ── Phase 2: Editing ──────────────────────────────────────────────────────
 
 def test_insert_text():
@@ -1085,7 +1108,7 @@ def test_number_gutter_expands_past_five_digits():
     screen, _, code = run_vig(b":set number\r:q\r", file_path=path, cols=40)
     os.unlink(path)
     assert code == 0
-    assert "\x1b[H     1 x" in screen, f"Expected six-column number field: {screen[-500:]}"
+    assert "     1 x" in screen, f"Expected six-column number field: {screen[-500:]}"
     print("  PASS: number gutter expands past five digits")
 
 def test_number_with_wrap():
@@ -2868,6 +2891,8 @@ def main():
             test_j_k_movement,
             test_h_l_movement,
             test_scroll_down,
+            test_render_disables_autowrap_for_full_width_lines,
+            test_render_clears_old_frame_for_indented_scroll,
         ]),
         ("2", "Phase 2 — Editing", [
             test_insert_text,
