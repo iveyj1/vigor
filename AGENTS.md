@@ -153,11 +153,11 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 ## Testing
 
-**Harness** — each test forks a child process connected via `pty.openpty()`. The child exec's `python3 vig.py <file>`. The parent sends keystrokes byte-by-byte via `os.write()` and reads screen output via `os.read()`. No test framework — plain `assert`.
+**Harness** — each test forks a child process connected via `pty.openpty()`. The child exec's `python3 vig.py <file>`. The parent sends logical keys via `os.write()` and accumulates screen output from `os.read()` in a `bytearray`. No test framework — plain `assert`.
 
 **PTY sizing** — the harness sets the PTY window size to 24×80 via `TIOCSWINSZ` before forking. Resize tests change the size and send `SIGWINCH` to the child.
 
-**Timing** — a 300ms delay after fork lets vig start and render. Keys are sent one byte at a time with a 20ms inter-key delay; bare Esc waits 30ms so the editor's 20ms decoder can distinguish it from a sequence. CSI escape sequences (e.g. `\x1b[C` for Right arrow) are written atomically as a single chunk. Tests that send many keys (scroll test) use a longer timeout.
+**Timing** — the harness waits for vigor's full-frame marker instead of sleeping after fork. It tokenizes input into logical keys (single bytes, complete CSI/SS3 sequences, or complete bracketed pastes), sends one key atomically, drains PTY output, and advances when the next frame begins. This naturally honors the editor's 20ms bare-Esc timeout without fixed inter-key delays and prevents full redraws from filling the PTY output buffer. Child exit is polled every 20ms; explicit longer timeouts remain only for tests that intentionally wait or invoke external tools.
 
 **Phase-selective runs** — `test_vig.py` accepts optional phase selectors (e.g. `python3 test_vig.py 29` or `python3 test_vig.py 17 29`) to run only selected phases during development. Running with no arguments executes the full suite.
 

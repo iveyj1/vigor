@@ -10,21 +10,129 @@ import tempfile
 import select
 
 VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig.py")
-KEY_DELAY = 0.02
-ESC_DELAY = 0.03
+FRAME_MARKER = b"\x1b[?25l\x1b[H"
+PASTE_START = b"\x1b[200~"
+PASTE_END = b"\x1b[201~"
 
 # ── Harness ────────────────────────────────────────────────────────────────
 
+def _read_pty(master, output, timeout=0.02):
+    """Read one available PTY chunk into output. Return whether data arrived."""
+    try:
+        ready, _, _ = select.select([master], [], [], max(0, timeout))
+        if not ready:
+            return False
+        data = os.read(master, 65536)
+    except OSError:
+        return False
+    if not data:
+        return False
+    output.extend(data)
+    return True
+
+
+def _drain_pty(master, output):
+    while _read_pty(master, output, 0):
+        pass
+
+
+def _wait_for_quiet(master, output, deadline, quiet=0.005):
+    """Drain output until no bytes arrive for a short quiet interval."""
+    while time.monotonic() < deadline:
+        if not _read_pty(master, output, min(quiet, deadline - time.monotonic())):
+            return
+
+
+def _poll_child(pid):
+    """Return the exit code if pid has exited, otherwise None."""
+    try:
+        wpid, status = os.waitpid(pid, os.WNOHANG)
+    except ChildProcessError:
+        return -1
+    if wpid == 0:
+        return None
+    return os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
+
+
+def _wait_for_frame(master, pid, output, target, deadline):
+    """Read output until target full-frame markers have arrived or pid exits."""
+    while output.count(FRAME_MARKER) < target:
+        exit_code = _poll_child(pid)
+        if exit_code is not None:
+            _drain_pty(master, output)
+            return False, exit_code
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return False, None
+        _read_pty(master, output, min(0.02, remaining))
+    return True, None
+
+
+def _key_tokens(keys):
+    """Yield bytes consumed by Terminal.read_key() as one logical key."""
+    i = 0
+    while i < len(keys):
+        if keys.startswith(PASTE_START, i):
+            end = keys.find(PASTE_END, i + len(PASTE_START))
+            if end >= 0:
+                end += len(PASTE_END)
+                yield keys[i:end]
+                i = end
+                continue
+        if keys[i] == 0x1B and i + 1 < len(keys):
+            if keys[i + 1] == 0x5B:
+                end = i + 2
+                while end < len(keys) and not (0x40 <= keys[end] <= 0x7E):
+                    end += 1
+                if end < len(keys):
+                    end += 1
+                yield keys[i:end]
+                i = end
+                continue
+            if keys[i + 1] == 0x4F and i + 2 < len(keys):
+                yield keys[i:i + 3]
+                i += 3
+                continue
+        yield keys[i:i + 1]
+        i += 1
+
+
+def _send_keys(master, pid, output, keys, deadline, wait_after_last=False):
+    """Send logical keys, advancing when vigor starts its next redraw."""
+    tokens = list(_key_tokens(keys))
+    for i, token in enumerate(tokens):
+        before = output.count(FRAME_MARKER)
+        try:
+            os.write(master, token)
+        except OSError:
+            return _poll_child(pid)
+        if wait_after_last or i < len(tokens) - 1:
+            ready, exit_code = _wait_for_frame(master, pid, output, before + 1, deadline)
+            if exit_code is not None or not ready:
+                return exit_code
+    return None
+
+
+def _collect_child(master, pid, output, deadline, exit_code=None):
+    """Collect output until pid exits or the shared deadline expires."""
+    while exit_code is None and time.monotonic() < deadline:
+        exit_code = _poll_child(pid)
+        if exit_code is None:
+            _read_pty(master, output, min(0.02, deadline - time.monotonic()))
+    if exit_code is not None:
+        _drain_pty(master, output)
+        return exit_code
+    try:
+        os.kill(pid, signal.SIGKILL)
+        os.waitpid(pid, 0)
+    except OSError:
+        pass
+    _drain_pty(master, output)
+    return -99
+
+
 def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80, env=None):
-    """
-    Launch vig in a PTY, send `keys`, wait for exit or timeout.
-    Returns (screen_output, file_contents_after, exit_code).
-    
-    keys: bytes to feed to stdin
-    file_path: single path to open (if None, uses a temp file)
-    file_paths: list of paths to open (overrides file_path)
-    env: environment overrides for the child; config loading is disabled by default
-    """
+    """Launch vigor in a PTY, send keys, and return screen, file, exit code."""
     if isinstance(keys, str):
         keys = keys.encode()
 
@@ -40,15 +148,11 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
         all_paths = [file_path]
 
     master, slave = pty.openpty()
-
-    # Set PTY size
     import struct, fcntl, termios as tm
-    winsize = struct.pack("HHHH", rows, cols, 0, 0)
-    fcntl.ioctl(master, tm.TIOCSWINSZ, winsize)
+    fcntl.ioctl(master, tm.TIOCSWINSZ, struct.pack("HHHH", rows, cols, 0, 0))
 
     pid = os.fork()
     if pid == 0:
-        # Child
         os.close(master)
         os.setsid()
         fcntl.ioctl(slave, tm.TIOCSCTTY, 0)
@@ -64,100 +168,25 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
         os.execvp(sys.executable, [sys.executable, VIG] + all_paths)
         os._exit(1)
 
-    # Parent
     os.close(slave)
-    output = b""
-
-    # Wait a moment for vig to start and render
-    time.sleep(0.3)
-
-    # Send keys quickly; bare Esc waits long enough for its 20ms decoder
-    # timeout, while CSI/SS3 sequences are written atomically.
-    i = 0
-    while i < len(keys):
-        try:
-            if keys[i] == 0x1B and i + 1 < len(keys):
-                if keys[i + 1] == 0x5B:
-                    # CSI sequence: \x1b[ + one or more bytes until a letter
-                    end = i + 2
-                    while end < len(keys) and not (0x40 <= keys[end] <= 0x7E):
-                        end += 1
-                    if end < len(keys):
-                        end += 1  # include the final letter
-                    os.write(master, keys[i:end])
-                    i = end
-                    continue
-                if keys[i + 1] == 0x4F and i + 2 < len(keys):
-                    # SS3 sequence: \x1bO<code> (Home/End on some terminals)
-                    os.write(master, keys[i:i + 3])
-                    i += 3
-                    continue
-                os.write(master, bytes([keys[i]]))
-                i += 1
-            else:
-                os.write(master, bytes([keys[i]]))
-                i += 1
-        except OSError:
-            break
-        time.sleep(ESC_DELAY if keys[i - 1] == 0x1B else KEY_DELAY)
-
-    # Read output until child exits or timeout
-    deadline = time.time() + timeout
-    exit_code = None
-    while time.time() < deadline:
-        # Check if child exited
-        wpid, status = os.waitpid(pid, os.WNOHANG)
-        if wpid != 0:
-            exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-            # Drain remaining output
-            while True:
-                r, _, _ = select.select([master], [], [], 0.05)
-                if not r:
-                    break
-                try:
-                    data = os.read(master, 4096)
-                    if not data:
-                        break
-                    output += data
-                except OSError:
-                    break
-            break
-
-        # Read available output
-        r, _, _ = select.select([master], [], [], 0.1)
-        if r:
-            try:
-                data = os.read(master, 4096)
-                if data:
-                    output += data
-            except OSError:
-                break
-
-    if exit_code is None:
-        # Timeout — kill the child
-        try:
-            os.kill(pid, signal.SIGKILL)
-            os.waitpid(pid, 0)
-        except OSError:
-            pass
-        exit_code = -99  # sentinel for timeout
-
+    output = bytearray()
+    deadline = time.monotonic() + timeout
+    ready, exit_code = _wait_for_frame(master, pid, output, 1, deadline)
+    if ready and exit_code is None:
+        exit_code = _send_keys(master, pid, output, keys, deadline)
+    exit_code = _collect_child(master, pid, output, deadline, exit_code)
     os.close(master)
 
-    # Read file contents
     file_contents = ""
     if file_path and os.path.exists(file_path):
         with open(file_path, "r") as f:
             file_contents = f.read()
-
     if cleanup_file and file_path:
         try:
             os.unlink(file_path)
         except OSError:
             pass
-
-    screen = output.decode("utf-8", errors="replace")
-    return screen, file_contents, exit_code
+    return output.decode("utf-8", errors="replace"), file_contents, exit_code
 
 
 def last_frame(screen):
@@ -601,69 +630,20 @@ def run_vig_with_resize(keys_before, keys_after, new_rows, new_cols,
         os._exit(1)
 
     os.close(slave)
-    time.sleep(0.3)
-
-    # Send pre-resize keys
-    for b in keys_before:
-        try:
-            os.write(master, bytes([b]))
-        except OSError:
-            break
-        time.sleep(0.03)
-
-    time.sleep(0.1)
-
-    # Resize the PTY
-    winsize = struct.pack("HHHH", new_rows, new_cols, 0, 0)
-    fcntl.ioctl(master, tm.TIOCSWINSZ, winsize)
-    os.kill(pid, signal.SIGWINCH)
-    time.sleep(0.2)
-
-    # Send post-resize keys
-    for b in keys_after:
-        try:
-            os.write(master, bytes([b]))
-        except OSError:
-            break
-        time.sleep(0.03)
-
-    # Collect output
-    output = b""
-    deadline = time.time() + timeout
-    exit_code = None
-    while time.time() < deadline:
-        wpid, status = os.waitpid(pid, os.WNOHANG)
-        if wpid != 0:
-            exit_code = os.WEXITSTATUS(status) if os.WIFEXITED(status) else -1
-            while True:
-                r, _, _ = select.select([master], [], [], 0.05)
-                if not r:
-                    break
-                try:
-                    data = os.read(master, 4096)
-                    if not data:
-                        break
-                    output += data
-                except OSError:
-                    break
-            break
-        r, _, _ = select.select([master], [], [], 0.1)
-        if r:
-            try:
-                data = os.read(master, 4096)
-                if data:
-                    output += data
-            except OSError:
-                break
+    output = bytearray()
+    deadline = time.monotonic() + timeout
+    ready, exit_code = _wait_for_frame(master, pid, output, 1, deadline)
+    if ready and exit_code is None:
+        exit_code = _send_keys(master, pid, output, keys_before, deadline, wait_after_last=True)
 
     if exit_code is None:
-        try:
-            os.kill(pid, signal.SIGKILL)
-            os.waitpid(pid, 0)
-        except OSError:
-            pass
-        exit_code = -99
-
+        _wait_for_quiet(master, output, deadline)
+        before = output.count(FRAME_MARKER)
+        fcntl.ioctl(master, tm.TIOCSWINSZ, struct.pack("HHHH", new_rows, new_cols, 0, 0))
+        _, exit_code = _wait_for_frame(master, pid, output, before + 1, deadline)
+    if exit_code is None:
+        exit_code = _send_keys(master, pid, output, keys_after, deadline)
+    exit_code = _collect_child(master, pid, output, deadline, exit_code)
     os.close(master)
 
     file_contents = ""
@@ -675,7 +655,6 @@ def run_vig_with_resize(keys_before, keys_after, new_rows, new_cols,
             os.unlink(file_path)
         except OSError:
             pass
-
     return output.decode("utf-8", errors="replace"), file_contents, exit_code
 
 
@@ -2228,19 +2207,15 @@ def test_ctrl_z_stops_process():
         os.execvp(sys.executable, [sys.executable, VIG, path])
         os._exit(1)
     os.close(slave)
-    output = b""
+    output = bytearray()
     try:
-        time.sleep(0.3)
+        deadline = time.monotonic() + 1.5
+        ready, exit_code = _wait_for_frame(master, pid, output, 1, deadline)
+        assert ready and exit_code is None, "vig did not render before Ctrl-Z"
         os.write(master, b"\x1a")
-        deadline = time.time() + 1.5
         stopped = False
-        while time.time() < deadline:
-            r, _, _ = select.select([master], [], [], 0.05)
-            if r:
-                try:
-                    output += os.read(master, 4096)
-                except OSError:
-                    pass
+        while time.monotonic() < deadline:
+            _read_pty(master, output, 0.02)
             wpid, status = os.waitpid(pid, os.WNOHANG | os.WUNTRACED)
             if wpid == pid and os.WIFSTOPPED(status):
                 stopped = True
