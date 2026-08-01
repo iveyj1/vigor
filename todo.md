@@ -3,7 +3,8 @@
 2) Review proposed changes for estimated change size.  If the net increase in number of lines of code for an individual item exceeds about 50, notify me before implementation.
 
 ** Do
-
+- Add ^e ^y scroll motion
+- <space><command> should execute the command unless there is a valid combined <space><command> interpretation (e.g. <space>bd)
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.

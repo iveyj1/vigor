@@ -97,3 +97,5 @@ Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or his
 | `f783b33` | 2821 | 219 | 241 | -1 | Fix digit targets for find motions |
 | `92fbc57` | 2821 | 219 | 241 | 0 | Record search highlighting proposal |
 | `9229eef` | 2885 | 223 | 242 | 64 | Add shell filter ex commands |
+| `47f51d9` | 2885 | 223 | 242 | 0 | update cloc_by_commit |
+| `e750728` | 2944 | 227 | 246 | 59 | Add word search and hlsearch |
