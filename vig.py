@@ -297,7 +297,7 @@ class Editor:
         self._sticky_cx = None      # desired column during vertical movement
         self._pending_space = False # space-leader: waiting for next key
         self._pending_g_op = False  # 'g' prefix inside operator-pending
-        self._pending_find = None   # 'f'/'t'/'F'/'T' waiting for char
+        self._pending_find = None   # (cmd, count) for 'f'/'t'/'F'/'T' waiting for char
         self._pending_find_for_op = None  # (cmd, ch) find for operator
         self._pending_textobj = None  # 'i'/'a' waiting for object key
         self._pending_replace = 0    # count for normal-mode r{char}
@@ -1874,6 +1874,29 @@ class Editor:
             self._ensure_scroll()
             return
 
+        # f/t/F/T prefix: wait for target character. This must run before
+        # count-prefix parsing so digit targets like f3 are accepted.
+        if self._pending_find:
+            cmd, find_n = self._pending_find
+            self._pending_find = None
+            if self.pending_op:
+                # In operator-pending mode: route through _exec_operator
+                op = self.pending_op
+                self.pending_op = ""
+                self.pending_count = 0
+                self.pending_extra_n = None
+                if op in ("d", "yd", "c"):
+                    self._snapshot()
+                self._pending_find_for_op = (cmd, key)
+                self._exec_operator(op, cmd, find_n)
+                if op in ("d", "yd"):
+                    self._save_dot()
+            else:
+                self._exec_find(cmd, key, find_n)
+            self._clamp_cursor()
+            self._ensure_scroll()
+            return
+
         # Count prefix accumulation
         if key.isdigit() and (self.count > 0 or key != "0"):
             self.count = self.count * 10 + int(key)
@@ -1947,29 +1970,6 @@ class Editor:
             self._ensure_scroll()
             return
 
-        # f/t/F/T prefix: wait for target character
-        if self._pending_find:
-            cmd = self._pending_find
-            self._pending_find = None
-            if self.pending_op:
-                # In operator-pending mode: route through _exec_operator
-                op = self.pending_op
-                op_n = self.pending_count
-                self.pending_op = ""
-                self.pending_count = 0
-                self.pending_extra_n = None
-                if op in ("d", "yd", "c"):
-                    self._snapshot()
-                self._pending_find_for_op = (cmd, key)
-                self._exec_operator(op, cmd, op_n)
-                if op in ("d", "yd"):
-                    self._save_dot()
-            else:
-                self._exec_find(cmd, key, n)
-            self._clamp_cursor()
-            self._ensure_scroll()
-            return
-
         # Operator-pending: waiting for a motion after d/y/c
         if self.pending_op:
             op = self.pending_op
@@ -1989,7 +1989,7 @@ class Editor:
                 return
             # f/t/F/T in operator-pending
             if key in ("f", "t", "F", "T"):
-                self._pending_find = key
+                self._pending_find = (key, op_n * n)
                 return
             # Text objects in operator-pending (i/a + w/W/(/)/[/]/{/}/'/"/)
             if key in ("i", "a"):
@@ -2097,7 +2097,7 @@ class Editor:
             pass  # motion already executed
         # f/t/F/T — wait for target char
         elif key in ("f", "t", "F", "T"):
-            self._pending_find = key
+            self._pending_find = (key, n)
             return
         # ; and , — repeat last find
         elif key == ";":
@@ -3028,9 +3028,9 @@ class Editor:
             return
         # Resolve pending find-char
         if self._pending_find:
-            cmd = self._pending_find
+            cmd, find_n = self._pending_find
             self._pending_find = None
-            self._exec_find(cmd, key, 1)
+            self._exec_find(cmd, key, find_n)
             self._clamp_cursor()
             self._ensure_scroll()
             return
@@ -3063,7 +3063,7 @@ class Editor:
             return
         # f/t/F/T — wait for target char
         if key in ("f", "t", "F", "T"):
-            self._pending_find = key
+            self._pending_find = (key, 1)
             return
         # Edit operations on selection
         if key == "~":

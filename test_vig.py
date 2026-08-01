@@ -1387,6 +1387,24 @@ def test_dfl_deletes_to_char():
     assert content.startswith("lo world"), f"df failed: {content!r}"
     print("  PASS: df deletes to char")
 
+def test_f_digit_target():
+    """f<digit> finds a digit target instead of treating it as a count."""
+    path = write_temp("ab3cd\n")
+    screen, content, code = run_vig(b"f3i@\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content.startswith("ab@3cd"), f"f digit target failed: {content!r}"
+    print("  PASS: f accepts digit target")
+
+def test_counted_f_digit_target():
+    """A count before f still repeats a digit-target find."""
+    path = write_temp("a3b3c\n")
+    screen, content, code = run_vig(b"2f3i@\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content.startswith("a3b@3c"), f"counted f digit target failed: {content!r}"
+    print("  PASS: counted f accepts digit target")
+
 # ── Phase 19: >> and << indent ────────────────────────────────────────────
 
 def test_indent_line():
@@ -3045,6 +3063,8 @@ def main():
             test_semicolon_repeats_T_motion,
             test_comma_reverses_find,
             test_dfl_deletes_to_char,
+            test_f_digit_target,
+            test_counted_f_digit_target,
         ]),
         ("19", "Phase 19 — Indent >>  <<", [
             test_indent_line,
