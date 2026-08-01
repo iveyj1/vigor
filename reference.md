@@ -118,7 +118,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:set autoindent` / `noautoindent` | toggle autoindent |
 | `:set comment=<str>` | set comment prefix (default `#`) |
 | `:set scrolloff=<N>` | keep N-line vertical margin around cursor |
-| `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `osc52`) |
+| `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `auto`) |
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |

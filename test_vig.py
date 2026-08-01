@@ -2164,6 +2164,26 @@ def test_clipboard_off_disables_osc52_output():
     assert "\x1b]52;c;" not in screen, "OSC52 should not be emitted when clipboard=off"
     print("  PASS: clipboard off disables OSC52")
 
+
+def test_clipboard_auto_prefers_external_command():
+    """Default auto clipboard uses an external clipboard command when available."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "a.txt")
+        clip_out = os.path.join(d, "clip.txt")
+        bindir = os.path.join(d, "bin")
+        os.mkdir(bindir)
+        open(path, "w").write("abc\n")
+        xclip = os.path.join(bindir, "xclip")
+        open(xclip, "w").write("#!/bin/sh\n/bin/cat > \"$CLIP_OUT\"\n")
+        os.chmod(xclip, 0o755)
+        env = {"VIG_NO_CONFIG": "1", "PATH": bindir, "CLIP_OUT": clip_out}
+        screen, _, code = run_vig(b"yy:q!\r", file_path=path, env=env)
+        copied = open(clip_out).read() if os.path.exists(clip_out) else ""
+    assert code == 0
+    assert copied == "abc", f"Expected external clipboard copy, got {copied!r}; screen={screen[-500:]!r}"
+    assert "\x1b]52;c;" not in screen, "auto should not emit OSC52 after external copy succeeds"
+    print("  PASS: clipboard auto prefers external command")
+
 # ── Phase 36: small command/edit fixes ─────────────────────────────────────
 
 def test_bang_command_without_space():
@@ -3269,6 +3289,7 @@ def main():
             test_set_clipboard_mode_options,
             test_set_clipboard_invalid_value,
             test_clipboard_off_disables_osc52_output,
+            test_clipboard_auto_prefers_external_command,
         ]),
         ("36", "Phase 36 — small command/edit fixes", [
             test_bang_command_without_space,

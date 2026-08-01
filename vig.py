@@ -279,7 +279,7 @@ class Editor:
         self.opt_number = False  # :set number
         self.opt_relnum = False  # :set relativenumber
         self.opt_scrolloff = 0  # :set scrolloff=N
-        self.opt_clipboard = "osc52"  # :set clipboard=osc52|auto|off
+        self.opt_clipboard = "auto"  # :set clipboard=osc52|auto|off
         self.opt_yankflash = 300  # :set yankflash=N milliseconds
         self.opt_delcopy = True  # :set delcopy/nodelcopy
         self.opt_wrapmove = False  # :set wrapmove/nowrapmove
@@ -1680,8 +1680,8 @@ class Editor:
             return False
         try:
             import subprocess
-            subprocess.run(cmd, input=text, text=True, check=False, timeout=1)
-            return True
+            res = subprocess.run(cmd, input=text, text=True, check=False, timeout=1)
+            return res.returncode == 0
         except Exception:
             return False
 
@@ -1697,11 +1697,12 @@ class Editor:
                 pass
             return
         if mode == "auto":
+            if self._external_copy(text):
+                return
             try:
                 self._osc52_copy(text)
             except Exception:
                 pass
-            self._external_copy(text)
 
     def _set_register(self, text, linewise=False):
         """Store text in unnamed register and copy to system clipboard."""
