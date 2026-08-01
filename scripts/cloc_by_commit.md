@@ -90,3 +90,10 @@ Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or his
 | `91b22c9` | 2809 | 218 | 237 | 8 | Improve filename completion navigation |
 | `285aca9` | 2802 | 218 | 237 | -7 | Revise line number alignment |
 | `5bb7957` | 2802 | 218 | 237 | 0 | add backlog doc and block select proposal |
+| `58e8667` | 2802 | 218 | 237 | 0 | word wrap proposal |
+| `7bd1bd5` | 2804 | 218 | 240 | 2 | Fix redraw artifacts while scrolling |
+| `21bc183` | 2822 | 219 | 240 | 18 | Frame splash over initial editor |
+| `0f3bcf7` | 2822 | 219 | 240 | 0 | Synchronize PTY tests with redraws |
+| `f783b33` | 2821 | 219 | 241 | -1 | Fix digit targets for find motions |
+| `92fbc57` | 2821 | 219 | 241 | 0 | Record search highlighting proposal |
+| `9229eef` | 2885 | 223 | 242 | 64 | Add shell filter ex commands |
