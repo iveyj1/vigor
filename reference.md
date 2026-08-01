@@ -107,6 +107,8 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
 | `:! <cmd>` / `:!<cmd>` | run shell command and show one-line truncated output in message bar |
+| `:[range]!<cmd>` | pipe lines to shell command stdin and replace the range with stdout (`%`, `.`, `$`, `N,M`) |
+| `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
 | `:set wrap` / `nowrap` | toggle line wrapping |
 | `:set wrapmove` / `nowrapmove` | with wrap on, make `j`/`k`/Up/Down move by displayed rows |
 | `:set number` / `nonumber` | toggle absolute line numbers |

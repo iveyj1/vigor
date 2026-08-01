@@ -2570,6 +2570,12 @@ class Editor:
             self._exec_substitute(sub_match)
             return
 
+        filter_match = re.match(r'^(%|[.$0-9]+(?:,[.$0-9]+)?)?(!!?)(.*)$', stripped)
+        if filter_match and (filter_match.group(1) or filter_match.group(2) == "!!"):
+            self._exec_filter(filter_match.group(1), filter_match.group(3).strip(), new_buffer=filter_match.group(2) == "!!")
+            self.mode = Mode.NORMAL
+            return
+
         if stripped.startswith("!") and stripped != "!":
             self._exec_bang(stripped[1:].strip())
             self.mode = Mode.NORMAL
@@ -2696,6 +2702,69 @@ class Editor:
         else:
             self.msg = f"Not a command: {cmd}"
             self.mode = Mode.NORMAL
+
+    def _range_line(self, token):
+        if token == ".":
+            return self.cy
+        if token == "$":
+            return len(self.buf.lines) - 1
+        if token.isdigit():
+            n = int(token)
+            if 1 <= n <= len(self.buf.lines):
+                return n - 1
+        return None
+
+    def _parse_filter_range(self, spec, default_all=False):
+        if not spec:
+            return (0, len(self.buf.lines) - 1) if default_all else None
+        if spec == "%":
+            return 0, len(self.buf.lines) - 1
+        parts = spec.split(",", 1)
+        start = self._range_line(parts[0])
+        end = self._range_line(parts[1]) if len(parts) == 2 else start
+        if start is None or end is None:
+            self.msg = f"Invalid range: {spec}"
+            return None
+        if start > end:
+            start, end = end, start
+        return start, end
+
+    def _exec_filter(self, range_spec, cmd, new_buffer=False):
+        """Pipe a line range through a shell command, replacing it or opening output."""
+        if not cmd:
+            self.msg = "Shell command required"
+            return
+        rng = self._parse_filter_range(range_spec, default_all=new_buffer)
+        if rng is None:
+            return
+        sy, ey = rng
+        text = "\n".join(self.buf.lines[sy:ey + 1]) + "\n"
+        import subprocess
+        try:
+            result = subprocess.run(cmd, input=text, capture_output=True, text=True, shell=True, timeout=10)
+        except Exception as e:
+            self.msg = f"filter: {e}"
+            return
+        if result.returncode != 0:
+            err = (result.stderr or result.stdout or f"exit {result.returncode}").replace("\n", " ").strip()
+            self.msg = err[:self.cols]
+            return
+        new_lines = result.stdout.splitlines() or [""]
+        if new_buffer:
+            bs = BufferState()
+            bs.buf.lines = new_lines
+            bs.buf.dirty = True
+            self._add_buffer(bs)
+            self.msg = "[Filter output]"
+            return
+        self._snapshot()
+        self.buf.lines[sy:ey + 1] = new_lines
+        if not self.buf.lines:
+            self.buf.lines = [""]
+        self.cy, self.cx = sy, 0
+        self.buf.dirty = True
+        self._clamp_cursor()
+        self._ensure_scroll()
 
     def _exec_rg(self, arg):
         """Run ripgrep and capture results in the quickfix buffer."""

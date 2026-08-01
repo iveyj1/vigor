@@ -11,6 +11,7 @@
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 4. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 ** Done
+1. Add `:[range]!cmd` to pipe lines through shell commands in-place and `:[range]!!cmd` / `:!!cmd` to open filter output in a new buffer.
 1. Fix normal/operator-pending `f`/`t`/`F`/`T` so digit targets like `f3` are accepted instead of being parsed as a count.
 2. Merge the old `backlog` file into `todo.md` and retire the separate backlog file.
 1. Add `:rgf [path]` directory argument completion.

@@ -1718,6 +1718,34 @@ def test_bang_command():
     assert "hello_bang" in screen, f":! failed: {screen[-500:]}"
     print("  PASS: :! shell command")
 
+def test_filter_range_replaces_lines():
+    """:range!cmd pipes lines through a command and replaces the range."""
+    path = write_temp("a\nb\nc\n")
+    screen, content, code = run_vig(b":2,3!tr a-z A-Z\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "a\nB\nC\n", f":range! filter failed: {content!r}"
+    print("  PASS: :range! filters in place")
+
+def test_filter_whole_buffer_replaces_lines():
+    """:%!cmd pipes the whole buffer through a command in-place."""
+    path = write_temp("b\na\n")
+    screen, content, code = run_vig(b":%!sort\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "a\nb\n", f":%! filter failed: {content!r}"
+    print("  PASS: :%! filters whole buffer")
+
+def test_filter_new_buffer():
+    """:!!cmd pipes the whole buffer and opens output in a new buffer."""
+    path = write_temp("b\na\n")
+    screen, content, code = run_vig(b":!!sort\r:q!\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "b\na\n", f":!! should not change source buffer: {content!r}"
+    assert "[2/2]" in screen, f":!! did not open a second buffer: {screen[-1000:]!r}"
+    print("  PASS: :!! filters to new buffer")
+
 # ── Phase 28: Multi-buffer ─────────────────────────────────────────────────
 
 def test_multi_file_argv():
@@ -3109,6 +3137,9 @@ def main():
             test_read_file,
             test_read_command,
             test_bang_command,
+            test_filter_range_replaces_lines,
+            test_filter_whole_buffer_replaces_lines,
+            test_filter_new_buffer,
         ]),
         ("28", "Phase 28 — Multi-buffer", [
             test_multi_file_argv,
