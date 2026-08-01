@@ -32,6 +32,7 @@ SYNTAX_PATTERNS = {
     ".bash": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
 }
 SYNTAX_COLORS = {"string": "\x1b[33m", "comment": "\x1b[32m"}
+SEARCH_COLOR = "\x1b[43;30m"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 SPLASH = (
@@ -283,6 +284,7 @@ class Editor:
         self.opt_delcopy = True  # :set delcopy/nodelcopy
         self.opt_wrapmove = False  # :set wrapmove/nowrapmove
         self.opt_rghidden = False  # :set rghidden/norghidden
+        self.opt_hlsearch = False  # :set hlsearch/nohlsearch
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
         self.last_find = None       # (cmd, ch) for f/t/F/T repeat
@@ -1391,6 +1393,12 @@ class Editor:
             return 1
         return (line_len + content_cols - 1) // content_cols
 
+    def _end_screen_row(self, out, cells):
+        """End a rendered row without erasing a full-width final cell."""
+        if cells < self.cols:
+            out.append("\x1b[K")
+        out.append("\r\n")
+
     def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None, hscroll=0):
         """Render a single buffer line (possibly wrapped). Returns number of screen rows used.
         max_rows limits output to at most that many screen rows (for partial rendering)."""
@@ -1404,14 +1412,14 @@ class Editor:
             visible = line[hscroll:hscroll + content_cols]
             out.append(gutter)
             self._render_visible(visible, buf_line, hscroll, sel, out)
-            out.append("\x1b[K\r\n")
+            self._end_screen_row(out, gutter_width + len(visible))
             return 1
         else:
             # Wrap: split line into chunks of content_cols
             if not line:
                 out.append(gutter)
                 self._render_visible("", buf_line, 0, sel, out)
-                out.append("\x1b[K\r\n")
+                self._end_screen_row(out, gutter_width)
                 return 1
             rows_used = 0
             for chunk_start in range(0, len(line), content_cols):
@@ -1423,7 +1431,7 @@ class Editor:
                 else:
                     out.append(gutter_pad)
                 self._render_visible(chunk, buf_line, chunk_start, sel, out)
-                out.append("\x1b[K\r\n")
+                self._end_screen_row(out, gutter_width + len(chunk))
                 rows_used += 1
             return rows_used
 
@@ -1435,14 +1443,28 @@ class Editor:
             return ()
         return tuple((m.start(), m.end(), SYNTAX_COLORS[m.lastgroup]) for m in pattern.finditer(line))
 
+    def _search_spans(self, line):
+        """Return active search highlight spans for a buffer line."""
+        if not (self.opt_hlsearch and self.search_pattern):
+            return ()
+        try:
+            pat = re.compile(self.search_pattern)
+        except re.error:
+            return ()
+        return tuple((m.start(), m.end()) for m in pat.finditer(line) if m.start() != m.end())
+
     def _render_visible(self, visible, buf_line, col_offset, sel, out):
         """Render a segment with line-local syntax and optional reverse video."""
         if not visible:
             return
         start, end = col_offset, col_offset + len(visible)
         spans = self._syntax_spans(self.buf.lines[buf_line])
+        search_spans = self._search_spans(self.buf.lines[buf_line])
         bounds = {start, end}
         for sx, ex, _ in spans:
+            if sx < end and ex > start:
+                bounds.update((max(start, sx), min(end, ex)))
+        for sx, ex in search_spans:
             if sx < end and ex > start:
                 bounds.update((max(start, sx), min(end, ex)))
         select_start = select_end = None
@@ -1459,13 +1481,16 @@ class Editor:
             while active and active[1] <= left:
                 active = next(spans, None)
             color = active[2] if active and active[0] <= left < active[1] else ""
+            searched = any(sx <= left < ex for sx, ex in search_spans)
             selected = select_start is not None and select_start <= left < select_end
             if color:
                 out.append(color)
+            if searched:
+                out.append(SEARCH_COLOR)
             if selected:
                 out.append("\x1b[7m")
             out.append(visible[left - start:right - start])
-            if color or selected:
+            if color or searched or selected:
                 out.append("\x1b[m")
 
     def _append_completion_box(self, out):
@@ -1569,7 +1594,7 @@ class Editor:
         # Fill remaining rows with tildes
         while screen_rows_used < self.rows:
             out.append("~")
-            out.append("\x1b[K\r\n")
+            self._end_screen_row(out, 1)
             screen_rows_used += 1
 
         self._append_completion_box(out)
@@ -1588,21 +1613,22 @@ class Editor:
         if pad < 0:
             pad = 0
         status = left + " " * pad + right
-        out.append(status[:self.cols])
+        status = status[:self.cols]
+        out.append(status)
         out.append("\x1b[m")  # reset
-        out.append("\x1b[K\r\n")
+        self._end_screen_row(out, len(status))
 
         # Command / message bar
         if self.mode == Mode.COMMAND:
-            cmd_display = ":" + self.cmd
-            out.append(cmd_display[:self.cols])
+            cmd_display = (":" + self.cmd)[:self.cols]
         elif self.mode == Mode.SEARCH:
             prompt = "/" if self.search_dir == 1 else "?"
-            cmd_display = prompt + self.cmd
-            out.append(cmd_display[:self.cols])
+            cmd_display = (prompt + self.cmd)[:self.cols]
         else:
-            out.append(self.msg[:self.cols] if self.msg else "")
-        out.append("\x1b[K")
+            cmd_display = (self.msg[:self.cols] if self.msg else "")
+        out.append(cmd_display)
+        if len(cmd_display) < self.cols:
+            out.append("\x1b[K")
 
         if self._splash:
             self._append_splash(out)
@@ -1948,6 +1974,9 @@ class Editor:
             elif key in ("~", "U", "u"):
                 self._enter_op_pending("g" + key, n, extra_n)
                 return
+            elif key in ("*", "#"):
+                self._search_word_under_cursor(1 if key == "*" else -1, whole=False)
+                return
             else:
                 return
         elif key == "g" and not self.pending_op:
@@ -2241,6 +2270,8 @@ class Editor:
             self.mode = Mode.SEARCH
             self.cmd = ""
             self.cmd_cx = 0
+        elif key in ("*", "#"):
+            self._search_word_under_cursor(1 if key == "*" else -1, whole=True)
         elif key == "n":
             self._search_next(self.search_dir)
         elif key == "N":
@@ -3031,6 +3062,12 @@ class Editor:
         elif opt == "norghidden":
             self.opt_rghidden = False
             self.msg = "rghidden off"
+        elif opt == "hlsearch":
+            self.opt_hlsearch = True
+            self.msg = "hlsearch on"
+        elif opt == "nohlsearch":
+            self.opt_hlsearch = False
+            self.msg = "hlsearch off"
         else:
             self.msg = f"Unknown option: {opt}"
 
@@ -3197,6 +3234,36 @@ class Editor:
         self.msg = "yanked"
 
     # ── Search ─────────────────────────────────────────────────────────
+
+    def _word_under_cursor(self):
+        """Return the small-word text under or just before the cursor."""
+        line = self.buf.lines[self.cy]
+        if not line:
+            return ""
+        x = min(self.cx, len(line) - 1)
+        if self._char_class(line[x]) != 1 and x > 0 and self.cx >= len(line):
+            x -= 1
+        if self._char_class(line[x]) != 1:
+            return ""
+        start = x
+        while start > 0 and self._char_class(line[start - 1]) == 1:
+            start -= 1
+        end = x + 1
+        while end < len(line) and self._char_class(line[end]) == 1:
+            end += 1
+        return line[start:end]
+
+    def _search_word_under_cursor(self, direction, whole):
+        """Set search state from the word under cursor and jump to the next hit."""
+        word = self._word_under_cursor()
+        if not word:
+            self.msg = "No word under cursor"
+            return
+        escaped = re.escape(word)
+        self.search_pattern = rf"(?<!\w){escaped}(?!\w)" if whole else escaped
+        self.search_dir = direction
+        self._add_history(self.search_history, self.search_pattern)
+        self._search_next(direction)
 
     def handle_search(self, key):
         """Handle input in search mode (/ or ?)."""

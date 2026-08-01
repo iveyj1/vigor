@@ -76,6 +76,8 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 |---------------|--------|
 | `/pattern` | search forward (Python regular expression), including later hits on the current line |
 | `?pattern` | search backward, including earlier hits on the current line |
+| `*` / `#` | search the whole word under cursor forward / backward |
+| `g*` / `g#` | search the word under cursor as a partial match forward / backward |
 | `n` / `N` | next / previous match |
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; range: `%`, `N,M`) |
 
@@ -120,6 +122,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
+| `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
 

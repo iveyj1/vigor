@@ -3,14 +3,14 @@
 2) Review proposed changes for estimated change size.  If the net increase in number of lines of code for an individual item exceeds about 50, notify me before implementation.
 
 ** Do
-1. Proposal: Add `*`, `#`, `g*`, and `g#` word-under-cursor searches. `*`/`#` search whole words forward/backward; `g*`/`g#` search partial matches forward/backward, using existing search state and repeat commands. Estimated 35–50 net lines plus tests.
-2. Proposal: Configurably highlight text search matches for the active `/` or `?` regex, with `:set hlsearch` / `:set nohlsearch` and config-file support through the existing `:set` path. Reuse `search_pattern`, compile the regex during rendering, add match spans into `_render_visible` alongside syntax/visual spans, and prefer reverse-video or a small color code that composes predictably with syntax and yank/visual selection. Open decisions: default on or off, whether the current cursor match gets distinct styling, and whether failed/empty searches clear previous highlights. Estimated 45–65 net lines plus tests; likely over the 50-line review threshold if distinct current-match styling is included.
 
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 4. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 ** Done
+1. Add `*`, `#`, `g*`, and `g#` word-under-cursor searches. `*`/`#` search whole words forward/backward; `g*`/`g#` search partial matches forward/backward, using existing search state and repeat commands.
+2. Add configurable active search-regex highlighting with `:set hlsearch` / `:set nohlsearch` and config-file support through the existing `:set` path. Default is off; current cursor match has no distinct styling; failed searches keep the previous active pattern.
 1. Add `:[range]!cmd` to pipe lines through shell commands in-place and `:[range]!!cmd` / `:!!cmd` to open filter output in a new buffer.
 1. Fix normal/operator-pending `f`/`t`/`F`/`T` so digit targets like `f3` are accepted instead of being parsed as a count.
 2. Merge the old `backlog` file into `todo.md` and retire the separate backlog file.

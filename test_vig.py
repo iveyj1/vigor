@@ -1017,6 +1017,17 @@ def test_wrap_long_line():
     assert a_count >= 40, f"Expected at least 40 A's visible, got {a_count}"
     print("  PASS: long line wraps")
 
+def test_wrap_full_width_rows_do_not_clear_last_cell():
+    """Full-width wrapped rows must not erase the boundary character."""
+    path = write_temp("abcdefghijklmnopqrst\n")
+    screen, _, code = run_vig(b":set wrap\r:q\r", file_path=path, cols=10, rows=8)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "abcdefghij\r\nklmnopqrst\r\n" in frame, f"Expected intact wrapped rows: {frame[:200]!r}"
+    print("  PASS: full-width wrapped rows keep boundary chars")
+
+
 def test_nowrap_truncates():
     """Without wrap, long lines are truncated."""
     long_line = "B" * 100 + "\n"
@@ -2812,6 +2823,72 @@ def test_syntax_highlights_comments_and_strings():
     print("  PASS: syntax comments and strings")
 
 
+# ── Phase 50: search polish ───────────────────────────────────────────────
+
+def test_star_searches_whole_word_and_repeats():
+    """* searches whole words forward and seeds n/N repeat state."""
+    path = write_temp("cat dog cat dog cat\n")
+    _, content, code = run_vig(b"*niX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "cat dog cat dog Xcat\n", f"Expected whole-word star repeat: {content!r}"
+    print("  PASS: * searches whole words and repeats")
+
+
+def test_hash_searches_whole_word_backward():
+    """# searches whole words backward from the word under cursor."""
+    path = write_temp("foo bar foo\n")
+    _, content, code = run_vig(b"8l#iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "Xfoo bar foo\n", f"Expected # to find previous foo: {content!r}"
+    print("  PASS: # searches whole words backward")
+
+
+def test_gstar_searches_partial_matches():
+    """g* searches partial matches of the word under cursor."""
+    path = write_temp("cat scatter cat\n")
+    _, content, code = run_vig(b"g*iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "cat sXcatter cat\n", f"Expected g* partial match: {content!r}"
+    print("  PASS: g* searches partial matches")
+
+
+def test_ghash_searches_partial_matches_backward():
+    """g# searches partial matches backward."""
+    path = write_temp("cat scatter cat\n")
+    _, content, code = run_vig(b"12lg#iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "cat sXcatter cat\n", f"Expected g# partial match: {content!r}"
+    print("  PASS: g# searches partial matches backward")
+
+
+def test_hlsearch_highlights_matches_and_can_disable():
+    """:set hlsearch highlights active search regex; nohlsearch disables it."""
+    path = write_temp("alpha beta alpha\n")
+    screen, _, code = run_vig(b":set hlsearch\r/alpha\r:set nohlsearch\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[43;30malpha\x1b[m" in screen, "Expected highlighted search match"
+    assert "hlsearch off" in screen, "Expected nohlsearch option accepted"
+    print("  PASS: hlsearch highlights and disables")
+
+
+def test_hlsearch_config_file():
+    """Config files set hlsearch through the existing :set path."""
+    with tempfile.TemporaryDirectory() as d:
+        cfg = os.path.join(d, "vigrc")
+        path = os.path.join(d, "a.txt")
+        open(cfg, "w").write("set hlsearch\n")
+        open(path, "w").write("one one\n")
+        screen, _, code = run_vig(b"/one\r:q\r", file_path=path, env={"VIG_CONFIG": cfg})
+    assert code == 0
+    assert "\x1b[43;30mone\x1b[m" in screen, "Expected config-enabled search highlight"
+    print("  PASS: hlsearch config file")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3049,6 +3126,7 @@ def main():
         ("12", "Phase 12 — Line Wrap", [
             test_set_wrap,
             test_wrap_long_line,
+            test_wrap_full_width_rows_do_not_clear_last_cell,
             test_nowrap_truncates,
             test_wrap_cursor_position,
         ]),
@@ -3283,6 +3361,14 @@ def main():
         ]),
         ("49", "Phase 49 — initial buffer replacement", [
             test_opening_replaces_untouched_initial_buffer,
+        ]),
+        ("50", "Phase 50 — search polish", [
+            test_star_searches_whole_word_and_repeats,
+            test_hash_searches_whole_word_backward,
+            test_gstar_searches_partial_matches,
+            test_ghash_searches_partial_matches_backward,
+            test_hlsearch_highlights_matches_and_can_disable,
+            test_hlsearch_config_file,
         ]),
     ]
 

@@ -19,6 +19,7 @@ u / Ctrl-R          undo / redo
 v V                 visual character / line selection
 
 /pattern ?pattern   search forward / backward
+* # / g* g#         word search; whole / partial
 n N                 repeat search / reverse
 :command            enter command prompt
 :w :q :wq           write, quit, write and quit
@@ -38,6 +39,7 @@ OPTIONS
 :set clipboard=MODE  osc52, auto, or off       :set yankflash=N     yank highlight ms
 :set delcopy         deletes update register   :set nodelcopy       preserve register
 :set rghidden        rg includes filenames     :set norghidden      default rg filenames
+:set hlsearch        highlight search matches  :set nohlsearch      hide search matches
 
 .py .c .h .sh .bash  automatic string/comment highlighting
 
