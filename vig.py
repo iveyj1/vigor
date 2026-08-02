@@ -1497,24 +1497,32 @@ class Editor:
         """Overlay centered completion menu with a rounded border."""
         if self.mode != Mode.COMMAND or not self.comp_matches or self.cols < 8 or self.rows < 5:
             return
-        max_items = max(1, self.rows - 4)
+        hpad = 2
+        vpad = 1
+        max_items = max(1, self.rows - 4 - 2 * vpad)
         item_rows = min(len(self.comp_matches), max_items)
-        inner_w = min(max(len(n) for n in self.comp_matches), self.cols - 4)
-        inner_w += 2
+        text_w = min(max(len(n) for n in self.comp_matches), self.cols - 2 - 2 * hpad)
+        inner_w = text_w + 2 * hpad
         box_w = inner_w + 2
-        box_h = item_rows + 2
+        box_h = item_rows + 2 * vpad + 2
         top = max(1, (self.rows - box_h) // 2 + 1)
         left = max(1, (self.cols - box_w) // 2 + 1)
         start = max(0, min(self.comp_index - item_rows + 1, len(self.comp_matches) - item_rows))
         out.append(f"\x1b[{top};{left}H╭" + "─" * inner_w + "╮")
-        for row, idx in enumerate(range(start, start + item_rows), top + 1):
-            text = (" " + self.comp_matches[idx][:inner_w - 2] + " ").ljust(inner_w)
+        for i in range(vpad):
+            out.append(f"\x1b[{top + 1 + i};{left}H│" + " " * inner_w + "│")
+        item_top = top + 1 + vpad
+        for row, idx in enumerate(range(start, start + item_rows), item_top):
+            text = (" " * hpad + self.comp_matches[idx][:text_w] + " " * hpad).ljust(inner_w)
             out.append(f"\x1b[{row};{left}H│")
             if idx == self.comp_index:
                 out.append("\x1b[7m" + text + "\x1b[m")
             else:
                 out.append(text)
             out.append("│")
+        bottom_pad_top = item_top + item_rows
+        for i in range(vpad):
+            out.append(f"\x1b[{bottom_pad_top + i};{left}H│" + " " * inner_w + "│")
         out.append(f"\x1b[{top + box_h - 1};{left}H╰" + "─" * inner_w + "╯")
 
     def _append_splash(self, out):
