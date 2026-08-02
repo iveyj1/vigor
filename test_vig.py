@@ -1051,6 +1051,28 @@ def test_wrap_cursor_position():
     assert "M" in content, f"Expected 'M' in content, got: {content!r}"
     print("  PASS: wrap cursor position")
 
+
+def test_wrap_cursor_at_exact_boundary_stays_on_visible_row():
+    """At EOL on an exact wrap boundary, the cursor should not jump to the next row."""
+    path = write_temp("abcdefghij\n")
+    screen, _, code = run_vig(b":set wrap\r$:q\r", file_path=path, cols=10, rows=6)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[1;10H" in screen, f"Expected cursor at last visible column: {screen[-500:]!r}"
+    print("  PASS: wrap boundary cursor remains visible")
+
+
+def test_wrap_long_line_scrolls_within_line():
+    """A wrapped line taller than the pane scrolls by display row to keep cursor visible."""
+    path = write_temp("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ\n")
+    screen, _, code = run_vig(b":set wrap\r45l:q\r", file_path=path, cols=10, rows=6)
+    os.unlink(path)
+    assert code == 0
+    frame = last_frame(screen)
+    assert "klmnopqrst\r\nuvwxyzABCD\r\nEFGHIJKLMN\r\nOPQRSTUVWX\r\n" in frame, f"Expected tail rows of long wrapped line: {frame[:300]!r}"
+    assert "\x1b[4;6H" in screen, f"Expected cursor visible in scrolled wrapped line: {screen[-500:]!r}"
+    print("  PASS: wrap scrolls within oversized line")
+
 # ── Phase 13: Line Numbers ────────────────────────────────────────────────
 
 def test_set_number():
@@ -2624,7 +2646,7 @@ def test_completion_menu_enter_accepts_first_match():
         screen, _, code = run_vig(b":e aa_\t\r\r:q\r:q\r", file_path=base)
     assert code == 0
     assert "╭" in screen and "╯" in screen, f"Expected rounded completion border: {screen[-1000:]}"
-    assert "\x1b[7m aa_one.txt " in screen, f"Expected highlighted first completion: {screen[-1000:]}"
+    assert "\x1b[7m  aa_one.txt  " in screen, f"Expected highlighted first completion: {screen[-1000:]}"
     assert "first" in screen, f"Expected accepted first file opened: {screen[-1000:]}"
     print("  PASS: completion menu Enter accepts first match")
 
@@ -2639,7 +2661,7 @@ def test_completion_menu_down_selects_match():
         open(second, "w").write("second\n")
         screen, _, code = run_vig(b":e bb_\t\x1b[B\r\r:q\r:q\r", file_path=base)
     assert code == 0
-    assert "\x1b[7m bb_two.txt " in screen, f"Expected highlighted second completion: {screen[-1000:]}"
+    assert "\x1b[7m  bb_two.txt  " in screen, f"Expected highlighted second completion: {screen[-1000:]}"
     assert "second" in screen, f"Expected selected second file opened: {screen[-1000:]}"
     print("  PASS: completion menu Down selects match")
 
@@ -2652,7 +2674,7 @@ def test_completion_menu_tab_wraps_selection():
         open(os.path.join(d, "tab_two.txt"), "w").write("two\n")
         screen, _, code = run_vig(b":e tab_\t\t\t\r\r:q\r:q\r", file_path=base)
     assert code == 0 and "one" in screen
-    assert "\x1b[7m tab_one.txt " in screen, f"Expected wrapped first selection: {screen[-1000:]}"
+    assert "\x1b[7m  tab_one.txt  " in screen, f"Expected wrapped first selection: {screen[-1000:]}"
     print("  PASS: completion Tab wraps")
 
 def test_completion_menu_shift_tab_wraps_selection():
@@ -2664,7 +2686,7 @@ def test_completion_menu_shift_tab_wraps_selection():
         open(os.path.join(d, "shift_two.txt"), "w").write("two\n")
         screen, _, code = run_vig(b":e shift_\t\x1b[Z\r\r:q\r:q\r", file_path=base)
     assert code == 0 and "two" in screen
-    assert "\x1b[7m shift_two.txt " in screen, f"Expected wrapped last selection: {screen[-1000:]}"
+    assert "\x1b[7m  shift_two.txt  " in screen, f"Expected wrapped last selection: {screen[-1000:]}"
     print("  PASS: completion Shift-Tab wraps")
 
 def test_completion_menu_typing_updates_filter():
@@ -2917,7 +2939,7 @@ def test_completion_menu_has_filename_padding():
         open(os.path.join(d, "pad_one.txt"), "w").write("one\n")
         open(os.path.join(d, "pad_two.txt"), "w").write("two\n")
         screen, _, _ = run_vig(b":e pad_\t", file_path=base, timeout=1.0)
-    assert "\x1b[7m pad_one.txt " in screen, f"Expected padded completion: {screen[-800:]}"
+    assert "\x1b[7m  pad_one.txt  " in screen, f"Expected padded completion: {screen[-800:]}"
     print("  PASS: completion filename padding")
 
 def test_rg_no_hits_keeps_current_buffer():
@@ -3149,6 +3171,8 @@ def main():
             test_wrap_full_width_rows_do_not_clear_last_cell,
             test_nowrap_truncates,
             test_wrap_cursor_position,
+            test_wrap_cursor_at_exact_boundary_stays_on_visible_row,
+            test_wrap_long_line_scrolls_within_line,
         ]),
         ("13", "Phase 13 — Line Numbers", [
             test_set_number,

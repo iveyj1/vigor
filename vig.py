@@ -285,6 +285,7 @@ class Editor:
         self.opt_wrapmove = False  # :set wrapmove/nowrapmove
         self.opt_rghidden = False  # :set rghidden/norghidden
         self.opt_hlsearch = False  # :set hlsearch/nohlsearch
+        self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
         self.last_find = None       # (cmd, ch) for f/t/F/T repeat
@@ -659,17 +660,27 @@ class Editor:
             if self.scroll > max_scroll:
                 self.scroll = max_scroll
         else:
+            self._wrap_skip = 0
             if self.cy < self.scroll:
                 self.scroll = self.cy
-            # With wrap, count screen rows from scroll to cursor
-            # If cursor line doesn't fit, scroll forward
-            while True:
+            content_cols = self._wrap_cols()
+            cursor_row = self._cursor_wrap_row(content_cols)
+            cursor_line_rows = self._line_screen_rows(self.cy)
+            if cursor_line_rows > self.rows:
+                self.scroll = self.cy
+                self._wrap_skip = max(0, cursor_row - self.rows + 1)
+                return
+            # With wrap, count screen rows from scroll to cursor.
+            # If the cursor line doesn't fit, scroll forward by buffer lines.
+            while self.scroll <= self.cy:
                 screen_rows = 0
                 for i in range(self.scroll, self.cy + 1):
                     screen_rows += self._line_screen_rows(i)
                 if screen_rows <= self.rows:
                     break
                 self.scroll += 1
+            if self.scroll > self.cy:
+                self.scroll = self.cy
 
     # ── Undo / Redo ───────────────────────────────────────────────────
 
@@ -1381,6 +1392,24 @@ class Editor:
         num = abs(buf_line - self.cy) if self.opt_relnum else buf_line + 1
         return str(num).rjust(width) + " "
 
+    def _cursor_wrap_row(self, content_cols):
+        """Displayed wrap row for the cursor within its buffer line."""
+        if content_cols <= 0:
+            return 0
+        line_len = len(self.buf.lines[self.cy])
+        if self.cx > 0 and self.cx == line_len and self.cx % content_cols == 0:
+            return (self.cx - 1) // content_cols
+        return self.cx // content_cols
+
+    def _cursor_wrap_col(self, content_cols):
+        """Displayed wrap column for the cursor within its buffer line."""
+        if content_cols <= 0:
+            return 0
+        line_len = len(self.buf.lines[self.cy])
+        if self.cx > 0 and self.cx == line_len and self.cx % content_cols == 0:
+            return content_cols - 1
+        return self.cx % content_cols
+
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""
         if not self.opt_wrap or self.cols == 0:
@@ -1399,7 +1428,7 @@ class Editor:
             out.append("\x1b[K")
         out.append("\r\n")
 
-    def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None, hscroll=0):
+    def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None, hscroll=0, start_row=0):
         """Render a single buffer line (possibly wrapped). Returns number of screen rows used.
         max_rows limits output to at most that many screen rows (for partial rendering)."""
         gutter = self._gutter_str(buf_line, gutter_width)
@@ -1422,7 +1451,7 @@ class Editor:
                 self._end_screen_row(out, gutter_width)
                 return 1
             rows_used = 0
-            for chunk_start in range(0, len(line), content_cols):
+            for chunk_start in range(max(0, start_row) * content_cols, len(line), content_cols):
                 if max_rows is not None and rows_used >= max_rows:
                     break
                 chunk = line[chunk_start:chunk_start + content_cols]
@@ -1577,22 +1606,24 @@ class Editor:
         cursor_screen_x = self.cx + gw
         buf_line = self.scroll
         window_hscroll = 0 if self.opt_wrap else max(0, self.cx - content_cols + 1)
+        first_wrap_skip = self._wrap_skip if self.opt_wrap else 0
 
         while screen_rows_used < self.rows and buf_line < len(self.buf.lines):
             line = self.buf.lines[buf_line]
+            start_row = first_wrap_skip if buf_line == self.scroll else 0
             if buf_line == self.cy:
                 # Track cursor screen position
                 if self.opt_wrap and content_cols > 0:
-                    wrap_row = self.cx // content_cols
-                    cursor_screen_y = screen_rows_used + wrap_row
-                    cursor_screen_x = self.cx % content_cols + gw
+                    wrap_row = self._cursor_wrap_row(content_cols)
+                    cursor_screen_y = screen_rows_used + wrap_row - start_row
+                    cursor_screen_x = self._cursor_wrap_col(content_cols) + gw
                 else:
                     cursor_screen_y = screen_rows_used
                     cursor_screen_x = self.cx - window_hscroll + gw
 
             rows_available = self.rows - screen_rows_used
             if self.opt_wrap:
-                used = self._render_line(line, buf_line, sel, out, gw, max_rows=rows_available)
+                used = self._render_line(line, buf_line, sel, out, gw, max_rows=rows_available, start_row=start_row)
                 screen_rows_used += used
             else:
                 self._render_line(line, buf_line, sel, out, gw, hscroll=window_hscroll)
