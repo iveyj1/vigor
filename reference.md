@@ -16,7 +16,8 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 | `f{c}` `t{c}` `F{c}` `T{c}` | find char forward / backward (`t`/`T` stop before) |
 | `;` `,` | repeat / reverse last find-char |
 | `%` | jump to matching bracket `()` `{}` `[]` |
-| `Ctrl-D` / `Ctrl-U` | half-page down / up |
+| `Ctrl-D` / `Ctrl-U` | move cursor half-page down / up |
+| `Ctrl-E` / `Ctrl-Y` | scroll viewport one display row down / up (count accepted) |
 | Arrow keys | work in Normal, Insert, Visual |
 | Home / End | start / end of line (Normal & Insert) |
 
@@ -78,7 +79,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `?pattern` | search backward, including earlier hits on the current line |
 | `*` / `#` | search the whole word under cursor forward / backward |
 | `g*` / `g#` | search the word under cursor as a partial match forward / backward |
-| `n` / `N` | next / previous match |
+| `n` / `N` | next / previous match; successful searches center when practical |
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; range: `%`, `N,M`) |
 
 ## Command/Search Input
@@ -138,6 +139,8 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |
 | `<space>o` | open `file:line:column:` location under cursor |
+
+For an unrecognized one-key Space combination, Space is a no-op and the following key executes normally.
 
 Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>c` returns to the quickfix buffer from another buffer.
 | Status bar `[N/M]` | shown when >1 buffer open |

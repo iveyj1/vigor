@@ -77,7 +77,7 @@ class Buffer:
 
 class BufferState:
     """Per-buffer state: buffer content, cursor, scroll, and undo history."""
-    __slots__ = ("buf", "cx", "cy", "scroll",
+    __slots__ = ("buf", "cx", "cy", "scroll", "wrap_skip",
                  "_undo_stack", "_redo_stack",
                  "_undo_save_depth", "_undo_branched")
 
@@ -86,6 +86,7 @@ class BufferState:
         self.cx = 0
         self.cy = 0
         self.scroll = 0
+        self.wrap_skip = 0
         self._undo_stack = []
         self._redo_stack = []
         self._undo_save_depth = 0
@@ -199,8 +200,12 @@ class Terminal:
             return "CTRL_C"
         if ch == 4:  # Ctrl-D
             return "CTRL_D"
+        if ch == 5:  # Ctrl-E
+            return "CTRL_E"
         if ch == 21:  # Ctrl-U
             return "CTRL_U"
+        if ch == 25:  # Ctrl-Y
+            return "CTRL_Y"
         if ch == 18:  # Ctrl-R
             return "CTRL_R"
         if ch == 26:  # Ctrl-Z
@@ -433,7 +438,7 @@ class Editor:
                 self.mode = Mode.NORMAL
                 return
         self.buf.dirty = False
-        self.cx = self.cy = self.scroll = 0
+        self.cx = self.cy = self.scroll = self._wrap_skip = 0
         self._undo_stack.clear()
         self._redo_stack.clear()
         self._undo_save_depth = 0
@@ -533,6 +538,7 @@ class Editor:
         bs = self.buffers[self.buf_idx]
         bs.buf = self.buf
         bs.cx, bs.cy, bs.scroll = self.cx, self.cy, self.scroll
+        bs.wrap_skip = self._wrap_skip
         bs._undo_stack = self._undo_stack
         bs._redo_stack = self._redo_stack
         bs._undo_save_depth = self._undo_save_depth
@@ -544,6 +550,7 @@ class Editor:
         bs = self.buffers[idx]
         self.buf = bs.buf
         self.cx, self.cy, self.scroll = bs.cx, bs.cy, bs.scroll
+        self._wrap_skip = bs.wrap_skip
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
@@ -644,43 +651,112 @@ class Editor:
         if self.cx > line_len:
             self.cx = line_len
 
-    def _ensure_scroll(self):
-        """Adjust scroll so cursor is visible."""
+    def _move_view_top(self, delta):
+        """Move the viewport top by one logical line or wrapped display row."""
         if not self.opt_wrap:
+            new = max(0, min(self.scroll + delta, max(0, len(self.buf.lines) - self.rows)))
+            moved = new != self.scroll
+            self.scroll, self._wrap_skip = new, 0
+            return moved
+        self.scroll = max(0, min(self.scroll, len(self.buf.lines) - 1))
+        self._wrap_skip = min(self._wrap_skip, self._line_screen_rows(self.scroll) - 1)
+        if delta > 0:
+            if self._wrap_skip + 1 < self._line_screen_rows(self.scroll):
+                self._wrap_skip += 1
+            elif self.scroll < len(self.buf.lines) - 1:
+                self.scroll += 1
+                self._wrap_skip = 0
+            else:
+                return False
+        elif self._wrap_skip > 0:
+            self._wrap_skip -= 1
+        elif self.scroll > 0:
+            self.scroll -= 1
+            self._wrap_skip = self._line_screen_rows(self.scroll) - 1
+        else:
+            return False
+        return True
+
+    def _cursor_view_row(self):
+        """Return the cursor's display row relative to the viewport top."""
+        if not self.opt_wrap:
+            return self.cy - self.scroll
+        if self.cy < self.scroll:
+            return -1
+        if self.cy == self.scroll:
+            return self._cursor_wrap_row(self._wrap_cols()) - self._wrap_skip
+        row = self._line_screen_rows(self.scroll) - self._wrap_skip
+        for y in range(self.scroll + 1, self.cy):
+            row += self._line_screen_rows(y)
+        return row + self._cursor_wrap_row(self._wrap_cols())
+
+    def _position_at_view_row(self, target, col):
+        """Move cursor to a viewport display row, preserving column where possible."""
+        if not self.opt_wrap:
+            self.cy = min(self.scroll + target, len(self.buf.lines) - 1)
+            self.cx = min(col, len(self.buf.lines[self.cy]))
+            return
+        y, wrap_row = self.scroll, self._wrap_skip
+        while y < len(self.buf.lines) - 1:
+            available = self._line_screen_rows(y) - wrap_row
+            if target < available:
+                break
+            target -= available
+            y, wrap_row = y + 1, 0
+        wrap_row += target
+        self.cy = y
+        self.cx = min(wrap_row * self._wrap_cols() + col, len(self.buf.lines[y]))
+
+    def _scroll_view(self, delta, n=1):
+        """Scroll viewport by display rows, moving cursor only to keep it visible."""
+        col = self.cx % self._wrap_cols() if self.opt_wrap else self.cx
+        for _ in range(n):
+            if not self._move_view_top(delta):
+                break
+        row = self._cursor_view_row()
+        margin = min(self.opt_scrolloff, max(0, (self.rows - 1) // 2))
+        if row < margin:
+            self._position_at_view_row(margin, col)
+        elif row > self.rows - 1 - margin:
+            self._position_at_view_row(self.rows - 1 - margin, col)
+        self._clamp_cursor()
+
+    def _center_cursor(self):
+        """Center cursor vertically as closely as file boundaries permit."""
+        if not self.opt_wrap:
+            self.scroll = max(0, min(self.cy - self.rows // 2,
+                                     max(0, len(self.buf.lines) - self.rows)))
+            self._wrap_skip = 0
+            return
+        self.scroll = self.cy
+        self._wrap_skip = self._cursor_wrap_row(self._wrap_cols())
+        for _ in range(self.rows // 2):
+            if not self._move_view_top(-1):
+                break
+
+    def _ensure_scroll(self):
+        """Adjust viewport only as far as needed to keep cursor visible."""
+        if not self.opt_wrap:
+            self._wrap_skip = 0
             max_scroll = max(0, len(self.buf.lines) - self.rows)
             margin = min(self.opt_scrolloff, max(0, (self.rows - 1) // 2))
-            min_cy = self.scroll + margin
-            max_cy = self.scroll + self.rows - 1 - margin
-            if self.cy < min_cy:
+            if self.cy < self.scroll + margin:
                 self.scroll = self.cy - margin
-            elif self.cy > max_cy:
+            elif self.cy > self.scroll + self.rows - 1 - margin:
                 self.scroll = self.cy - (self.rows - 1 - margin)
-            if self.scroll < 0:
-                self.scroll = 0
-            if self.scroll > max_scroll:
-                self.scroll = max_scroll
-        else:
-            self._wrap_skip = 0
-            if self.cy < self.scroll:
-                self.scroll = self.cy
-            content_cols = self._wrap_cols()
-            cursor_row = self._cursor_wrap_row(content_cols)
-            cursor_line_rows = self._line_screen_rows(self.cy)
-            if cursor_line_rows > self.rows:
-                self.scroll = self.cy
-                self._wrap_skip = max(0, cursor_row - self.rows + 1)
-                return
-            # With wrap, count screen rows from scroll to cursor.
-            # If the cursor line doesn't fit, scroll forward by buffer lines.
-            while self.scroll <= self.cy:
-                screen_rows = 0
-                for i in range(self.scroll, self.cy + 1):
-                    screen_rows += self._line_screen_rows(i)
-                if screen_rows <= self.rows:
-                    break
-                self.scroll += 1
-            if self.scroll > self.cy:
-                self.scroll = self.cy
+            self.scroll = max(0, min(self.scroll, max_scroll))
+            return
+        self.scroll = max(0, min(self.scroll, len(self.buf.lines) - 1))
+        self._wrap_skip = max(0, min(self._wrap_skip, self._line_screen_rows(self.scroll) - 1))
+        if self.cy < self.scroll:
+            self.scroll, self._wrap_skip = self.cy, 0
+        margin = min(self.opt_scrolloff, max(0, (self.rows - 1) // 2))
+        row = self._cursor_view_row()
+        while row < margin and self._move_view_top(-1):
+            row += 1
+        bottom = self.rows - 1 - margin
+        while row > bottom and self._move_view_top(1):
+            row -= 1
 
     # ── Undo / Redo ───────────────────────────────────────────────────
 
@@ -1984,7 +2060,12 @@ class Editor:
                     self.msg = "No quickfix buffer"
             elif key == "o":
                 self._open_quickfix_location()
-            return
+            else:
+                # Unknown leader combination: Space is a no-op and this key
+                # continues through normal dispatch.
+                pass
+            if key in ("k", "n", "N", "c", "o"):
+                return
 
         # 'g' prefix: wait for second key
         if self._pending_g:
@@ -2300,6 +2381,10 @@ class Editor:
             self._search_next(self.search_dir)
         elif key == "N":
             self._search_next(-self.search_dir)
+        elif key == "CTRL_E":
+            self._scroll_view(1, n)
+        elif key == "CTRL_Y":
+            self._scroll_view(-1, n)
         elif key == "u":
             self._undo()
         elif key == "CTRL_R":
@@ -2866,9 +2951,9 @@ class Editor:
             bs = self.quickfix_state
             bs.buf.lines = lines
             bs.buf.dirty = False
-            bs.cx = bs.cy = bs.scroll = 0
+            bs.cx = bs.cy = bs.scroll = bs.wrap_skip = 0
             self._switch_buffer(self.buffers.index(bs))
-            self.cx = self.cy = self.scroll = 0
+            self.cx = self.cy = self.scroll = self._wrap_skip = 0
         else:
             bs = BufferState()
             bs.buf.path = "[quickfix]"
@@ -3350,7 +3435,7 @@ class Editor:
                 self.cy = line_idx
                 self.cx = m.start()
                 self._clamp_cursor()
-                self._ensure_scroll()
+                self._center_cursor()
                 return
         self.msg = f"Pattern not found: {self.search_pattern}"
 

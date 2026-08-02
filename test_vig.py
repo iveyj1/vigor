@@ -2974,6 +2974,67 @@ def test_hlsearch_config_file():
     print("  PASS: hlsearch config file")
 
 
+# ── Phase 51: viewport scrolling ──────────────────────────────────────────
+
+def test_ctrl_e_scrolls_down_and_ctrl_y_scrolls_up():
+    """Ctrl-E/Ctrl-Y move the viewport by logical display rows in nowrap mode."""
+    path = write_temp("\n".join(f"line {i}" for i in range(20)) + "\n")
+    down, _, code = run_vig(b"4G\x05:q\r", file_path=path, rows=8, cols=30)
+    up, _, code2 = run_vig(b"10G\x19:q\r", file_path=path, rows=8, cols=30)
+    os.unlink(path)
+    assert code == code2 == 0
+    assert "line 1\x1b[K\r\nline 2" in last_frame(down), last_frame(down)[:300]
+    assert "line 3\x1b[K\r\nline 4" in last_frame(up), last_frame(up)[:300]
+    print("  PASS: Ctrl-E/Ctrl-Y scroll viewport")
+
+
+def test_ctrl_e_scrolls_one_wrapped_display_row():
+    """With wrap, Ctrl-E advances the viewport by one display row, not one logical line."""
+    path = write_temp("abcdefghijklmnopqrstuvwxyz\nnext\n")
+    screen, _, code = run_vig(b":set wrap\r15l\x05:q\r", file_path=path, rows=8, cols=10)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "klmnopqrst\r\nuvwxyz" in frame, frame[:300]
+    assert "abcdefghij" not in frame, frame[:300]
+    print("  PASS: Ctrl-E scrolls wrapped display row")
+
+
+def test_space_unknown_combination_executes_normal_key():
+    """An unknown Space combination ignores Space and dispatches the following key."""
+    path = write_temp("one\ntwo\nthree\n")
+    _, content, code = run_vig(b" jjdd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "one\ntwo\n", f"Expected Space+j then dd: {content!r}"
+    print("  PASS: unknown Space combination dispatches key")
+
+
+def test_search_result_is_centered():
+    """Successful searches center their result when file boundaries permit."""
+    path = write_temp("\n".join([f"line {i}" for i in range(10)] + ["needle"] + [f"line {i}" for i in range(11, 21)]) + "\n")
+    screen, _, code = run_vig(b"/needle\r:q\r", file_path=path, rows=10, cols=30)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "line 6\x1b[K\r\nline 7" in frame, frame[:400]
+    assert "needle" in frame
+    print("  PASS: search result centered")
+
+
+def test_wrapped_viewport_persists_across_buffers():
+    """Per-buffer wrapped-row scroll position survives buffer switches."""
+    p1 = write_temp("abcdefghijklmnopqrstuvwxyz\n")
+    p2 = write_temp("other\n")
+    screen, _, code = run_vig(b":set wrap\r15l\x05 n N:qa\r", file_paths=[p1, p2], rows=8, cols=10)
+    os.unlink(p1)
+    os.unlink(p2)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "klmnopqrst\r\nuvwxyz" in frame and "abcdefghij" not in frame, frame[:300]
+    print("  PASS: wrapped viewport persists per buffer")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3460,6 +3521,13 @@ def main():
             test_ghash_searches_partial_matches_backward,
             test_hlsearch_highlights_matches_and_can_disable,
             test_hlsearch_config_file,
+        ]),
+        ("51", "Phase 51 — viewport scrolling", [
+            test_ctrl_e_scrolls_down_and_ctrl_y_scrolls_up,
+            test_ctrl_e_scrolls_one_wrapped_display_row,
+            test_space_unknown_combination_executes_normal_key,
+            test_search_result_is_centered,
+            test_wrapped_viewport_persists_across_buffers,
         ]),
     ]
 

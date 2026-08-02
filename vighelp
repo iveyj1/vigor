@@ -9,6 +9,7 @@ gg / G              first / last line; counts select line
 f t F T ; ,         find character; repeat / reverse
 %                   match bracket
 Ctrl-D / Ctrl-U     half-page down / up
+Ctrl-E / Ctrl-Y     scroll viewport down / up
 
 i a I A             insert at cursor/after/start/end
 o O                 open line below / above
