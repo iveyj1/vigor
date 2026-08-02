@@ -678,6 +678,23 @@ def test_resize_shrink_grow():
     assert "line" in screen
     print("  PASS: resize shrink+grow")
 
+
+def test_resize_to_49_content_columns_keeps_wrapmove_consistent():
+    """After a pane resize, exact-boundary display rows retain symmetric j/k movement."""
+    content = (
+        "      your vig vocabulary will expand with usage. Consider returning to\n"
+        "      this tutorial periodically for a refresher.\n"
+        "\n"
+    )
+    path = write_temp(content)
+    _, saved, code = run_vig_with_resize(
+        b":set number\r:set wrap\r:set wrapmove\r2G",
+        b"$kjjkiX\x1b:wq\r", new_rows=12, new_cols=55, file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert saved.splitlines()[1] == "      this tutorial periodically for a refresher.X", saved
+    print("  PASS: resized 49-column wrapmove remains consistent")
+
 # ── Phase 7: Count Prefixes ──────────────────────────────────────────────
 
 def test_count_3j():
@@ -1052,14 +1069,40 @@ def test_wrap_cursor_position():
     print("  PASS: wrap cursor position")
 
 
-def test_wrap_cursor_at_exact_boundary_stays_on_visible_row():
-    """At EOL on an exact wrap boundary, the cursor should not jump to the next row."""
+def test_wrap_cursor_at_exact_boundary_uses_eol_row():
+    """Exact-width EOL uses a blank continuation row for the one-past-EOL cursor."""
     path = write_temp("abcdefghij\n")
     screen, _, code = run_vig(b":set wrap\r$:q\r", file_path=path, cols=10, rows=6)
     os.unlink(path)
     assert code == 0
-    assert "\x1b[1;10H" in screen, f"Expected cursor at last visible column: {screen[-500:]!r}"
-    print("  PASS: wrap boundary cursor remains visible")
+    assert "\x1b[2;1H" in screen, f"Expected cursor on EOL continuation row: {screen[-500:]!r}"
+    print("  PASS: wrap boundary has consistent EOL row")
+
+
+def test_wrapmove_is_symmetric_at_exact_49_column_boundary():
+    """Display-row j/k remain symmetric around a 49-column row with a gutter."""
+    lines = (
+        "      your vig vocabulary will expand with usage. Consider returning to\n"
+        "      this tutorial periodically for a refresher.\n"
+        "\n"
+    )
+    path = write_temp(lines)
+    keys = b":set number\r:set wrap\r:set wrapmove\r2G$kjjkiX\x1b:wq\r"
+    _, content, code = run_vig(keys, file_path=path, cols=55, rows=12)
+    os.unlink(path)
+    assert code == 0
+    assert content.splitlines()[1] == "      this tutorial periodically for a refresher.X", content
+    print("  PASS: wrapmove symmetric at 49-column boundary")
+
+
+def test_wrapmove_crosses_logical_lines_symmetrically():
+    """k to the previous line's last display row and j back preserve display column."""
+    path = write_temp("abcdefghijklmnop\nabcdefghij\n")
+    _, content, code = run_vig(b":set wrap\r:set wrapmove\r2G0kjiX\x1b:wq\r", file_path=path, cols=10)
+    os.unlink(path)
+    assert code == 0
+    assert content == "abcdefghijklmnop\nXabcdefghij\n", f"Asymmetric wrapped j/k: {content!r}"
+    print("  PASS: wrapmove crosses logical lines symmetrically")
 
 
 def test_wrap_long_line_scrolls_within_line():
@@ -3123,6 +3166,7 @@ def main():
         ("6", "Phase 6 — Resize", [
             test_sigwinch_no_crash,
             test_resize_shrink_grow,
+            test_resize_to_49_content_columns_keeps_wrapmove_consistent,
         ]),
         ("7", "Phase 7 — Count Prefixes", [
             test_count_3j,
@@ -3171,7 +3215,9 @@ def main():
             test_wrap_full_width_rows_do_not_clear_last_cell,
             test_nowrap_truncates,
             test_wrap_cursor_position,
-            test_wrap_cursor_at_exact_boundary_stays_on_visible_row,
+            test_wrap_cursor_at_exact_boundary_uses_eol_row,
+            test_wrapmove_is_symmetric_at_exact_49_column_boundary,
+            test_wrapmove_crosses_logical_lines_symmetrically,
             test_wrap_long_line_scrolls_within_line,
         ]),
         ("13", "Phase 13 — Line Numbers", [

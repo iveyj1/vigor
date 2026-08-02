@@ -982,32 +982,32 @@ class Editor:
         return max(1, self.cols - self._gutter_width())
 
     def _motion_display_row(self, delta):
-        """Move by one displayed row while preserving the desired column."""
-        if self._sticky_cx is None:
-            self._sticky_cx = self.cx
-        desired = self._sticky_cx
+        """Move vertically while preserving a logical or displayed column."""
         if not (self.opt_wrap and self.opt_wrapmove):
+            if self._sticky_cx is None:
+                self._sticky_cx = self.cx
             self.cy += delta
-            self.cx = min(desired, len(self.buf.lines[max(0, min(self.cy, len(self.buf.lines) - 1))]))
+            line_idx = max(0, min(self.cy, len(self.buf.lines) - 1))
+            self.cx = min(self._sticky_cx, len(self.buf.lines[line_idx]))
             self._clamp_cursor()
             return
         cols = self._wrap_cols()
+        if self._sticky_cx is None:
+            self._sticky_cx = self.cx % cols
+        col = self._sticky_cx
         row = self.cx // cols
-        col = desired % cols
         if delta > 0:
-            rows = self._line_screen_rows(self.cy)
-            if row + 1 < rows:
+            if row + 1 < self._line_screen_rows(self.cy):
                 self.cx = min((row + 1) * cols + col, len(self.buf.lines[self.cy]))
             elif self.cy < len(self.buf.lines) - 1:
                 self.cy += 1
-                self.cx = min(desired, len(self.buf.lines[self.cy]))
-        else:
-            if row > 0:
-                self.cx = (row - 1) * cols + col
-            elif self.cy > 0:
-                self.cy -= 1
-                prev_rows = self._line_screen_rows(self.cy)
-                self.cx = min(desired, len(self.buf.lines[self.cy]))
+                self.cx = min(col, len(self.buf.lines[self.cy]))
+        elif row > 0:
+            self.cx = min((row - 1) * cols + col, len(self.buf.lines[self.cy]))
+        elif self.cy > 0:
+            self.cy -= 1
+            last_row = self._line_screen_rows(self.cy) - 1
+            self.cx = min(last_row * cols + col, len(self.buf.lines[self.cy]))
         self._clamp_cursor()
 
     def _motion_j(self):
@@ -1394,21 +1394,11 @@ class Editor:
 
     def _cursor_wrap_row(self, content_cols):
         """Displayed wrap row for the cursor within its buffer line."""
-        if content_cols <= 0:
-            return 0
-        line_len = len(self.buf.lines[self.cy])
-        if self.cx > 0 and self.cx == line_len and self.cx % content_cols == 0:
-            return (self.cx - 1) // content_cols
-        return self.cx // content_cols
+        return self.cx // content_cols if content_cols > 0 else 0
 
     def _cursor_wrap_col(self, content_cols):
         """Displayed wrap column for the cursor within its buffer line."""
-        if content_cols <= 0:
-            return 0
-        line_len = len(self.buf.lines[self.cy])
-        if self.cx > 0 and self.cx == line_len and self.cx % content_cols == 0:
-            return content_cols - 1
-        return self.cx % content_cols
+        return self.cx % content_cols if content_cols > 0 else 0
 
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""
@@ -1418,9 +1408,9 @@ class Editor:
         if content_cols <= 0:
             return 1
         line_len = len(self.buf.lines[line_idx]) if line_idx < len(self.buf.lines) else 0
-        if line_len == 0:
-            return 1
-        return (line_len + content_cols - 1) // content_cols
+        # Include the one-past-EOL cursor cell. Exact-width lines therefore
+        # have an empty continuation row instead of placing EOL on a character.
+        return line_len // content_cols + 1
 
     def _end_screen_row(self, out, cells):
         """End a rendered row without erasing a full-width final cell."""
@@ -1444,21 +1434,15 @@ class Editor:
             self._end_screen_row(out, gutter_width + len(visible))
             return 1
         else:
-            # Wrap: split line into chunks of content_cols
-            if not line:
-                out.append(gutter)
-                self._render_visible("", buf_line, 0, sel, out)
-                self._end_screen_row(out, gutter_width)
-                return 1
+            # Wrap text plus its one-past-EOL cursor cell into display rows.
             rows_used = 0
-            for chunk_start in range(max(0, start_row) * content_cols, len(line), content_cols):
+            total_rows = len(line) // content_cols + 1
+            for wrap_row in range(max(0, start_row), total_rows):
                 if max_rows is not None and rows_used >= max_rows:
                     break
+                chunk_start = wrap_row * content_cols
                 chunk = line[chunk_start:chunk_start + content_cols]
-                if rows_used == 0:
-                    out.append(gutter)
-                else:
-                    out.append(gutter_pad)
+                out.append(gutter if wrap_row == 0 else gutter_pad)
                 self._render_visible(chunk, buf_line, chunk_start, sel, out)
                 self._end_screen_row(out, gutter_width + len(chunk))
                 rows_used += 1
