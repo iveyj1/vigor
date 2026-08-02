@@ -2827,7 +2827,7 @@ def test_search_history_shared_by_slash_and_question():
 def test_help_opens_vighelp_buffer():
     """:help opens the executable-directory help buffer."""
     path = write_temp("source\n")
-    screen, _, code = run_vig(b":help\r32j:q\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":help\r40G:q\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
@@ -3033,6 +3033,68 @@ def test_wrapped_viewport_persists_across_buffers():
     assert code == 0
     assert "klmnopqrst\r\nuvwxyz" in frame and "abcdefghij" not in frame, frame[:300]
     print("  PASS: wrapped viewport persists per buffer")
+
+
+# ── Phase 52: startup directory completion ────────────────────────────────
+
+def test_startup_directory_opens_completion_without_splash():
+    """A directory argument immediately opens its entries as edit completion."""
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "alpha.txt"), "w").write("alpha\n")
+        open(os.path.join(d, "beta.txt"), "w").write("beta\n")
+        screen, _, code = run_vig(b"\x1b:q\r", file_paths=[d])
+    assert code == 0
+    assert "alpha.txt" in screen and "beta.txt" in screen and "╭" in screen
+    assert "\x1b[49m\x1b[96m" not in screen, "Startup directory should suppress splash"
+    print("  PASS: startup directory opens completion without splash")
+
+
+def test_startup_directory_escape_keeps_file_buffers():
+    """Esc cancels the directory item while explicitly named files remain open."""
+    with tempfile.TemporaryDirectory() as d:
+        directory = os.path.join(d, "browse")
+        os.mkdir(directory)
+        open(os.path.join(directory, "choice.txt"), "w").write("choice\n")
+        first = os.path.join(d, "first.txt")
+        second = os.path.join(d, "second.txt")
+        open(first, "w").write("first body\n")
+        open(second, "w").write("second body\n")
+        screen, _, code = run_vig(b"\x1b:ls\r:qa\r", file_paths=[directory, first, second])
+    assert code == 0
+    assert first in screen and second in screen and "[1/2]" in screen
+    assert "first body" in screen
+    print("  PASS: startup directory Esc keeps file buffers")
+
+
+def test_startup_directory_selection_opens_buffer():
+    """Completion selection followed by a second Enter opens the selected file."""
+    with tempfile.TemporaryDirectory() as d:
+        open(os.path.join(d, "aa_first.txt"), "w").write("selected body\n")
+        open(os.path.join(d, "aa_second.txt"), "w").write("other body\n")
+        screen, _, code = run_vig(b"\r\r:qa\r", file_paths=[d])
+    assert code == 0
+    assert "selected body" in screen, screen[-800:]
+    print("  PASS: startup directory selection opens buffer")
+
+
+def test_startup_ignores_later_directories_but_keeps_later_files():
+    """Only the first directory is browsed; files anywhere in argv become buffers."""
+    with tempfile.TemporaryDirectory() as d:
+        one = os.path.join(d, "one")
+        two = os.path.join(d, "two")
+        os.mkdir(one)
+        os.mkdir(two)
+        open(os.path.join(one, "from_one.txt"), "w").write("one\n")
+        open(os.path.join(two, "from_two.txt"), "w").write("two\n")
+        before = os.path.join(d, "before.txt")
+        after = os.path.join(d, "after.txt")
+        open(before, "w").write("before\n")
+        open(after, "w").write("after\n")
+        screen, _, code = run_vig(b"\x1b:ls\r:qa\r", file_paths=[before, one, two, after])
+    assert code == 0
+    assert "from_one.txt" in screen and "from_two.txt" not in screen
+    assert before in screen and after in screen
+    print("  PASS: startup ignores later directories and keeps files")
 
 
 def test_completion_menu_has_filename_padding():
@@ -3528,6 +3590,12 @@ def main():
             test_space_unknown_combination_executes_normal_key,
             test_search_result_is_centered,
             test_wrapped_viewport_persists_across_buffers,
+        ]),
+        ("52", "Phase 52 — startup directory completion", [
+            test_startup_directory_opens_completion_without_splash,
+            test_startup_directory_escape_keeps_file_buffers,
+            test_startup_directory_selection_opens_buffer,
+            test_startup_ignores_later_directories_but_keeps_later_files,
         ]),
     ]
 

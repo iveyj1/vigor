@@ -237,11 +237,16 @@ class Terminal:
 
 class Editor:
     def __init__(self, paths=None):
-        # Buffer list — always at least one buffer
-        if paths:
-            self.buffers = [BufferState(self._resolve_startup_path(p)) for p in paths]
-        else:
-            self.buffers = [BufferState()]
+        # Existing directories open one startup completion; other paths are buffers.
+        file_paths, startup_dir = [], None
+        for p in paths or ():
+            resolved = self._resolve_startup_path(p)
+            if os.path.isdir(resolved):
+                if startup_dir is None:
+                    startup_dir = resolved
+            else:
+                file_paths.append(resolved)
+        self.buffers = [BufferState(p) for p in file_paths] if file_paths else [BufferState()]
         self.buf_idx = 0
         # Load first buffer's state into working attributes
         bs = self.buffers[0]
@@ -317,8 +322,14 @@ class Editor:
         self._load_config()
         self.term = Terminal()
         self._update_size()
-        self._splash = True
-        self._splash_until = time.monotonic() + 1 if paths else None
+        self._startup_completion = startup_dir is not None
+        self._splash = not self._startup_completion
+        self._splash_until = time.monotonic() + 1 if file_paths else None
+        if startup_dir:
+            self.mode = Mode.COMMAND
+            self.cmd = "edit " + startup_dir.rstrip(os.sep) + os.sep
+            self.cmd_cx = len(self.cmd)
+            self._start_completion()
 
     def _format_exception_report(self, exc):
         """Build a plain-text crash report for unexpected exceptions."""
@@ -2649,6 +2660,14 @@ class Editor:
             self._clear_completion()
 
     def handle_command(self, key):
+        if self._startup_completion and key in ("ESC", "CTRL_C"):
+            self._startup_completion = False
+            self.mode = Mode.NORMAL
+            self.cmd = ""
+            self.cmd_cx = 0
+            self._reset_history_nav()
+            self._clear_completion()
+            return
         if self.comp_matches:
             if key == "ESC":
                 self._clear_completion()
@@ -2686,6 +2705,7 @@ class Editor:
             return
         if key == "ENTER":
             cmd = self.cmd
+            self._startup_completion = False
             self._add_history(self.cmd_history, cmd.strip())
             self._reset_history_nav()
             self._clear_completion()
@@ -3473,6 +3493,8 @@ class Editor:
                     continue
                 if key == "CTRL_C" and self.mode != Mode.NORMAL:
                     self._cancel_pending()
+                    self._startup_completion = False
+                    self._clear_completion()
                     self.mode = Mode.NORMAL
                     self.cmd = ""
                     self.cmd_cx = 0
