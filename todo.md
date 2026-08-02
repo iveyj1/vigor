@@ -4,12 +4,14 @@
 
 ** Do
 - Add ^e ^y scroll motion
-- <space><command> should execute the command unless there is a valid combined <space><command> interpretation (e.g. <space>bd)
+- in Normal mode, <space><command> should execute the combined command if there is one (e.g. <space>bd), otherwise <space> should be a noop and <command> should be executed; 
+- Optionally center current search result vertically on screen when practical.
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 4. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 ** Done
+1. Fix wrapped rendering and `wrapmove` after narrow pane resizes: preserve full-width boundary characters, keep oversized wrapped lines scrollable, give exact-width logical lines a consistent one-past-EOL display row, and make `j`/`k` cross display rows symmetrically while preserving display column.
 1. Add `*`, `#`, `g*`, and `g#` word-under-cursor searches. `*`/`#` search whole words forward/backward; `g*`/`g#` search partial matches forward/backward, using existing search state and repeat commands.
 2. Add configurable active search-regex highlighting with `:set hlsearch` / `:set nohlsearch` and config-file support through the existing `:set` path. Default is off; current cursor match has no distinct styling; failed searches keep the previous active pattern.
 1. Add `:[range]!cmd` to pipe lines through shell commands in-place and `:[range]!!cmd` / `:!!cmd` to open filter output in a new buffer.
@@ -63,12 +65,8 @@
 ** Hold for further definition
 1) marks
 2) macros
-3) add column-select mode. From normal mode <ctrl>-v to enter, esc, y, or d, to exit.  y copies, d deletes  (interaction with yd?) moving non-deleted text on affected lines to the left.  
 3) configurable keymaps
-4) :g commands 
-6) simple syntax highlighting mechanism, C, Python, and Bash to start.  If too much added code, consider comment-and-string only.
 7) autosave
-11) tab complete for filenames in : and :! commands
 12) : command history
 13) filtering on partially typed command entry for : command history
 7) add 'kjk' alias for <esc> in insert mode(s)
