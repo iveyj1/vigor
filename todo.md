@@ -4,7 +4,8 @@
 3) If minor changes to proposed functionality would result in significant code savings, bring that to light before implementation.
 
 ** Do
-
+1) When inserting to the left of a tab, then typing, odd behavior results
+2) Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.

@@ -1631,8 +1631,8 @@ class Editor:
         if self.cols < 2 or total_rows < 2:
             return
         logo_width = max(len(line) for line in SPLASH)
-        box_width = min(self.cols, max(logo_width + 2, logo_width * 3))
-        box_height = min(total_rows, max(len(SPLASH) + 2, len(SPLASH) * 3))
+        box_width = min(self.cols, max(logo_width + 2, (logo_width * 3) // 2))
+        box_height = min(total_rows, max(len(SPLASH) + 2, (len(SPLASH) * 3) // 2))
         inner_width, inner_height = box_width - 2, box_height - 2
         top = (total_rows - box_height) // 2 + 1
         left = (self.cols - box_width) // 2 + 1
