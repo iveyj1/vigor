@@ -170,6 +170,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 - Startup first renders the editor, then overlays a centered rounded logo frame. Input dismisses it and still executes; command-line file startup also dismisses it after one second.
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker
+- Existing tab characters render as spaces to four-column stops; cursor movement, wrapping, scrolling, and highlighting use those display columns
 - The visible window horizontally scrolls in nowrap mode to keep the cursor visible
 - SIGWINCH-aware terminal resize
 - Ctrl-Z moves the terminal cursor to the bottom line, suspends vig, and restores raw mode when foregrounded

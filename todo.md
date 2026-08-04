@@ -4,13 +4,13 @@
 3) If minor changes to proposed functionality would result in significant code savings, bring that to light before implementation.
 
 ** Do
-1) When inserting to the left of a tab, then typing, odd behavior results
 2) Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
 ** On hold
 1) Add a blank space left right top bottom betweem the text and the frame
 2. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 4. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 ** Done
+1. Render tabs at four-column stops and use display-column mapping for cursor placement, wrapping, scrolling, highlighting, and vertical motion.
 1. On invocation, open the first directory argument as an `:edit` filename-completion menu without a splash, ignore later directories, and retain all file arguments as buffers when completion is cancelled.
 1. Add `Ctrl-E` / `Ctrl-Y` counted viewport scrolling by display rows, with wrapped-row position stored per buffer.
 2. In Normal mode, execute a recognized one-key Space command; otherwise treat Space as a no-op and dispatch the following key normally.

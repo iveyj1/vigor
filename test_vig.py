@@ -3097,6 +3097,64 @@ def test_startup_ignores_later_directories_but_keeps_later_files():
     print("  PASS: startup ignores later directories and keeps files")
 
 
+# ── Phase 53: tab display columns ─────────────────────────────────────────
+
+def test_cursor_after_insert_with_leading_tab():
+    """Cursor uses expanded display columns after inserting to the right of a tab."""
+    line = "\t{ MODKEY,                       XK_Return, spawn,          {.v = termcmd } },\n"
+    path = write_temp(line)
+    screen, _, code = run_vig(b"10liX", file_path=path, timeout=1.0, cols=100)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == -99
+    assert "    { MODKEY,X" in frame and "\t" not in frame
+    assert "\x1b[1;15H" in frame, f"Expected cursor after inserted X: {frame[-200:]!r}"
+    print("  PASS: cursor tracks insert after leading tab")
+
+
+def test_tabs_participate_in_wrap_and_eol_layout():
+    """Expanded tabs determine wrapped rows and exact-width EOL placement."""
+    path = write_temp("\tabcdef\n")
+    screen, _, code = run_vig(b":set wrap\r$:q\r", file_path=path, cols=10, rows=6)
+    os.unlink(path)
+    assert code == 0
+    assert "    abcdef\r\n\x1b[K\r\n" in screen
+    assert "\x1b[2;1H" in screen, f"Expected expanded exact-width EOL row: {screen[-500:]!r}"
+    print("  PASS: tabs participate in wrapped EOL layout")
+
+
+def test_tab_display_columns_drive_sticky_vertical_motion():
+    """Vertical motion preserves display rather than buffer column across tabs."""
+    path = write_temp("\tabc\n0123456789\n")
+    _, content, code = run_vig(b"li\x1bjiX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "\tabc\n0123X456789\n", f"Expected display-column-preserving j: {content!r}"
+    print("  PASS: tabs use display columns for vertical motion")
+
+
+def test_tabbed_line_hscroll_uses_display_columns():
+    """Horizontal scrolling slices the expanded display line and keeps EOL visible."""
+    path = write_temp("\tabcdefghijklmnop\n")
+    screen, _, code = run_vig(b"$:q\r", file_path=path, cols=10, rows=6)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "hijklmnop" in frame and "\t" not in frame
+    assert "\x1b[1;10H" in screen, f"Expected EOL at right edge: {screen[-500:]!r}"
+    print("  PASS: tabbed horizontal scroll uses display columns")
+
+
+def test_tab_expansion_preserves_highlight_boundaries():
+    """Visual selection highlights every display cell occupied by a tab."""
+    path = write_temp("\tabc\n")
+    screen, _, code = run_vig(b"vl\x1b:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[7m    \x1b[m" in screen, f"Expected four selected tab cells: {screen[-500:]!r}"
+    print("  PASS: tab expansion preserves highlight boundaries")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3162,14 +3220,14 @@ def test_sticky_vertical_column():
 
 
 def test_file_startup_shows_framed_splash_over_editor():
-    """Startup draws a colored, rounded, triple-size logo box over the editor."""
+    """Startup draws a colored, rounded, framed logo box over the editor."""
     path = write_temp("underlay\n")
     screen, _, code = run_vig(b":q\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    border = "\x1b[49m\x1b[96m╭" + "─" * 76 + "╮"
-    assert border in screen, f"Expected 78-column rounded splash frame: {screen[-2000:]}"
-    assert screen.count("│") == 32, "Expected 18-row splash frame"
+    border = "\x1b[49m\x1b[96m╭" + "─" * 37 + "╮"
+    assert border in screen, f"Expected 39-column rounded splash frame: {screen[-2000:]}"
+    assert screen.count("│") == 14, "Expected 9-row splash frame"
     assert "\x1b[49m\x1b[96m│\x1b[97m" in screen, "Expected default background and colored logo"
     assert screen.index("underlay") < screen.index("╭"), "Editor frame must be drawn before splash overlay"
     assert "| |  / (_)___ _____  _____" in screen, f"Expected splash logo: {screen[-2000:]}"
@@ -3596,6 +3654,13 @@ def main():
             test_startup_directory_escape_keeps_file_buffers,
             test_startup_directory_selection_opens_buffer,
             test_startup_ignores_later_directories_but_keeps_later_files,
+        ]),
+        ("53", "Phase 53 — tab display columns", [
+            test_cursor_after_insert_with_leading_tab,
+            test_tabs_participate_in_wrap_and_eol_layout,
+            test_tab_display_columns_drive_sticky_vertical_motion,
+            test_tabbed_line_hscroll_uses_display_columns,
+            test_tab_expansion_preserves_highlight_boundaries,
         ]),
     ]
 
