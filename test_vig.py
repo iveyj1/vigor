@@ -1985,6 +1985,21 @@ def test_space_w_toggles_wrap():
     assert "abcdefghij\r\nk" in screen, f"Expected wrapped intermediate frame: {screen[-800:]!r}"
     print("  PASS: <space>w toggles wrap")
 
+
+def test_space_d_deletes_buffer_safely():
+    """<space>d deletes a clean buffer but retains dirty/last-buffer protections."""
+    p1 = write_temp("one\n")
+    p2 = write_temp("two\n")
+    _, _, clean_code = run_vig(b" d:q\r", file_paths=[p1, p2])
+    dirty_screen, _, dirty_code = run_vig(b"iX\x1b d:qa!\r", file_paths=[p1, p2])
+    last_screen, _, last_code = run_vig(b" d:q\r", file_path=p1)
+    os.unlink(p1)
+    os.unlink(p2)
+    assert clean_code == dirty_code == last_code == 0
+    assert "No write since last change" in dirty_screen
+    assert "Cannot delete last buffer" in last_screen
+    print("  PASS: <space>d safely deletes buffer")
+
 # ── Phase 30: ^/$ Home/End + Insert Tab/Delete ────────────────────────────
 
 def test_caret_motion_first_nonblank():
@@ -3555,6 +3570,7 @@ def main():
             test_x_with_count,
             test_X_deletes_before,
             test_space_w_toggles_wrap,
+            test_space_d_deletes_buffer_safely,
         ]),
         ("30", "Phase 30 — ^/$ Home/End Tab/Delete", [
             test_caret_motion_first_nonblank,

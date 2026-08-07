@@ -2085,7 +2085,14 @@ class Editor:
         # Space leader: wait for next key
         if self._pending_space:
             self._pending_space = False
-            if key == "j":
+            if key == "d":
+                if self.buf.dirty:
+                    self.msg = "No write since last change (add ! to override)"
+                elif len(self.buffers) <= 1:
+                    self.msg = "Cannot delete last buffer"
+                else:
+                    self._close_buffer()
+            elif key == "j":
                 self._quickfix_step(1)
             elif key == "k":
                 self._quickfix_step(-1)
@@ -2110,7 +2117,7 @@ class Editor:
                 # Unknown leader combination: Space is a no-op and this key
                 # continues through normal dispatch.
                 pass
-            if key in ("j", "k", "w", "n", "N", "c", "o"):
+            if key in ("d", "j", "k", "w", "n", "N", "c", "o"):
                 return
 
         # 'g' prefix: wait for second key

@@ -139,6 +139,7 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 | `:n` `:bn` | next buffer |
 | `:p` `:bp` | previous buffer |
 | `:ls` | list all buffers |
+| `<space>d` | close current buffer, refusing dirty or last buffers |
 | `<space>w` | toggle `wrap` / `nowrap` |
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |

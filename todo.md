@@ -18,6 +18,7 @@
 9. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Add `<space>d` as the protected current-buffer delete shortcut.
 1. Add `<space>w` to toggle wrap and `<space>j` / `<space>k` to open the next/previous remembered quickfix item without wrapping.
 1. Add semantic version and stampable commit/date identification to the splash footer; `scripts/install` stamps installed copies while source checkouts show `development`.
 Render tabs at four-column stops and use display-column mapping for cursor placement, wrapping, scrolling, highlighting, and vertical motion.
