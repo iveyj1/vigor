@@ -3155,6 +3155,24 @@ def test_tab_expansion_preserves_highlight_boundaries():
     print("  PASS: tab expansion preserves highlight boundaries")
 
 
+# ── Phase 54: build identification ────────────────────────────────────────
+
+def test_install_stamps_build_identification():
+    """Installer stamps commit/date identification without changing repository source."""
+    import re, subprocess
+    with tempfile.TemporaryDirectory() as d:
+        env = os.environ.copy()
+        env["VIG_INSTALL_DIR"] = d
+        result = subprocess.run([os.path.join(os.path.dirname(VIG), "scripts", "install")],
+                                cwd=os.path.dirname(VIG), env=env, capture_output=True, text=True)
+        installed = open(os.path.join(d, "vig.py")).read()
+    assert result.returncode == 0, result.stderr
+    assert 'VERSION = "0.1.0"' in installed
+    assert re.search(r"BUILD_ID = ['\"][0-9a-f]+ \d{4}-\d{2}-\d{2}(?: dirty)?['\"]", installed)
+    assert 'BUILD_ID = "development"' in open(VIG).read()
+    print("  PASS: installer stamps build identification")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3231,6 +3249,7 @@ def test_file_startup_shows_framed_splash_over_editor():
     assert "\x1b[49m\x1b[96m│\x1b[97m" in screen, "Expected default background and colored logo"
     assert screen.index("underlay") < screen.index("╭"), "Editor frame must be drawn before splash overlay"
     assert "| |  / (_)___ _____  _____" in screen, f"Expected splash logo: {screen[-2000:]}"
+    assert "v0.1.0 · development" in screen, f"Expected splash build footer: {screen[-2000:]}"
     print("  PASS: framed splash overlays editor")
 
 
@@ -3661,6 +3680,9 @@ def main():
             test_tab_display_columns_drive_sticky_vertical_motion,
             test_tabbed_line_hscroll_uses_display_columns,
             test_tab_expansion_preserves_highlight_boundaries,
+        ]),
+        ("54", "Phase 54 — build identification", [
+            test_install_stamps_build_identification,
         ]),
     ]
 

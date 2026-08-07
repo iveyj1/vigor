@@ -14,6 +14,9 @@ import shlex
 import time
 from enum import Enum
 
+VERSION = "0.1.0"
+BUILD_ID = "development"
+
 # ── Modes ──────────────────────────────────────────────────────────────────
 
 class Mode(Enum):
@@ -1666,13 +1669,16 @@ class Editor:
         left = (self.cols - box_width) // 2 + 1
         out.append(f"\x1b[{top};{left}H{SPLASH_BG}{SPLASH_FRAME}╭" + "─" * inner_width + "╮\x1b[m")
 
-        logo_rows = min(len(SPLASH), inner_height)
+        footer_row = inner_height - 1 if inner_height > len(SPLASH) else None
+        logo_rows = min(len(SPLASH), inner_height - (footer_row is not None))
         logo_start = max(0, (len(SPLASH) - logo_rows) // 2)
-        logo_top = max(0, (inner_height - logo_rows) // 2)
+        logo_top = max(0, (inner_height - (footer_row is not None) - logo_rows) // 2)
         crop = max(0, (logo_width - inner_width) // 2)
         for i in range(inner_height):
             text = " " * inner_width
-            if logo_top <= i < logo_top + logo_rows:
+            if i == footer_row:
+                text = f"v{VERSION} · {BUILD_ID}"[:inner_width].center(inner_width)
+            elif logo_top <= i < logo_top + logo_rows:
                 line = SPLASH[logo_start + i - logo_top].ljust(logo_width)
                 line = line[crop:crop + inner_width]
                 text = line.center(inner_width)

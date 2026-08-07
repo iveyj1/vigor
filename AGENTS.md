@@ -18,6 +18,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
+- `scripts/install` — installs `vig.py`/`vig`, stamping the copy with commit/date identification
 - `scripts/update_cloc_by_commit.sh` — saves per-commit `vig.py` cloc history to `scripts/cloc_by_commit.md`
 
 ## Management
@@ -50,7 +51,7 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 
 **Insert mode** — printable characters insert at cursor. Bracketed paste inserts pasted text literally, normalizing CRLF/CR to LF and not interpreting tabs, Esc, or newlines as typed keys. Tab inserts spaces to the next 4-column tab stop. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
-**Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, vigor renders the initial editor frame and overlays a centered, rounded, colored rectangle approximately one and a half times the logo's width and height. The overlay remains until a keypress for an unnamed buffer, or for up to one second when command-line files are opened; the dismissing key still executes normally. An existing directory argument instead opens the directory immediately in the filename-completion menu with no splash. Other arguments open as buffers, later directory arguments are ignored, and Esc cancels directory completion without closing those buffers.
+**Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, vigor renders the initial editor frame and overlays a centered, rounded, colored rectangle approximately one and a half times the logo's width and height. A footer shows the semantic version and build identifier (`development` in source, commit/date in installed copies). The overlay remains until a keypress for an unnamed buffer, or for up to one second when command-line files are opened; the dismissing key still executes normally. An existing directory argument instead opens the directory immediately in the filename-completion menu with no splash. Other arguments open as buffers, later directory arguments are ignored, and Esc cancels directory completion without closing those buffers.
 
 
 **Project tooling**
@@ -163,7 +164,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 264 test functions organized into 53 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 265 test functions organized into 54 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, and recent polish. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents

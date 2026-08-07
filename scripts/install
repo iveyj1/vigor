@@ -4,7 +4,16 @@ set -euo pipefail
 trap 'rc=\$?; echo "ERROR: \${BASH_SOURCE[0]}:\${LINENO}: \${BASH_COMMAND} exited with status \${rc}" >&2; exit \${rc}' ERR
 trap 'echo "Interrupted" >&2; exit 130' INT
 
-instdir="$HOME/.config/scripts"
+instdir="${VIG_INSTALL_DIR:-$HOME/.config/scripts}"
 mkdir -p "$instdir"
-cp vig.py "$instdir/"
+build_id="$(git log -1 --format='%h %cs' 2>/dev/null || printf development)"
+if [[ "$build_id" != development ]] && ! git diff --quiet HEAD -- vig.py; then
+    build_id="$build_id dirty"
+fi
+BUILD_ID="$build_id" python3 - "$instdir/vig.py" <<'PY'
+import os, pathlib, sys
+text = pathlib.Path("vig.py").read_text()
+text = text.replace('BUILD_ID = "development"', f"BUILD_ID = {os.environ['BUILD_ID']!r}", 1)
+pathlib.Path(sys.argv[1]).write_text(text)
+PY
 cp vig "$instdir/"
