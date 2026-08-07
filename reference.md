@@ -109,6 +109,8 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:p` / `:prev` / `:bp` | previous buffer |
 | `:ls` | list buffers |
 | `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
+| `:make [args]` | run configured `makeprg` and capture merged output in quickfix |
+| `:qf !<cmd>` | run a generic diagnostic producer and capture output in quickfix |
 | `:rg <pattern> [path]` | run `rg -n --column` into quickfix buffer |
 | `:rgf [path]` | open optional `fzf` live ripgrep picker; Enter sends all filtered rows to quickfix |
 | `:read <file>` | insert file contents below cursor |
@@ -128,10 +130,15 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
 | `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
+| `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
 
 Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer directory. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
+
+## Build Diagnostics
+
+`:qf !<cmd>` and `:make` retain ordinary output for context while quickfix navigation skips non-location rows. Navigable producers emit `path:line:column: message`; `path:line: message` is normalized to column 1. ANSI escapes are stripped, nonzero output is retained, and silent successful builds leave the current buffer active. Tool-specific translation is optional project tooling; see `build-diagnostics-proposal.md`.
 
 ## Multi-Buffer
 | Key / Command | Action |

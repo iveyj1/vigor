@@ -298,6 +298,7 @@ class Editor:
         self.opt_wrapmove = False  # :set wrapmove/nowrapmove
         self.opt_rghidden = False  # :set rghidden/norghidden
         self.opt_hlsearch = False  # :set hlsearch/nohlsearch
+        self.opt_makeprg = "make"  # :set makeprg=<shell command>
         self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
@@ -2889,6 +2890,16 @@ class Editor:
         elif cmd == "set":
             self._exec_set(arg)
             self.mode = Mode.NORMAL
+        elif cmd == "qf":
+            if not arg or not arg.startswith("!"):
+                self.msg = "Usage: qf !<command>"
+            else:
+                self._exec_qf_command(arg[1:].strip(), "qf")
+            self.mode = Mode.NORMAL
+        elif cmd == "make":
+            command = self.opt_makeprg + ((" " + arg) if arg else "")
+            self._exec_qf_command(command, "make")
+            self.mode = Mode.NORMAL
         elif cmd == "rg":
             self._exec_rg(arg)
             self.mode = Mode.NORMAL
@@ -2967,6 +2978,34 @@ class Editor:
         self.buf.dirty = True
         self._clamp_cursor()
         self._ensure_scroll()
+
+    @staticmethod
+    def _normalize_diagnostic(line):
+        """Add column 1 to path:line:message diagnostics."""
+        if re.match(r"^.+?:\d+:\d+:", line):
+            return line
+        m = re.match(r"^(.+?):(\d+):(.*)$", line)
+        return f"{m.group(1)}:{m.group(2)}:1:{m.group(3)}" if m else line
+
+    def _exec_qf_command(self, cmd, source):
+        """Run a diagnostic producer and load its merged output into quickfix."""
+        if not cmd:
+            self.msg = f"{source}: command required"
+            return
+        import subprocess
+        try:
+            result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, text=True)
+        except Exception as e:
+            self.msg = f"{source}: {e}"
+            return
+        lines = [self._normalize_diagnostic(ANSI_ESCAPE.sub("", line))
+                 for line in result.stdout.splitlines()]
+        if not lines:
+            self.msg = f"{source}: " + ("success" if result.returncode == 0 else f"exit {result.returncode}")
+            return
+        self._show_quickfix(lines, source)
+        self.msg = f"{source}: exit {result.returncode}, {len(lines)} line(s)"
 
     def _exec_rg(self, arg):
         """Run ripgrep and capture results in the quickfix buffer."""
@@ -3256,6 +3295,9 @@ class Editor:
         elif opt == "nohlsearch":
             self.opt_hlsearch = False
             self.msg = "hlsearch off"
+        elif opt.startswith("makeprg="):
+            self.opt_makeprg = opt[len("makeprg="):]
+            self.msg = f"makeprg={self.opt_makeprg}"
         else:
             self.msg = f"Unknown option: {opt}"
 

@@ -26,6 +26,8 @@ n N                 repeat search / reverse
 :w :q :wq           write, quit, write and quit
 :e path             open file in a new buffer
 :help               open this help buffer
+:make [args]        run makeprg into quickfix
+:qf !command        diagnostic command into quickfix
 :rg pattern [path]  ripgrep results in quickfix
 :rgf [path]         fzf live ripgrep; Enter adds filtered rows
 
@@ -41,6 +43,7 @@ OPTIONS
 :set delcopy         deletes update register   :set nodelcopy       preserve register
 :set rghidden        rg includes filenames     :set norghidden      default rg filenames
 :set hlsearch        highlight search matches  :set nohlsearch      hide search matches
+:set makeprg=CMD     build command for :make
 
 .py .c .h .sh .bash  automatic string/comment highlighting
 

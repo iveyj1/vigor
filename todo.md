@@ -6,7 +6,6 @@
 ** Do
 
 ** On hold
-1. Run specified/configured command and place the output into quickfix
 1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
 1. Add \v search modifier
 1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
@@ -20,6 +19,7 @@
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Add `:qf !<cmd>` and configurable `makeprg` / `:make [args]` using the external diagnostic-producer protocol documented in `build-diagnostics-proposal.md`.
 1. Add `<space>d` as the protected current-buffer delete shortcut.
 1. Add `<space>w` to toggle wrap and `<space>j` / `<space>k` to open the next/previous remembered quickfix item without wrapping.
 1. Add semantic version and stampable commit/date identification to the splash footer; `scripts/install` stamps installed copies while source checkouts show `development`.

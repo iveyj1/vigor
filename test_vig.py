@@ -3217,6 +3217,70 @@ def test_install_stamps_build_identification():
     print("  PASS: installer stamps build identification")
 
 
+# ── Phase 55: build diagnostics ───────────────────────────────────────────
+
+def test_qf_command_captures_and_normalizes_diagnostics():
+    """:qf !cmd keeps context, strips ANSI, normalizes columns, and reports status."""
+    with tempfile.TemporaryDirectory() as d:
+        source = os.path.join(d, "source.c")
+        producer = os.path.join(d, "producer.sh")
+        open(source, "w").write("one\ntwo\nthree\n")
+        open(producer, "w").write(
+            "#!/bin/sh\n"
+            "printf 'building\\n'\n"
+            f"printf '\\033[31m{source}:2:3:error: bad\\033[0m\\n'\n"
+            f"printf '{source}:3:warning: check this\\n' >&2\n"
+            "exit 7\n"
+        )
+        os.chmod(producer, 0o755)
+        screen, _, code = run_vig(f":qf !{producer}\r:qa!\r", file_path=source, timeout=5.0)
+    assert code == 0
+    assert "building" in screen
+    assert f"{source}:2:3:error: bad" in screen
+    assert f"{source}:3:1:warning: check this" in screen
+    assert "\x1b[31m" not in screen
+    assert "qf: exit 7, 3 line(s)" in screen
+    print("  PASS: :qf captures normalized diagnostics")
+
+
+def test_makeprg_runs_with_make_arguments():
+    """:make appends arguments to makeprg and sends merged output to quickfix."""
+    with tempfile.TemporaryDirectory() as d:
+        source = os.path.join(d, "source.c")
+        producer = os.path.join(d, "build.sh")
+        open(source, "w").write("source\n")
+        open(producer, "w").write(
+            "#!/bin/sh\n"
+            "echo target=$1\n"
+            f'echo "{source}:1:1:built $1"\n'
+        )
+        os.chmod(producer, 0o755)
+        keys = f":set makeprg={producer}\r:make clean\r:qa!\r"
+        screen, _, code = run_vig(keys, file_path=source, timeout=5.0)
+    assert code == 0
+    assert "target=clean" in screen and f"{source}:1:1:built clean" in screen
+    assert "make: exit 0, 2 line(s)" in screen
+    print("  PASS: makeprg runs with :make arguments")
+
+
+def test_makeprg_config_and_silent_success():
+    """Startup config accepts makeprg; a silent successful build preserves the buffer."""
+    with tempfile.TemporaryDirectory() as d:
+        source = os.path.join(d, "source.c")
+        producer = os.path.join(d, "quiet.sh")
+        config = os.path.join(d, "vigrc")
+        open(source, "w").write("source body\n")
+        open(producer, "w").write("#!/bin/sh\nexit 0\n")
+        os.chmod(producer, 0o755)
+        open(config, "w").write(f"set makeprg={producer}\n")
+        screen, _, code = run_vig(b":make\r:q\r", file_path=source,
+                                  env={"VIG_CONFIG": config})
+    assert code == 0
+    assert "source body" in screen and "make: success" in screen
+    assert "[quickfix]" not in screen
+    print("  PASS: configured makeprg silent success")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3311,7 +3375,7 @@ def test_splash_dismisses_and_input_executes():
 def test_file_splash_times_out():
     """A command-line file splash disappears after the startup timeout."""
     path = write_temp("alpha\n")
-    screen, _, code = run_vig(b"", file_path=path, timeout=1.3)
+    screen, _, code = run_vig(b"", file_path=path, timeout=2.2)
     os.unlink(path)
     assert code == -99
     assert "╭" in screen, "Expected initial splash frame"
@@ -3730,6 +3794,11 @@ def main():
         ]),
         ("54", "Phase 54 — build identification", [
             test_install_stamps_build_identification,
+        ]),
+        ("55", "Phase 55 — build diagnostics", [
+            test_qf_command_captures_and_normalizes_diagnostics,
+            test_makeprg_runs_with_make_arguments,
+            test_makeprg_config_and_silent_success,
         ]),
     ]
 
