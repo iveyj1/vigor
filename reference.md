@@ -139,14 +139,15 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 | `:n` `:bn` | next buffer |
 | `:p` `:bp` | previous buffer |
 | `:ls` | list all buffers |
-| `<space>k` | close current buffer |
+| `<space>w` | toggle `wrap` / `nowrap` |
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |
 | `<space>o` | open `file:line:column:` location under cursor |
+| `<space>j` / `<space>k` | open next / previous remembered quickfix item without wrapping |
 
 For an unrecognized one-key Space combination, Space is a no-op and the following key executes normally.
 
-Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>c` returns to the quickfix buffer from another buffer.
+Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>j`/`<space>k` navigate and open remembered quickfix items from either quickfix or source buffers. `<space>c` returns to quickfix.
 | Status bar `[N/M]` | shown when >1 buffer open |
 
 ## Insert Mode

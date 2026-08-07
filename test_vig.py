@@ -1975,16 +1975,15 @@ def test_X_deletes_before():
     assert content == "hllo\n", f"Expected 'hllo\\n', got {content!r}"
     print("  PASS: X deletes before cursor")
 
-def test_space_k_deletes_buffer():
-    """<space>k deletes current buffer."""
-    p1 = write_temp("keep\n")
-    p2 = write_temp("remove\n")
-    # Open two files, :n to second, <space>k deletes it, :q exits
-    screen, _, code = run_vig(b":n\r k:q\r", file_paths=[p1, p2])
-    os.unlink(p1)
-    os.unlink(p2)
+def test_space_w_toggles_wrap():
+    """<space>w toggles wrap without changing wrapmove."""
+    path = write_temp("abcdefghijk\n")
+    screen, _, code = run_vig(b" w w:q\r", file_path=path, cols=10, rows=6)
+    os.unlink(path)
     assert code == 0
-    print("  PASS: <space>k deletes buffer")
+    assert "wrap on" in screen and "wrap off" in screen
+    assert "abcdefghij\r\nk" in screen, f"Expected wrapped intermediate frame: {screen[-800:]!r}"
+    print("  PASS: <space>w toggles wrap")
 
 # ── Phase 30: ^/$ Home/End + Insert Tab/Delete ────────────────────────────
 
@@ -2473,6 +2472,36 @@ def test_space_o_opens_rg_location():
     assert path in screen, f"Expected original file active: {screen[-800:]}"
     assert "1:7" in screen, f"Expected cursor at rg column: {screen[-800:]}"
     print("  PASS: <space>o opens quickfix location")
+
+
+def test_space_j_k_open_next_previous_quickfix_items():
+    """<space>j/k advance the remembered quickfix row and open its location."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "a.txt")
+        with open(path, "w") as f:
+            f.write("needle one\nx needle two\nzz needle three\n")
+        keys = f":rg needle {d}\r jiX\x1b kiY\x1b:w\r:qa!\r"
+        screen, _, code = run_vig(keys, file_path=path, timeout=5.0)
+        content = open(path).read()
+    assert code == 0
+    assert content == "Yneedle one\nx Xneedle two\nzz needle three\n", content
+    assert path in screen
+    print("  PASS: <space>j/k open next/previous quickfix items")
+
+
+def test_quickfix_j_k_report_boundaries():
+    """Quickfix navigation stops rather than wrapping at the first and last items."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "a.txt")
+        with open(path, "w") as f:
+            f.write("needle one\nneedle two\n")
+        keys = f":rg needle {d}\r k j j:qa!\r"
+        screen, _, code = run_vig(keys, file_path=path, timeout=5.0)
+    assert code == 0
+    assert "No previous quickfix item" in screen
+    assert "No next quickfix item" in screen
+    print("  PASS: quickfix j/k stop at boundaries")
+
 
 def test_space_buffer_keymaps_and_rghidden():
     """Leader buffer keymaps work and rghidden option is accepted."""
@@ -3002,11 +3031,11 @@ def test_ctrl_e_scrolls_one_wrapped_display_row():
 
 def test_space_unknown_combination_executes_normal_key():
     """An unknown Space combination ignores Space and dispatches the following key."""
-    path = write_temp("one\ntwo\nthree\n")
-    _, content, code = run_vig(b" jjdd:wq\r", file_path=path)
+    path = write_temp("abc\n")
+    _, content, code = run_vig(b" x:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    assert content == "one\ntwo\n", f"Expected Space+j then dd: {content!r}"
+    assert content == "bc\n", f"Expected Space+x to execute x: {content!r}"
     print("  PASS: unknown Space combination dispatches key")
 
 
@@ -3525,7 +3554,7 @@ def main():
             test_x_deletes_char,
             test_x_with_count,
             test_X_deletes_before,
-            test_space_k_deletes_buffer,
+            test_space_w_toggles_wrap,
         ]),
         ("30", "Phase 30 — ^/$ Home/End Tab/Delete", [
             test_caret_motion_first_nonblank,
@@ -3584,6 +3613,8 @@ def main():
         ("38", "Phase 38 — ripgrep quickfix", [
             test_rg_creates_quickfix_buffer,
             test_space_o_opens_rg_location,
+            test_space_j_k_open_next_previous_quickfix_items,
+            test_quickfix_j_k_report_boundaries,
             test_space_buffer_keymaps_and_rghidden,
         ]),
         ("39", "Phase 39 — todo.md 1-5", [

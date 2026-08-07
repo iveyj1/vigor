@@ -44,6 +44,8 @@ OPTIONS
 
 .py .c .h .sh .bash  automatic string/comment highlighting
 
+<space>w            toggle line wrapping
+<space>j / k        next / previous quickfix item
 <space>c            switch to quickfix
 <space>o            open quickfix location
 <space>n / N        next / previous buffer

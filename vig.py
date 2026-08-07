@@ -2085,14 +2085,14 @@ class Editor:
         # Space leader: wait for next key
         if self._pending_space:
             self._pending_space = False
-            if key == "k":
-                # <space>k — delete current buffer
-                if self.buf.dirty:
-                    self.msg = "No write since last change (add ! to override)"
-                elif len(self.buffers) <= 1:
-                    self.msg = "Cannot delete last buffer"
-                else:
-                    self._close_buffer()
+            if key == "j":
+                self._quickfix_step(1)
+            elif key == "k":
+                self._quickfix_step(-1)
+            elif key == "w":
+                self.opt_wrap = not self.opt_wrap
+                self.msg = "wrap on" if self.opt_wrap else "wrap off"
+                self._ensure_scroll()
             elif key == "n":
                 if len(self.buffers) > 1:
                     self._switch_buffer((self.buf_idx + 1) % len(self.buffers))
@@ -2110,7 +2110,7 @@ class Editor:
                 # Unknown leader combination: Space is a no-op and this key
                 # continues through normal dispatch.
                 pass
-            if key in ("k", "n", "N", "c", "o"):
+            if key in ("j", "k", "w", "n", "N", "c", "o"):
                 return
 
         # 'g' prefix: wait for second key
@@ -3063,20 +3063,37 @@ class Editor:
             return
         self._show_quickfix(lines, "rgf")
 
+    @staticmethod
+    def _quickfix_location(line):
+        m = re.match(r"^(.+?):(\d+):(\d+):", line)
+        return (m.group(1), int(m.group(2)), int(m.group(3))) if m and m.group(1) else None
+
     def _open_quickfix_location(self):
         """Open the file:line:column location under the cursor, if present."""
-        line = self.buf.lines[self.cy]
-        m = re.match(r"^(.+?):(\d+):(\d+):", line)
-        if not m:
+        location = self._quickfix_location(self.buf.lines[self.cy])
+        if not location:
             self.msg = "No quickfix location"
             return
-        path = m.group(1)
-        if not path:
-            self.msg = "No quickfix location"
+        path, line, col = location
+        self._goto_file_location(os.path.abspath(path), line, col)
+
+    def _quickfix_step(self, delta):
+        """Open the next or previous valid location in the remembered quickfix."""
+        if self.quickfix_state not in self.buffers:
+            self.msg = "No quickfix buffer"
             return
-        if not os.path.isabs(path):
-            path = os.path.abspath(path)
-        self._goto_file_location(path, int(m.group(2)), int(m.group(3)))
+        qf = self.quickfix_state
+        current = self.cy if self.buffers[self.buf_idx] is qf else qf.cy
+        target = current + delta
+        while 0 <= target < len(qf.buf.lines):
+            if self._quickfix_location(qf.buf.lines[target]):
+                self._switch_buffer(self.buffers.index(qf))
+                self.cy, self.cx = target, 0
+                self._ensure_scroll()
+                self._open_quickfix_location()
+                return
+            target += delta
+        self.msg = "No next quickfix item" if delta > 0 else "No previous quickfix item"
 
     def _exec_bang(self, arg):
         """Run a shell command and show compact output in the message bar."""

@@ -6,7 +6,7 @@
 ** Do
 
 ** On hold
-1. Support .$^+<n> in range-based commands
+1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands.
 2) Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
 1. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
 2. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
@@ -18,6 +18,7 @@
 9. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Add `<space>w` to toggle wrap and `<space>j` / `<space>k` to open the next/previous remembered quickfix item without wrapping.
 1. Add semantic version and stampable commit/date identification to the splash footer; `scripts/install` stamps installed copies while source checkouts show `development`.
 Render tabs at four-column stops and use display-column mapping for cursor placement, wrapping, scrolling, highlighting, and vertical motion.
 On invocation, open the first directory argument as an `:edit` filename-completion menu without a splash, ignore later directories, and retain all file arguments as buffers when completion is cancelled.
