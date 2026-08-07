@@ -327,7 +327,7 @@ class Editor:
         self._update_size()
         self._startup_completion = startup_dir is not None
         self._splash = not self._startup_completion
-        self._splash_until = time.monotonic() + 1 if file_paths else None
+        self._splash_until = time.monotonic() + 2 if file_paths else None
         if startup_dir:
             self.mode = Mode.COMMAND
             self.cmd = "edit " + startup_dir.rstrip(os.sep) + os.sep
@@ -1665,7 +1665,7 @@ class Editor:
         box_width = min(self.cols, max(logo_width + 2, (logo_width * 3) // 2))
         box_height = min(total_rows, max(len(SPLASH) + 2, (len(SPLASH) * 3) // 2))
         inner_width, inner_height = box_width - 2, box_height - 2
-        top = (total_rows - box_height) // 2 + 1
+        top = (2 * (total_rows - box_height)) // 10 + 1  # place box high on the screen
         left = (self.cols - box_width) // 2 + 1
         out.append(f"\x1b[{top};{left}H{SPLASH_BG}{SPLASH_FRAME}╭" + "─" * inner_width + "╮\x1b[m")
 

@@ -6,16 +6,18 @@
 ** Do
 
 ** On hold
-1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands.
-2) Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
+1. Run specified/configured command and place the output into quickfix
+1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
+1. Add \v search modifier
+1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
+1. Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
 1. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
-2. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
-3. marks
-5. configurable keymaps
-6. autosave
-7. : command history
-8. filtering on partially typed command entry for : command history
-9. add 'kjk' alias for <esc> in insert mode(s)
+1. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
+1. marks
+1. configurable keymaps
+1. autosave
+1. filtering on partially typed command entry for : command history
+1. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
 1. Add `<space>d` as the protected current-buffer delete shortcut.
