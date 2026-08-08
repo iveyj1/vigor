@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Run a command and normalize GCC/Clang and Python locations for vigor."""
+"""Run a command and normalize GCC/Clang and Python paths for vigor."""
 
+import os
 import re
 import subprocess
 import sys
@@ -10,27 +11,40 @@ PYTHON_FRAME = re.compile(r'^\s*File "(.+?)", line (\d+)(?:, in (.*))?$')
 LOCATION = re.compile(r"^(.+?):(\d+):(?:(\d+):)?(.*)$")
 
 
-def normalize(line):
+def _absolute(path, cwd):
+    return path if os.path.isabs(path) or path.startswith("<") else os.path.abspath(os.path.join(cwd, path))
+
+
+def normalize(line, cwd):
     """Return a quickfix-compatible line while preserving other context."""
     line = ANSI_ESCAPE.sub("", line.rstrip("\r\n"))
     frame = PYTHON_FRAME.match(line)
     if frame and not frame.group(1).startswith("<"):
         detail = f" in {frame.group(3)}" if frame.group(3) else " Python traceback"
-        return f"{frame.group(1)}:{frame.group(2)}:1:{detail}"
+        return f"{_absolute(frame.group(1), cwd)}:{frame.group(2)}:1:{detail}"
     location = LOCATION.match(line)
     if location:
         path, lineno, column, message = location.groups()
-        return f"{path}:{lineno}:{column or 1}:{message}"
+        return f"{_absolute(path, cwd)}:{lineno}:{column or 1}:{message}"
     return line
 
 
 def main(argv):
+    cwd = os.getcwd()
+    if argv[:1] == ["--cwd"]:
+        if len(argv) < 3:
+            print("Usage: vig-diagnostics [--cwd DIR] <command> [args ...]", file=sys.stderr)
+            return 2
+        cwd, argv = os.path.abspath(os.path.expanduser(argv[1])), argv[2:]
     if not argv:
-        print("Usage: vig-diagnostics <command> [args ...]", file=sys.stderr)
+        print("Usage: vig-diagnostics [--cwd DIR] <command> [args ...]", file=sys.stderr)
         return 2
+    if not os.path.isdir(cwd):
+        print(f"vig-diagnostics: not a directory: {cwd}", file=sys.stderr)
+        return 126
     try:
-        process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True, errors="replace")
+        process = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, text=True, errors="replace")
     except FileNotFoundError:
         print(f"vig-diagnostics: command not found: {argv[0]}", file=sys.stderr)
         return 127
@@ -39,7 +53,7 @@ def main(argv):
         return 126
     try:
         for line in process.stdout:
-            print(normalize(line), flush=True)
+            print(normalize(line, cwd), flush=True)
         return process.wait()
     except KeyboardInterrupt:
         process.terminate()

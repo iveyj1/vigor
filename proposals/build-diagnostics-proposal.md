@@ -81,6 +81,7 @@ Paths should be absolute or relative to vigor's process working directory. Non-d
 - The message bar reports exit status and captured line count.
 - A successful command with no output leaves the current buffer active and reports success.
 - A command with no output and nonzero status reports that status without replacing the previous quickfix.
+- Each quickfix result remembers its producer working directory, so later `:cd` commands do not reinterpret relative locations.
 
 ### Quickfix Interaction
 
@@ -94,7 +95,9 @@ Captured output uses vigor's existing remembered quickfix buffer.
 
 ### External Translators
 
-Projects may provide wrappers for formats that are not already compatible, including Rust JSON, Python tracebacks, pytest output, or MSVC diagnostics.
+The optional `scripts/vig-diagnostics [--cwd DIR] <command> [args...]` wrapper implements the protocol for GCC/Clang output and Python traceback frames. It runs the command directly, merges output, preserves exit status, strips ANSI, and converts recognized relative paths to absolute paths. `--cwd` changes the command directory before execution and provides the base for those paths.
+
+Projects may provide other wrappers for formats that are not already compatible, including Rust JSON, pytest output, or MSVC diagnostics.
 
 A wrapper should preserve the build's exit status. A portable pattern is:
 
@@ -114,10 +117,10 @@ This is preferable to a simple pipeline because a pipeline commonly returns the 
 
 ### Scope Boundaries
 
-The initial implementation intentionally omits:
+The core `vig.py` implementation intentionally omits:
 
 - Vim-style configurable `errorformat` parsing
-- Python, Rust, MSVC, and test-framework-specific parsers
+- Python, Rust, MSVC, and test-framework-specific parsers inside the editor
 - Live or asynchronous build output
 - Build cancellation UI
 - Automatic project-root discovery

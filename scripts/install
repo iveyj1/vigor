@@ -18,3 +18,4 @@ pathlib.Path(sys.argv[1]).write_text(text)
 PY
 cp vig "$instdir/"
 cp vighelp "$instdir/"
+cp scripts/vig-diagnostics "$instdir/"

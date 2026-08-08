@@ -132,7 +132,7 @@ def _collect_child(master, pid, output, deadline, exit_code=None):
     return -99
 
 
-def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80, env=None):
+def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80, env=None, cwd=None):
     """Launch vigor in a PTY, send keys, and return screen, file, exit code."""
     if isinstance(keys, str):
         keys = keys.encode()
@@ -162,6 +162,8 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
         os.dup2(slave, 2)
         if slave > 2:
             os.close(slave)
+        if cwd:
+            os.chdir(cwd)
         if env is None:
             os.environ["VIG_NO_CONFIG"] = "1"
         else:
@@ -2100,8 +2102,8 @@ def test_visual_caret_delete_to_nonblank():
 
 # ── Phase 32: Path handling for :e/:w and argv ────────────────────────────
 
-def test_edit_relative_to_current_buffer_dir():
-    """:e relative paths resolve from current buffer directory."""
+def test_edit_relative_to_working_dir():
+    """:e relative paths resolve from the process working directory."""
     tmp = tempfile.mkdtemp(prefix="vig_p32_")
     main_path = os.path.join(tmp, "main.txt")
     other_path = os.path.join(tmp, "other.txt")
@@ -2111,7 +2113,7 @@ def test_edit_relative_to_current_buffer_dir():
         f.write("other\n")
 
     keys = b":e other.txt\rA!\x1b:wq\r:q\r"
-    screen, _, code = run_vig(keys, file_path=main_path)
+    screen, _, code = run_vig(keys, file_path=main_path, cwd=tmp)
     assert code == 0
     with open(other_path, "r") as f:
         content = f.read()
@@ -2119,17 +2121,17 @@ def test_edit_relative_to_current_buffer_dir():
     os.unlink(main_path)
     os.unlink(other_path)
     os.rmdir(tmp)
-    print("  PASS: :e resolves relative to current buffer")
+    print("  PASS: :e resolves relative to working directory")
 
-def test_write_relative_to_current_buffer_dir():
-    """:w relative paths write under current buffer directory."""
+def test_write_relative_to_working_dir():
+    """:w relative paths write under the process working directory."""
     tmp = tempfile.mkdtemp(prefix="vig_p32_")
     main_path = os.path.join(tmp, "main.txt")
     out_path = os.path.join(tmp, "out.txt")
     with open(main_path, "w") as f:
         f.write("abc\n")
 
-    screen, _, code = run_vig(b"iX\x1b:w out.txt\r:q\r", file_path=main_path)
+    screen, _, code = run_vig(b"iX\x1b:w out.txt\r:q\r", file_path=main_path, cwd=tmp)
     assert code == 0
     with open(out_path, "r") as f:
         content = f.read()
@@ -2137,7 +2139,7 @@ def test_write_relative_to_current_buffer_dir():
     os.unlink(main_path)
     os.unlink(out_path)
     os.rmdir(tmp)
-    print("  PASS: :w resolves relative to current buffer")
+    print("  PASS: :w resolves relative to working directory")
 
 def test_argv_expands_tilde_path():
     """Command-line argv paths support ~ expansion."""
@@ -2717,7 +2719,7 @@ def test_command_complete_no_path_from_buffer_dir():
         target = os.path.join(d, "alpha_complete.txt")
         open(base, "w").write("base\n")
         open(target, "w").write("opened\n")
-        screen, _, code = run_vig(b":e alpha_com\t\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e alpha_com\t\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0
     assert "opened" in screen, f"Expected completed file opened: {screen[-800:]}"
     print("  PASS: command complete no path")
@@ -2731,7 +2733,7 @@ def test_completion_menu_enter_accepts_first_match():
         open(base, "w").write("base\n")
         open(first, "w").write("first\n")
         open(second, "w").write("second\n")
-        screen, _, code = run_vig(b":e aa_\t\r\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e aa_\t\r\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0
     assert "╭" in screen and "╯" in screen, f"Expected rounded completion border: {screen[-1000:]}"
     assert "\x1b[7m  aa_one.txt  " in screen, f"Expected highlighted first completion: {screen[-1000:]}"
@@ -2747,7 +2749,7 @@ def test_completion_menu_down_selects_match():
         open(base, "w").write("base\n")
         open(first, "w").write("first\n")
         open(second, "w").write("second\n")
-        screen, _, code = run_vig(b":e bb_\t\x1b[B\r\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e bb_\t\x1b[B\r\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0
     assert "\x1b[7m  bb_two.txt  " in screen, f"Expected highlighted second completion: {screen[-1000:]}"
     assert "second" in screen, f"Expected selected second file opened: {screen[-1000:]}"
@@ -2760,7 +2762,7 @@ def test_completion_menu_tab_wraps_selection():
         open(base, "w").write("base\n")
         open(os.path.join(d, "tab_one.txt"), "w").write("one\n")
         open(os.path.join(d, "tab_two.txt"), "w").write("two\n")
-        screen, _, code = run_vig(b":e tab_\t\t\t\r\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e tab_\t\t\t\r\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0 and "one" in screen
     assert "\x1b[7m  tab_one.txt  " in screen, f"Expected wrapped first selection: {screen[-1000:]}"
     print("  PASS: completion Tab wraps")
@@ -2772,7 +2774,7 @@ def test_completion_menu_shift_tab_wraps_selection():
         open(base, "w").write("base\n")
         open(os.path.join(d, "shift_one.txt"), "w").write("one\n")
         open(os.path.join(d, "shift_two.txt"), "w").write("two\n")
-        screen, _, code = run_vig(b":e shift_\t\x1b[Z\r\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e shift_\t\x1b[Z\r\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0 and "two" in screen
     assert "\x1b[7m  shift_two.txt  " in screen, f"Expected wrapped last selection: {screen[-1000:]}"
     print("  PASS: completion Shift-Tab wraps")
@@ -2786,7 +2788,7 @@ def test_completion_menu_typing_updates_filter():
         open(base, "w").write("base\n")
         open(first, "w").write("first\n")
         open(second, "w").write("filtered\n")
-        screen, _, code = run_vig(b":e cc_\tz\r\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e cc_\tz\r\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0
     assert "filtered" in screen, f"Expected typed filter to choose cc_z: {screen[-1000:]}"
     print("  PASS: completion menu typing updates filter")
@@ -2798,7 +2800,7 @@ def test_completion_menu_esc_hides_list():
         open(base, "w").write("base\n")
         open(os.path.join(d, "dd_one.txt"), "w").write("one\n")
         open(os.path.join(d, "dd_two.txt"), "w").write("two\n")
-        screen, _, code = run_vig(b":e dd_\t\x1b", file_path=base, timeout=1.0)
+        screen, _, code = run_vig(b":e dd_\t\x1b", file_path=base, timeout=1.0, cwd=d)
     frame = last_frame(screen)
     assert code == -99
     assert "dd_one.txt" not in frame and "dd_two.txt" not in frame, f"Expected Esc to hide list: {frame[-1000:]}"
@@ -2826,7 +2828,7 @@ def test_command_complete_relative_subdir():
         target = os.path.join(d, "sub", "rel_complete.txt")
         open(base, "w").write("base\n")
         open(target, "w").write("relative\n")
-        screen, _, code = run_vig(b":e sub/rel_com\t\r:q\r:q\r", file_path=base)
+        screen, _, code = run_vig(b":e sub/rel_com\t\r:q\r:q\r", file_path=base, cwd=d)
     assert code == 0
     assert "relative" in screen, f"Expected relative completion opened: {screen[-800:]}"
     print("  PASS: command complete relative path")
@@ -2898,7 +2900,7 @@ def test_rgf_path_argument_completes():
         line = f"{target}:1:1:needle"
         env = {"PATH": bindir + os.pathsep + os.environ["PATH"],
                "VIG_RGF_DIR": search, "VIG_RGF_LINE": line}
-        screen, _, code = run_vig(b":rgf search\t\r:q!\r:q\r", file_path=base, env=env)
+        screen, _, code = run_vig(b":rgf search\t\r:q!\r:q\r", file_path=base, env=env, cwd=d)
     assert code == 0 and line in screen, f"Expected completed rgf path: {screen[-800:]}"
     print("  PASS: rgf path completion")
 
@@ -3211,7 +3213,9 @@ def test_install_stamps_build_identification():
         result = subprocess.run([os.path.join(os.path.dirname(VIG), "scripts", "install")],
                                 cwd=os.path.dirname(VIG), env=env, capture_output=True, text=True)
         installed = open(os.path.join(d, "vig.py")).read()
+        diagnostics_installed = os.access(os.path.join(d, "vig-diagnostics"), os.X_OK)
     assert result.returncode == 0, result.stderr
+    assert diagnostics_installed
     assert 'VERSION = "0.1.0"' in installed
     assert re.search(r"BUILD_ID = ['\"][0-9a-f]+ \d{4}-\d{2}-\d{2}(?: dirty)?['\"]", installed)
     assert 'BUILD_ID = "development"' in open(VIG).read()
@@ -3268,19 +3272,21 @@ def test_vig_diagnostics_normalizes_gcc_clang_and_python():
     """The optional producer normalizes common diagnostics and preserves status."""
     import subprocess
     with tempfile.TemporaryDirectory() as d:
-        source = os.path.join(d, "source.c")
-        python_source = os.path.join(d, "app.py")
-        child = os.path.join(d, "produce.py")
+        project = os.path.join(d, "project")
+        os.mkdir(project)
+        source = os.path.join(project, "source.c")
+        python_source = os.path.join(project, "app.py")
+        child = os.path.join(project, "produce.py")
         open(child, "w").write(
             "import sys\n"
-            f"print('\\x1b[31m{source}:2:4: error: bad token\\x1b[0m', flush=True)\n"
-            f"print('{source}:3: warning: unused', flush=True)\n"
-            f"print('  File \\\"{python_source}\\\", line 9, in run', flush=True)\n"
+            "print('\\x1b[31msource.c:2:4: error: bad token\\x1b[0m', flush=True)\n"
+            "print('source.c:3: warning: unused', flush=True)\n"
+            "print('  File \\\"app.py\\\", line 9, in run', flush=True)\n"
             "print('    explode()', flush=True)\n"
             "sys.exit(7)\n"
         )
-        result = subprocess.run([VIG_DIAGNOSTICS, sys.executable, child],
-                                capture_output=True, text=True)
+        result = subprocess.run([VIG_DIAGNOSTICS, "--cwd", project,
+                                 sys.executable, "produce.py"], capture_output=True, text=True)
     assert result.returncode == 7
     assert f"{source}:2:4: error: bad token" in result.stdout
     assert f"{source}:3:1: warning: unused" in result.stdout
@@ -3308,6 +3314,63 @@ def test_makeprg_config_and_silent_success():
     print("  PASS: configured makeprg silent success")
 
 
+# ── Phase 56: working directory ───────────────────────────────────────────
+
+def test_file_commands_use_working_directory():
+    """:read and :write resolve relative paths against the process cwd."""
+    with tempfile.TemporaryDirectory() as d:
+        sub = os.path.join(d, "sub")
+        os.mkdir(sub)
+        source = os.path.join(sub, "source.txt")
+        open(source, "w").write("source\n")
+        open(os.path.join(d, "insert.txt"), "w").write("from root\n")
+        open(os.path.join(sub, "insert.txt"), "w").write("from buffer\n")
+        _, _, code = run_vig(b":read insert.txt\r:w output.txt\r:qa!\r",
+                             file_path=source, cwd=d)
+        output = open(os.path.join(d, "output.txt")).read()
+    assert code == 0 and output == "source\nfrom root\n"
+    print("  PASS: file commands use working directory")
+
+
+def test_cd_and_cdb_change_global_working_directory():
+    """:cd changes the global cwd and :cdb changes it to the focused file directory."""
+    with tempfile.TemporaryDirectory() as d:
+        sub = os.path.join(d, "sub")
+        other = os.path.join(d, "other")
+        os.mkdir(sub)
+        os.mkdir(other)
+        source = os.path.join(sub, "source.txt")
+        open(source, "w").write("source\n")
+        open(os.path.join(sub, "local.txt"), "w").write("local\n")
+        open(os.path.join(other, "other.txt"), "w").write("other\n")
+        keys = b":cdb\r:e local.txt\r:cd ../oth\t\r:e other.txt\r:pwd\r:qa!\r"
+        screen, _, code = run_vig(keys, file_path=source, cwd=d)
+    assert code == 0
+    assert os.path.join(sub, "local.txt") in screen
+    assert os.path.join(other, "other.txt") in screen
+    assert other in screen
+    print("  PASS: :cd and :cdb change global working directory")
+
+
+def test_quickfix_remembers_producer_working_directory():
+    """A later :cd does not reinterpret a remembered relative quickfix path."""
+    with tempfile.TemporaryDirectory() as d:
+        other = os.path.join(d, "other")
+        os.mkdir(other)
+        source = os.path.join(d, "source.txt")
+        location = os.path.join(d, "relative.txt")
+        wrong = os.path.join(other, "relative.txt")
+        open(source, "w").write("source\n")
+        open(location, "w").write("right\n")
+        open(wrong, "w").write("wrong\n")
+        keys = b":qf !printf 'relative.txt:1:1:error'\r:cd other\r oA!\x1b:w\r:qa!\r"
+        _, _, code = run_vig(keys, file_path=source, cwd=d)
+        right_content = open(location).read()
+        wrong_content = open(wrong).read()
+    assert code == 0 and right_content == "right!\n" and wrong_content == "wrong\n"
+    print("  PASS: quickfix remembers producer working directory")
+
+
 def test_completion_menu_has_filename_padding():
     """Completion filenames have a space between the frame and text."""
     with tempfile.TemporaryDirectory() as d:
@@ -3315,7 +3378,7 @@ def test_completion_menu_has_filename_padding():
         open(base, "w").write("base\n")
         open(os.path.join(d, "pad_one.txt"), "w").write("one\n")
         open(os.path.join(d, "pad_two.txt"), "w").write("two\n")
-        screen, _, _ = run_vig(b":e pad_\t", file_path=base, timeout=1.0)
+        screen, _, _ = run_vig(b":e pad_\t", file_path=base, timeout=1.0, cwd=d)
     assert "\x1b[7m  pad_one.txt  " in screen, f"Expected padded completion: {screen[-800:]}"
     print("  PASS: completion filename padding")
 
@@ -3678,8 +3741,8 @@ def main():
             test_visual_caret_delete_to_nonblank,
         ]),
         ("32", "Phase 32 — :e/:w/argv path handling", [
-            test_edit_relative_to_current_buffer_dir,
-            test_write_relative_to_current_buffer_dir,
+            test_edit_relative_to_working_dir,
+            test_write_relative_to_working_dir,
             test_argv_expands_tilde_path,
             test_write_path_error_shows_message_no_crash,
         ]),
@@ -3827,6 +3890,11 @@ def main():
             test_makeprg_runs_with_make_arguments,
             test_vig_diagnostics_normalizes_gcc_clang_and_python,
             test_makeprg_config_and_silent_success,
+        ]),
+        ("56", "Phase 56 — working directory", [
+            test_file_commands_use_working_directory,
+            test_cd_and_cdb_change_global_working_directory,
+            test_quickfix_remembers_producer_working_directory,
         ]),
     ]
 

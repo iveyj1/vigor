@@ -89,7 +89,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 ## Command/Search Input
 - In `:` command mode, Up/Down browse command history.
 - In `/` and `?` search prompts, Up/Down browse shared search history.
-- Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, and shell paths in `:!` commands.
+- Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, `:cd`, and shell paths in `:!` commands.
 - A single completion fills the command line. Multiple completions show a centered rounded-border menu; Up/Down moves the reverse-video selection, Tab/Shift-Tab advance/reverse it with wrapping, Enter copies the selected filename into the command line, and Esc hides the menu.
 
 ## Ex Commands
@@ -105,6 +105,9 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
 | `:help` | open `vighelp` beside the vigor executable |
+| `:cd <path>` | change the single global working directory |
+| `:cdb` | change to the focused file's directory; errors for unnamed/quickfix buffers |
+| `:pwd` | show the current working directory |
 | `:n` / `:next` / `:bn` | next buffer |
 | `:p` / `:prev` / `:bp` | previous buffer |
 | `:ls` | list buffers |
@@ -134,7 +137,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
 
-Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer directory. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
+Path semantics: all explicit relative file paths, completion, and shell commands use one process working directory. It starts as the invocation directory and changes globally with `:cd` or `:cdb`; `~` expands. Open buffer paths remain absolute. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 
 ## Build Diagnostics
 
@@ -146,9 +149,10 @@ The optional producer wrapper normalizes GCC/Clang output and Python traceback f
 :set makeprg=./scripts/vig-diagnostics make
 :make clean
 :qf !./scripts/vig-diagnostics python3 -m pytest
+:qf !./scripts/vig-diagnostics --cwd subproject make
 ```
 
-It executes arguments directly rather than through a shell; use `sh -c '...'` explicitly for pipelines or redirection. See `build-diagnostics-proposal.md` for the protocol.
+It executes arguments directly rather than through a shell; use `sh -c '...'` explicitly for pipelines or redirection. `--cwd DIR` changes the producer command's directory. Recognized relative GCC/Clang and Python paths become absolute. Vigor also records each quickfix producer's cwd, so later `:cd` commands do not reinterpret generic relative results. See `proposals/build-diagnostics-proposal.md` for the protocol.
 
 ## Multi-Buffer
 | Key / Command | Action |

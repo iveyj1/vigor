@@ -321,7 +321,8 @@ class Editor:
         self._pending_ctrl_c = False # Ctrl-C prefix for quit-all shortcuts
         self._pending_mkdir_write = None  # (path, close_after) waiting for y/n
         self._yank_flash = None     # (expires, sy, sx, ey, ex, linewise)
-        self.quickfix_state = None  # BufferState holding last :rg results
+        self.quickfix_state = None  # BufferState holding last quickfix results
+        self.quickfix_cwd = os.getcwd()
         self.last_key = ""  # last decoded key read from terminal
         self._load_config()
         self.term = Terminal()
@@ -381,13 +382,8 @@ class Editor:
         return os.path.abspath(os.path.expanduser(path))
 
     def _resolve_cmd_path(self, path):
-        """Resolve :e/:w paths relative to current buffer directory."""
-        p = os.path.expanduser(path.strip())
-        if os.path.isabs(p):
-            return os.path.normpath(p)
-        if self.buf.path:
-            return os.path.normpath(os.path.join(os.path.dirname(self.buf.path), p))
-        return os.path.abspath(p)
+        """Resolve a command path against the process working directory."""
+        return os.path.abspath(os.path.expanduser(path.strip()))
 
     def _write_buffer_to_path(self, path, close_after=False):
         """Write current buffer, prompting first if parent directories are missing."""
@@ -2653,10 +2649,9 @@ class Editor:
                 head, token = "!", body
             return head, token, os.getcwd(), True
         parts = s.split(None, 1)
-        if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read", "rgf"):
+        if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read", "rgf", "cd"):
             return None
-        base_dir = os.path.dirname(self.buf.path) if self.buf.path else os.getcwd()
-        return parts[0], (parts[1] if len(parts) > 1 else ""), base_dir, False
+        return parts[0], (parts[1] if len(parts) > 1 else ""), os.getcwd(), False
 
     def _completion_names(self, token, base_dir):
         expanded = os.path.expanduser(token)
@@ -2851,6 +2846,24 @@ class Editor:
         elif cmd == "new":
             self._add_buffer(BufferState())
             self.msg = "[New]"
+            self.mode = Mode.NORMAL
+        elif cmd == "pwd":
+            self.msg = os.getcwd()
+            self.mode = Mode.NORMAL
+        elif cmd in ("cd", "cdb"):
+            if cmd == "cdb":
+                arg = None if self.buffers[self.buf_idx] is self.quickfix_state else self.buf.path
+                target = os.path.dirname(arg) if arg else None
+            else:
+                target = self._resolve_cmd_path(arg) if arg else None
+            if not target:
+                self.msg = "No directory"
+            else:
+                try:
+                    os.chdir(target)
+                    self.msg = os.getcwd()
+                except OSError as e:
+                    self.msg = f'Cannot change directory: {e.strerror or str(e)}'
             self.mode = Mode.NORMAL
         elif cmd in ("n", "next", "bn"):
             if len(self.buffers) > 1:
@@ -3048,6 +3061,7 @@ class Editor:
 
     def _show_quickfix(self, lines, source):
         """Replace the quickfix buffer with lines and make it current."""
+        self.quickfix_cwd = os.getcwd()
         if self.quickfix_state in self.buffers:
             bs = self.quickfix_state
             bs.buf.lines = lines
@@ -3121,7 +3135,8 @@ class Editor:
             self.msg = "No quickfix location"
             return
         path, line, col = location
-        self._goto_file_location(os.path.abspath(path), line, col)
+        base = self.quickfix_cwd if self.buffers[self.buf_idx] is self.quickfix_state else os.getcwd()
+        self._goto_file_location(path if os.path.isabs(path) else os.path.join(base, path), line, col)
 
     def _quickfix_step(self, delta):
         """Open the next or previous valid location in the remembered quickfix."""
@@ -3194,7 +3209,7 @@ class Editor:
         else:
             # :read file — insert file contents below cursor
             try:
-                with open(arg, "r") as f:
+                with open(self._resolve_cmd_path(arg), "r") as f:
                     content = f.read()
                 self._snapshot()
                 lines = content.splitlines()

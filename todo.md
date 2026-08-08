@@ -19,8 +19,10 @@
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Use one global invocation/current working directory for relative paths; add `:cd`, `:cdb`, and `:pwd`, and preserve each quickfix producer cwd.
+1. Extend `scripts/vig-diagnostics` with `--cwd` and absolute normalized diagnostic paths.
 1. Add optional `scripts/vig-diagnostics` producer for GCC/Clang locations and Python traceback frames.
-1. Add `:qf !<cmd>` and configurable `makeprg` / `:make [args]` using the external diagnostic-producer protocol documented in `build-diagnostics-proposal.md`.
+1. Add `:qf !<cmd>` and configurable `makeprg` / `:make [args]` using the external diagnostic-producer protocol documented in `proposals/build-diagnostics-proposal.md`.
 1. Add `<space>d` as the protected current-buffer delete shortcut.
 1. Add `<space>w` to toggle wrap and `<space>j` / `<space>k` to open the next/previous remembered quickfix item without wrapping.
 1. Add semantic version and stampable commit/date identification to the splash footer; `scripts/install` stamps installed copies while source checkouts show `development`.
