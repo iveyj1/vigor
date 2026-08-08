@@ -99,3 +99,18 @@ Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or his
 | `9229eef` | 2885 | 223 | 242 | 64 | Add shell filter ex commands |
 | `47f51d9` | 2885 | 223 | 242 | 0 | update cloc_by_commit |
 | `e750728` | 2944 | 227 | 246 | 59 | Add word search and hlsearch |
+| `b07d9f7` | 2945 | 227 | 246 | 1 | Prefer external clipboard in auto mode |
+| `b439a71` | 2945 | 227 | 246 | 0 | add to todo |
+| `da631b1` | 2953 | 227 | 246 | 8 | add changable padding in file completion dialog |
+| `85f12fc` | 2980 | 229 | 248 | 27 | Fix wrap cursor visibility in narrow panes |
+| `d69fac2` | 2962 | 229 | 250 | -18 | Make wrapped vertical motion consistent |
+| `8cb9307` | 2962 | 229 | 250 | 0 | Update wrap work in todo |
+| `70298ad` | 3037 | 234 | 255 | 75 | Add display-row viewport scrolling |
+| `a220851` | 3059 | 234 | 255 | 22 | Open startup directories in completion |
+| `1535422` | 3059 | 234 | 255 | 0 | tweak logo size |
+| `a1d4797` | 3083 | 237 | 257 | 24 | Render tabs with display-column mapping |
+| `71db21c` | 3088 | 238 | 257 | 5 | Add splash build identification |
+| `28f9d3b` | 3103 | 240 | 257 | 15 | Add wrap and quickfix leader keys |
+| `ed91cd7` | 3110 | 240 | 257 | 7 | Add buffer delete leader key |
+| `47fc641` | 3110 | 240 | 257 | 0 | update todo, move splash logo up, keep for longer |
+| `8de15ba` | 3148 | 242 | 259 | 38 | Add build diagnostics quickfix commands |

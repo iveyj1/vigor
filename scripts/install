@@ -17,3 +17,4 @@ text = text.replace('BUILD_ID = "development"', f"BUILD_ID = {os.environ['BUILD_
 pathlib.Path(sys.argv[1]).write_text(text)
 PY
 cp vig "$instdir/"
+cp vighelp "$instdir/"
