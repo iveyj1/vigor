@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""Run a command and normalize GCC/Clang and Python locations for vigor."""
+
+import re
+import subprocess
+import sys
+
+ANSI_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
+PYTHON_FRAME = re.compile(r'^\s*File "(.+?)", line (\d+)(?:, in (.*))?$')
+LOCATION = re.compile(r"^(.+?):(\d+):(?:(\d+):)?(.*)$")
+
+
+def normalize(line):
+    """Return a quickfix-compatible line while preserving other context."""
+    line = ANSI_ESCAPE.sub("", line.rstrip("\r\n"))
+    frame = PYTHON_FRAME.match(line)
+    if frame and not frame.group(1).startswith("<"):
+        detail = f" in {frame.group(3)}" if frame.group(3) else " Python traceback"
+        return f"{frame.group(1)}:{frame.group(2)}:1:{detail}"
+    location = LOCATION.match(line)
+    if location:
+        path, lineno, column, message = location.groups()
+        return f"{path}:{lineno}:{column or 1}:{message}"
+    return line
+
+
+def main(argv):
+    if not argv:
+        print("Usage: vig-diagnostics <command> [args ...]", file=sys.stderr)
+        return 2
+    try:
+        process = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                   text=True, errors="replace")
+    except FileNotFoundError:
+        print(f"vig-diagnostics: command not found: {argv[0]}", file=sys.stderr)
+        return 127
+    except OSError as error:
+        print(f"vig-diagnostics: {error}", file=sys.stderr)
+        return 126
+    try:
+        for line in process.stdout:
+            print(normalize(line), flush=True)
+        return process.wait()
+    except KeyboardInterrupt:
+        process.terminate()
+        return process.wait()
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

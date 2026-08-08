@@ -10,6 +10,7 @@ import tempfile
 import select
 
 VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig.py")
+VIG_DIAGNOSTICS = os.path.join(os.path.dirname(VIG), "scripts", "vig-diagnostics")
 FRAME_MARKER = b"\x1b[?25l\x1b[H"
 PASTE_START = b"\x1b[200~"
 PASTE_END = b"\x1b[201~"
@@ -3255,12 +3256,38 @@ def test_makeprg_runs_with_make_arguments():
             f'echo "{source}:1:1:built $1"\n'
         )
         os.chmod(producer, 0o755)
-        keys = f":set makeprg={producer}\r:make clean\r:qa!\r"
+        keys = f":set makeprg={VIG_DIAGNOSTICS} {producer}\r:make clean\r:qa!\r"
         screen, _, code = run_vig(keys, file_path=source, timeout=5.0)
     assert code == 0
     assert "target=clean" in screen and f"{source}:1:1:built clean" in screen
     assert "make: exit 0, 2 line(s)" in screen
     print("  PASS: makeprg runs with :make arguments")
+
+
+def test_vig_diagnostics_normalizes_gcc_clang_and_python():
+    """The optional producer normalizes common diagnostics and preserves status."""
+    import subprocess
+    with tempfile.TemporaryDirectory() as d:
+        source = os.path.join(d, "source.c")
+        python_source = os.path.join(d, "app.py")
+        child = os.path.join(d, "produce.py")
+        open(child, "w").write(
+            "import sys\n"
+            f"print('\\x1b[31m{source}:2:4: error: bad token\\x1b[0m', flush=True)\n"
+            f"print('{source}:3: warning: unused', flush=True)\n"
+            f"print('  File \\\"{python_source}\\\", line 9, in run', flush=True)\n"
+            "print('    explode()', flush=True)\n"
+            "sys.exit(7)\n"
+        )
+        result = subprocess.run([VIG_DIAGNOSTICS, sys.executable, child],
+                                capture_output=True, text=True)
+    assert result.returncode == 7
+    assert f"{source}:2:4: error: bad token" in result.stdout
+    assert f"{source}:3:1: warning: unused" in result.stdout
+    assert f"{python_source}:9:1: in run" in result.stdout
+    assert "    explode()" in result.stdout
+    assert "\x1b[31m" not in result.stdout
+    print("  PASS: vig-diagnostics normalizes GCC/Clang and Python")
 
 
 def test_makeprg_config_and_silent_success():
@@ -3798,6 +3825,7 @@ def main():
         ("55", "Phase 55 — build diagnostics", [
             test_qf_command_captures_and_normalizes_diagnostics,
             test_makeprg_runs_with_make_arguments,
+            test_vig_diagnostics_normalizes_gcc_clang_and_python,
             test_makeprg_config_and_silent_success,
         ]),
     ]

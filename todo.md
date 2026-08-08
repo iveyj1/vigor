@@ -19,6 +19,7 @@
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Add optional `scripts/vig-diagnostics` producer for GCC/Clang locations and Python traceback frames.
 1. Add `:qf !<cmd>` and configurable `makeprg` / `:make [args]` using the external diagnostic-producer protocol documented in `build-diagnostics-proposal.md`.
 1. Add `<space>d` as the protected current-buffer delete shortcut.
 1. Add `<space>w` to toggle wrap and `<space>j` / `<space>k` to open the next/previous remembered quickfix item without wrapping.

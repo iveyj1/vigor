@@ -44,6 +44,7 @@ OPTIONS
 :set rghidden        rg includes filenames     :set norghidden      default rg filenames
 :set hlsearch        highlight search matches  :set nohlsearch      hide search matches
 :set makeprg=CMD     build command for :make
+scripts/vig-diagnostics CMD... normalizes GCC/Clang/Python output
 
 .py .c .h .sh .bash  automatic string/comment highlighting
 

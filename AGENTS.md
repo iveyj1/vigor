@@ -20,6 +20,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 - `reference.md` — command reference
 - `build-diagnostics-proposal.md` — accepted diagnostic-producer and quickfix protocol
 - `scripts/install` — installs `vig.py`/`vig`, stamping the copy with commit/date identification
+- `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper
 - `scripts/update_cloc_by_commit.sh` — saves per-commit `vig.py` cloc history to `scripts/cloc_by_commit.md`
 
 ## Management
@@ -57,6 +58,7 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 
 **Project tooling**
 
+- `scripts/vig-diagnostics <command> [args...]` runs a command directly, preserves its exit status and merged output, strips ANSI, and normalizes GCC/Clang locations and Python traceback frames for quickfix. It is optional tooling, not an editor runtime dependency.
 - `scripts/update_cloc_by_commit.sh` records cloc counts and short commit subjects for every commit reachable from the current branch.
 
 ## Divergences from vi
@@ -165,7 +167,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 271 test functions organized into 55 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 272 test functions organized into 55 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, and recent polish. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents

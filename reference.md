@@ -138,7 +138,17 @@ Path semantics: `:e`/`:w` expand `~`; relative paths resolve from current buffer
 
 ## Build Diagnostics
 
-`:qf !<cmd>` and `:make` retain ordinary output for context while quickfix navigation skips non-location rows. Navigable producers emit `path:line:column: message`; `path:line: message` is normalized to column 1. ANSI escapes are stripped, nonzero output is retained, and silent successful builds leave the current buffer active. Tool-specific translation is optional project tooling; see `build-diagnostics-proposal.md`.
+`:qf !<cmd>` and `:make` retain ordinary output for context while quickfix navigation skips non-location rows. Navigable producers emit `path:line:column: message`; `path:line: message` is normalized to column 1. ANSI escapes are stripped, nonzero output is retained, and silent successful builds leave the current buffer active.
+
+The optional producer wrapper normalizes GCC/Clang output and Python traceback frames while preserving context and command exit status:
+
+```vim
+:set makeprg=./scripts/vig-diagnostics make
+:make clean
+:qf !./scripts/vig-diagnostics python3 -m pytest
+```
+
+It executes arguments directly rather than through a shell; use `sh -c '...'` explicitly for pipelines or redirection. See `build-diagnostics-proposal.md` for the protocol.
 
 ## Multi-Buffer
 | Key / Command | Action |
