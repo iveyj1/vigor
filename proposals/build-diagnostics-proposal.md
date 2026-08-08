@@ -91,6 +91,7 @@ Captured output uses vigor's existing remembered quickfix buffer.
 - `<space>o` opens the location on the current quickfix row.
 - `<space>j` opens the next valid diagnostic.
 - `<space>k` opens the previous valid diagnostic.
+- Opening a location shows the acted-on quickfix line in the message bar.
 - Context rows remain visible but are skipped by next/previous navigation.
 
 ### External Translators

@@ -2485,10 +2485,12 @@ def test_space_o_opens_rg_location():
         path = os.path.join(d, "a.txt")
         with open(path, "w") as f:
             f.write("alpha needle beta\n")
-        screen, _, code = run_vig(f":rg needle {d}\r o\x03\x03", file_path=path, timeout=4.0)
-    assert code == 0
-    assert path in screen, f"Expected original file active: {screen[-800:]}"
-    assert "1:7" in screen, f"Expected cursor at rg column: {screen[-800:]}"
+        screen, _, code = run_vig(f":rg needle {d}\r o", file_path=path, timeout=2.0)
+    frame = last_frame(screen)
+    assert code == -99
+    assert path in frame, f"Expected original file active: {frame[-800:]}"
+    assert "1:7" in frame, f"Expected cursor at rg column: {frame[-800:]}"
+    assert "a.txt:1:7:alpha needle beta" in frame, f"Expected quickfix line message: {frame[-800:]}"
     print("  PASS: <space>o opens quickfix location")
 
 

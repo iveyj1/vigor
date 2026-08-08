@@ -169,7 +169,7 @@ It executes arguments directly rather than through a shell; use `sh -c '...'` ex
 
 For an unrecognized one-key Space combination, Space is a no-op and the following key executes normally.
 
-Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>j`/`<space>k` navigate and open remembered quickfix items from either quickfix or source buffers. `<space>c` returns to quickfix.
+Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>j`/`<space>k` navigate and open remembered quickfix items from either quickfix or source buffers. A successful open shows the acted-on quickfix line in the message bar. `<space>c` returns to quickfix.
 | Status bar `[N/M]` | shown when >1 buffer open |
 
 ## Insert Mode

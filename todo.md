@@ -19,6 +19,7 @@
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Show the acted-on quickfix line in the message bar after opening its location.
 1. Use one global invocation/current working directory for relative paths; add `:cd`, `:cdb`, and `:pwd`, and preserve each quickfix producer cwd.
 1. Extend `scripts/vig-diagnostics` with `--cwd` and absolute normalized diagnostic paths.
 1. Add optional `scripts/vig-diagnostics` producer for GCC/Clang locations and Python traceback frames.

@@ -3134,9 +3134,11 @@ class Editor:
         if not location:
             self.msg = "No quickfix location"
             return
+        text = self.buf.lines[self.cy]
         path, line, col = location
         base = self.quickfix_cwd if self.buffers[self.buf_idx] is self.quickfix_state else os.getcwd()
-        self._goto_file_location(path if os.path.isabs(path) else os.path.join(base, path), line, col)
+        if self._goto_file_location(path if os.path.isabs(path) else os.path.join(base, path), line, col):
+            self.msg = text
 
     def _quickfix_step(self, delta):
         """Open the next or previous valid location in the remembered quickfix."""
