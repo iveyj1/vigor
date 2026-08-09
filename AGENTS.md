@@ -18,6 +18,7 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
+- `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
 - `proposals/build-diagnostics-proposal.md` — accepted diagnostic-producer and quickfix protocol
 - `scripts/install` — installs `vig.py`/`vig`, stamping the copy with commit/date identification
 - `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper

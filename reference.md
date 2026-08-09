@@ -4,7 +4,7 @@ vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `
 
 The splash footer identifies the source as `v0.1.0 · development`; `scripts/install` stamps installed copies with the Git commit and commit date.
 
-On invocation, file arguments open as buffers. The first existing directory argument opens an `:edit` filename-completion menu without the splash; later directory arguments are ignored. Esc cancels the directory item while retaining any file buffers.
+Run `vig tutor` for an exercise-driven introduction. On invocation, file arguments open as buffers. The first existing directory argument opens an `:edit` filename-completion menu without the splash; later directory arguments are ignored. Esc cancels the directory item while retaining any file buffers.
 
 **Modes:** NORMAL, INSERT, VISUAL, VISUAL LINE, COMMAND, SEARCH
 
