@@ -1,7 +1,13 @@
 set number
-relativenumber
-scrolloff=10
-nowrap
-nowrapmove
-delcopy
-yankflash=300
+set relativenumber
+set nowrap
+set scrolloff=5
+# clipboard=osc52|auto|off
+set clipboard=osc52
+set yankflash=300
+set delcopy
+set wrapmove
+set norghidden
+set hlsearch
+set autoindent
+
