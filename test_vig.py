@@ -8,6 +8,7 @@ import time
 import signal
 import tempfile
 import select
+import re
 
 VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig.py")
 VIG_DIAGNOSTICS = os.path.join(os.path.dirname(VIG), "scripts", "vig-diagnostics")
@@ -2876,7 +2877,7 @@ def test_search_history_shared_by_slash_and_question():
 def test_help_opens_vighelp_buffer():
     """:help opens the executable-directory help buffer."""
     path = write_temp("source\n")
-    screen, _, code = run_vig(b":help\r40G:q\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":help\r42G:q\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
@@ -3490,6 +3491,81 @@ def test_splash_clamps_to_small_terminal():
     assert "╭" + "─" * 18 + "╮" in screen, f"Expected clamped splash frame: {screen[-1000:]}"
     print("  PASS: splash clamps to small terminal")
 
+# ── Phase 57: Markdown presentation ───────────────────────────────────────
+
+def test_markdown_view_aligns_tables_without_dirtying_buffer():
+    """:md virtually aligns a valid table while leaving its source clean."""
+    source = "| A | Longer |\n| --- | --- |\n| xx | y |\n"
+    path = write_temp(source)
+    screen, content, code = run_vig(b":md\r:q\r", file_path=path)
+    os.unlink(path)
+    plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", screen)
+    assert code == 0 and content == source
+    assert "| A   | Longer |" in plain, f"Expected aligned heading row: {plain[-1000:]}"
+    assert "| xx  | y      |" in plain, f"Expected aligned data row: {plain[-1000:]}"
+    assert "[MD]" in plain, "Expected Markdown-view status marker"
+    print("  PASS: Markdown view aligns without dirtying")
+
+
+def test_markdown_view_styles_headers_lists_and_tables():
+    """:md styles Markdown headers, list markers, and table structure."""
+    source = "# Heading\n- item\n\n| A | B |\n| --- | --- |\n| x | y |\n"
+    path = write_temp(source)
+    screen, _, code = run_vig(b":md\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[1;36m# Heading\x1b[m" in screen, "Expected bold cyan header"
+    assert "\x1b[1;33m-\x1b[m item" in screen, "Expected bold yellow list marker"
+    assert "\x1b[2;36m| --- | --- |\x1b[m" in screen, "Expected dim cyan table rule"
+    print("  PASS: Markdown view styles structure")
+
+
+def test_markdown_edit_returns_to_literal_source():
+    """A modifying command leaves Markdown view before editing source text."""
+    source = "| A | Longer |\n| --- | --- |\n| xx | y |\n"
+    path = write_temp(source)
+    screen, content, code = run_vig(b":md\r2j2liZ\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "| A | Longer |\n| --- | --- |\n| Zxx | y |\n"
+    assert "[MD]" in screen, "Expected view before editing"
+    print("  PASS: Markdown edit returns to source")
+
+
+def test_markdown_view_is_per_buffer_and_nomd_disables_it():
+    """Markdown presentation persists per buffer and :nomd disables it."""
+    p1, p2 = write_temp("# one\n"), write_temp("plain\n")
+    screen, _, code = run_vig(b":md\r:n\r:p\r:nomd\r:q\r:q\r", file_paths=[p1, p2])
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code == 0
+    assert "markdown view on" in screen and "markdown view off" in screen
+    print("  PASS: Markdown view is per-buffer and toggleable")
+
+
+def test_markdown_search_maps_back_to_source_for_edit():
+    """Search uses source columns even when virtual table padding is visible."""
+    source = "| A | Longer |\n| --- | --- |\n| xx | y |\n"
+    path = write_temp(source)
+    _, content, code = run_vig(b":md\r/y\riZ\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "| A | Longer |\n| --- | --- |\n| xx | Zy |\n"
+    print("  PASS: Markdown search maps to source")
+
+
+def test_markdown_does_not_align_pipe_prose_without_rule():
+    """Rows without a Markdown separator rule are not treated as tables."""
+    source = "one | two\nlonger | x\n"
+    path = write_temp(source)
+    screen, content, code = run_vig(b":md\r:q\r", file_path=path)
+    os.unlink(path)
+    plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", screen)
+    assert code == 0 and content == source
+    assert "one | two" in plain and "one    | two" not in plain
+    print("  PASS: Markdown pipe prose stays literal")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -3897,6 +3973,14 @@ def main():
             test_file_commands_use_working_directory,
             test_cd_and_cdb_change_global_working_directory,
             test_quickfix_remembers_producer_working_directory,
+        ]),
+        ("57", "Phase 57 — Markdown presentation", [
+            test_markdown_view_aligns_tables_without_dirtying_buffer,
+            test_markdown_view_styles_headers_lists_and_tables,
+            test_markdown_edit_returns_to_literal_source,
+            test_markdown_view_is_per_buffer_and_nomd_disables_it,
+            test_markdown_search_maps_back_to_source_for_edit,
+            test_markdown_does_not_align_pipe_prose_without_rule,
         ]),
     ]
 

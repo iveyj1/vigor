@@ -35,6 +35,10 @@ SYNTAX_PATTERNS = {
     ".bash": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
 }
 SYNTAX_COLORS = {"string": "\x1b[33m", "comment": "\x1b[32m"}
+MD_HEADER = "\x1b[1;36m"
+MD_MARKER = "\x1b[1;33m"
+MD_TABLE = "\x1b[36m"
+MD_TABLE_RULE = "\x1b[2;36m"
 SEARCH_COLOR = "\x1b[43;30m"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
@@ -81,6 +85,7 @@ class Buffer:
 class BufferState:
     """Per-buffer state: buffer content, cursor, scroll, and undo history."""
     __slots__ = ("buf", "cx", "cy", "scroll", "wrap_skip",
+                 "md_view", "md_lines", "md_maps",
                  "_undo_stack", "_redo_stack",
                  "_undo_save_depth", "_undo_branched")
 
@@ -90,6 +95,9 @@ class BufferState:
         self.cy = 0
         self.scroll = 0
         self.wrap_skip = 0
+        self.md_view = False
+        self.md_lines = None
+        self.md_maps = None
         self._undo_stack = []
         self._redo_stack = []
         self._undo_save_depth = 0
@@ -257,6 +265,9 @@ class Editor:
         self.cx = bs.cx
         self.cy = bs.cy
         self.scroll = bs.scroll
+        self.md_view = bs.md_view
+        self.md_lines = bs.md_lines
+        self.md_maps = bs.md_maps
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
@@ -449,6 +460,7 @@ class Editor:
                 self.mode = Mode.NORMAL
                 return
         self.buf.dirty = False
+        self.md_view, self.md_lines, self.md_maps = False, None, None
         self.cx = self.cy = self.scroll = self._wrap_skip = 0
         self._undo_stack.clear()
         self._redo_stack.clear()
@@ -550,6 +562,7 @@ class Editor:
         bs.buf = self.buf
         bs.cx, bs.cy, bs.scroll = self.cx, self.cy, self.scroll
         bs.wrap_skip = self._wrap_skip
+        bs.md_view, bs.md_lines, bs.md_maps = self.md_view, self.md_lines, self.md_maps
         bs._undo_stack = self._undo_stack
         bs._redo_stack = self._redo_stack
         bs._undo_save_depth = self._undo_save_depth
@@ -562,6 +575,7 @@ class Editor:
         self.buf = bs.buf
         self.cx, self.cy, self.scroll = bs.cx, bs.cy, bs.scroll
         self._wrap_skip = bs.wrap_skip
+        self.md_view, self.md_lines, self.md_maps = bs.md_view, bs.md_lines, bs.md_maps
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
@@ -705,7 +719,7 @@ class Editor:
         """Move cursor to a viewport display row, preserving column where possible."""
         if not self.opt_wrap:
             self.cy = min(self.scroll + target, len(self.buf.lines) - 1)
-            self.cx = self._display_index(self.buf.lines[self.cy], col)
+            self.cx = self._view_index(self.cy, col)
             return
         y, wrap_row = self.scroll, self._wrap_skip
         while y < len(self.buf.lines) - 1:
@@ -716,7 +730,7 @@ class Editor:
             y, wrap_row = y + 1, 0
         wrap_row += target
         self.cy = y
-        self.cx = self._display_index(self.buf.lines[y], wrap_row * self._wrap_cols() + col)
+        self.cx = self._view_index(y, wrap_row * self._wrap_cols() + col)
 
     def _scroll_view(self, delta, n=1):
         """Scroll viewport by display rows, moving cursor only to keep it visible."""
@@ -774,6 +788,7 @@ class Editor:
 
     def _snapshot(self):
         """Save current state for undo. Call before any mutation."""
+        self.md_view, self.md_lines, self.md_maps = False, None, None
         current_depth = len(self._undo_stack)
         self._undo_stack.append((self.buf.lines[:], self.cx, self.cy))
         # If clearing redo discards the save point, mark branched
@@ -789,6 +804,7 @@ class Editor:
 
     def _undo(self):
         """Restore previous state from undo stack."""
+        self.md_view, self.md_lines, self.md_maps = False, None, None
         if not self._undo_stack:
             self.msg = "Already at oldest change"
             return
@@ -800,6 +816,7 @@ class Editor:
 
     def _redo(self):
         """Restore next state from redo stack."""
+        self.md_view, self.md_lines, self.md_maps = False, None, None
         if not self._redo_stack:
             self.msg = "Already at newest change"
             return
@@ -1087,8 +1104,101 @@ class Editor:
                 return i + 1
         return len(line)
 
+    @staticmethod
+    def _expand_with_map(line, padding=None):
+        """Return tab-expanded text and source-index to display-column mapping."""
+        padding = padding or {}
+        out, mapping, col = [], [], 0
+        for i, ch in enumerate(line):
+            pad = padding.get(i, 0)
+            if pad:
+                out.append(" " * pad)
+                col += pad
+            mapping.append(col)
+            width = 4 - col % 4 if ch == "\t" else 1
+            out.append(" " * width if ch == "\t" else ch)
+            col += width
+        pad = padding.get(len(line), 0)
+        if pad:
+            out.append(" " * pad)
+            col += pad
+        mapping.append(col)
+        return "".join(out), mapping
+
+    @staticmethod
+    def _markdown_cells(line):
+        """Return Markdown table cell ranges, or None for a non-table row."""
+        pipes = [i for i, ch in enumerate(line) if ch == "|" and (i == 0 or line[i - 1] != "\\")]
+        if not pipes:
+            return None
+        leading = not line[:pipes[0]].strip()
+        trailing = not line[pipes[-1] + 1:].strip()
+        starts = ([] if leading else [0]) + [p + 1 for p in pipes if not (trailing and p == pipes[-1])]
+        ends = (pipes[1:] if leading else pipes[:]) + ([] if trailing else [len(line)])
+        cells = list(zip(starts, ends))
+        return cells if len(cells) >= 2 else None
+
+    @staticmethod
+    def _markdown_rule(line, cells):
+        return all(re.fullmatch(r":?-{3,}:?", line[a:b].strip()) for a, b in cells)
+
+    def _build_markdown_view(self):
+        """Build non-destructive Markdown display lines and source mappings."""
+        projected = [self._expand_with_map(line) for line in self.buf.lines]
+        parsed = [self._markdown_cells(line) for line in self.buf.lines]
+        used = set()
+        for rule_y, cells in enumerate(parsed):
+            if not cells or not self._markdown_rule(self.buf.lines[rule_y], cells) or rule_y in used:
+                continue
+            count, start, end = len(cells), rule_y, rule_y
+            while start > 0 and parsed[start - 1] and len(parsed[start - 1]) == count:
+                start -= 1
+            while end + 1 < len(parsed) and parsed[end + 1] and len(parsed[end + 1]) == count:
+                end += 1
+            if start == end:
+                continue
+            widths = [0] * count
+            for y in range(start, end + 1):
+                for i, (a, b) in enumerate(parsed[y]):
+                    widths[i] = max(widths[i], len(self.buf.lines[y][a:b].expandtabs(4)))
+            for y in range(start, end + 1):
+                padding = {}
+                for i, (a, b) in enumerate(parsed[y]):
+                    width = len(self.buf.lines[y][a:b].expandtabs(4))
+                    padding[b] = max(padding.get(b, 0), widths[i] - width)
+                projected[y] = self._expand_with_map(self.buf.lines[y], padding)
+                used.add(y)
+        self.md_lines = [item[0] for item in projected]
+        self.md_maps = [item[1] for item in projected]
+
+    def _set_markdown_view(self, enabled):
+        self.md_view = enabled
+        if enabled:
+            self._build_markdown_view()
+        else:
+            self.md_lines = self.md_maps = None
+        self._wrap_skip = 0
+        self._ensure_scroll()
+
+    def _view_line(self, y):
+        return self.md_lines[y] if self.md_view else self.buf.lines[y].expandtabs(4)
+
+    def _view_col(self, y, index):
+        if self.md_view:
+            return self.md_maps[y][min(index, len(self.md_maps[y]) - 1)]
+        return self._display_col(self.buf.lines[y], index)
+
+    def _view_index(self, y, target):
+        if not self.md_view:
+            return self._display_index(self.buf.lines[y], target)
+        mapping = self.md_maps[y]
+        for i, col in enumerate(mapping):
+            if col >= target:
+                return i if col == target else max(0, i - 1)
+        return len(mapping) - 1
+
     def _cursor_display_col(self):
-        return self._display_col(self.buf.lines[self.cy], self.cx)
+        return self._view_col(self.cy, self.cx)
 
     def _wrap_cols(self):
         return max(1, self.cols - self._gutter_width())
@@ -1101,7 +1211,7 @@ class Editor:
                 self._sticky_cx = display_x
             self.cy += delta
             self._clamp_cursor()
-            self.cx = self._display_index(self.buf.lines[self.cy], self._sticky_cx)
+            self.cx = self._view_index(self.cy, self._sticky_cx)
             return
         cols = self._wrap_cols()
         if self._sticky_cx is None:
@@ -1109,16 +1219,16 @@ class Editor:
         col, row = self._sticky_cx, display_x // cols
         if delta > 0:
             if row + 1 < self._line_screen_rows(self.cy):
-                self.cx = self._display_index(self.buf.lines[self.cy], (row + 1) * cols + col)
+                self.cx = self._view_index(self.cy, (row + 1) * cols + col)
             elif self.cy < len(self.buf.lines) - 1:
                 self.cy += 1
-                self.cx = self._display_index(self.buf.lines[self.cy], col)
+                self.cx = self._view_index(self.cy, col)
         elif row > 0:
-            self.cx = self._display_index(self.buf.lines[self.cy], (row - 1) * cols + col)
+            self.cx = self._view_index(self.cy, (row - 1) * cols + col)
         elif self.cy > 0:
             self.cy -= 1
             target = (self._line_screen_rows(self.cy) - 1) * cols + col
-            self.cx = self._display_index(self.buf.lines[self.cy], target)
+            self.cx = self._view_index(self.cy, target)
         self._clamp_cursor()
 
     def _motion_j(self):
@@ -1518,10 +1628,10 @@ class Editor:
         content_cols = self.cols - self._gutter_width()
         if content_cols <= 0:
             return 1
-        line = self.buf.lines[line_idx] if line_idx < len(self.buf.lines) else ""
+        display_line = self._view_line(line_idx) if line_idx < len(self.buf.lines) else ""
         # Include the one-past-EOL cursor cell. Exact-width lines therefore
         # have an empty continuation row instead of placing EOL on a character.
-        return len(line.expandtabs(4)) // content_cols + 1
+        return len(display_line) // content_cols + 1
 
     def _end_screen_row(self, out, cells):
         """End a rendered row without erasing a full-width final cell."""
@@ -1534,7 +1644,7 @@ class Editor:
         max_rows limits output to at most that many screen rows (for partial rendering)."""
         gutter = self._gutter_str(buf_line, gutter_width)
         gutter_pad = " " * gutter_width
-        display_line = line.expandtabs(4)
+        display_line = self._view_line(buf_line)
         content_cols = self.cols - gutter_width
         if content_cols <= 0:
             content_cols = 1
@@ -1560,8 +1670,34 @@ class Editor:
                 rows_used += 1
             return rows_used
 
-    def _syntax_spans(self, line):
-        """Return colored string/comment spans for the current buffer's language."""
+    def _markdown_spans(self, line, y):
+        """Return restrained header, list, and table styles for Markdown view."""
+        if re.match(r"^ {0,3}#{1,6}(?:\s|$)", line):
+            return ((0, len(line), MD_HEADER),)
+        marker = re.match(r"^\s*(?:[-+*]|\d+[.)])(?=\s)", line)
+        if marker:
+            return ((marker.start(), marker.end(), MD_MARKER),)
+        cells = self._markdown_cells(line)
+        if not cells:
+            return ()
+        count, top, bottom = len(cells), y, y
+        while top > 0 and self._markdown_cells(self.buf.lines[top - 1]) and len(self._markdown_cells(self.buf.lines[top - 1])) == count:
+            top -= 1
+        while bottom + 1 < len(self.buf.lines) and self._markdown_cells(self.buf.lines[bottom + 1]) and len(self._markdown_cells(self.buf.lines[bottom + 1])) == count:
+            bottom += 1
+        valid = any(self._markdown_rule(self.buf.lines[i], self._markdown_cells(self.buf.lines[i]))
+                    for i in range(top, bottom + 1))
+        if not valid:
+            return ()
+        if self._markdown_rule(line, cells):
+            return ((0, len(line), MD_TABLE_RULE),)
+        return tuple((i, i + 1, MD_TABLE) for i, ch in enumerate(line)
+                     if ch == "|" and (i == 0 or line[i - 1] != "\\"))
+
+    def _syntax_spans(self, line, y=None):
+        """Return styled syntax spans for the current buffer's language."""
+        if self.md_view:
+            return self._markdown_spans(line, y)
         ext = os.path.splitext(self.buf.path or "")[1].lower()
         pattern = SYNTAX_PATTERNS.get(ext)
         if not pattern:
@@ -1584,9 +1720,9 @@ class Editor:
             return
         start, end = col_offset, col_offset + len(visible)
         line = self.buf.lines[buf_line]
-        spans = tuple((self._display_col(line, sx), self._display_col(line, ex), color)
-                      for sx, ex, color in self._syntax_spans(line))
-        search_spans = tuple((self._display_col(line, sx), self._display_col(line, ex))
+        spans = tuple((self._view_col(buf_line, sx), self._view_col(buf_line, ex), color)
+                      for sx, ex, color in self._syntax_spans(line, buf_line))
+        search_spans = tuple((self._view_col(buf_line, sx), self._view_col(buf_line, ex))
                              for sx, ex in self._search_spans(line))
         bounds = {start, end}
         for sx, ex, _ in spans:
@@ -1599,8 +1735,8 @@ class Editor:
         if sel:
             sy, sx, ey, ex = sel
             if sy <= buf_line <= ey:
-                select_start = max(start, self._display_col(line, sx) if buf_line == sy else start)
-                select_end = min(end, self._display_col(line, ex) if buf_line == ey else end)
+                select_start = max(start, self._view_col(buf_line, sx) if buf_line == sy else start)
+                select_end = min(end, self._view_col(buf_line, ex) if buf_line == ey else end)
                 if select_start < select_end:
                     bounds.update((select_start, select_end))
         spans = iter(spans)
@@ -1756,10 +1892,11 @@ class Editor:
         out.append("\x1b[7m")
         fname = self.buf.path or "[No Name]"
         dirty = " [+]" if self.buf.dirty else ""
+        presentation = " [MD]" if self.md_view else ""
         mode_str = self.mode.value
         count_str = str(self.count) if self.count > 0 else ""
         buf_info = f"[{self.buf_idx + 1}/{len(self.buffers)}] " if len(self.buffers) > 1 else ""
-        left = f" {mode_str} | {buf_info}{fname}{dirty}"
+        left = f" {mode_str} | {buf_info}{fname}{dirty}{presentation}"
         right = f" {count_str} {self.cy + 1}:{self.cx + 1} "
         pad = self.cols - len(left) - len(right)
         if pad < 0:
@@ -2828,6 +2965,11 @@ class Editor:
             self._write_buffer_to_path(path, close_after=True)
         elif cmd in ("e!", "edit!"):
             self._reload_current_buffer()
+        elif cmd in ("md", "markdown", "nomd"):
+            enabled = False if cmd == "nomd" else not self.md_view
+            self._set_markdown_view(enabled)
+            self.msg = "markdown view on" if enabled else "markdown view off"
+            self.mode = Mode.NORMAL
         elif cmd == "help":
             path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vighelp")
             if not os.path.isfile(path):

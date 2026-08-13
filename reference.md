@@ -105,6 +105,8 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
 | `:help` | open `vighelp` beside the vigor executable |
+| `:md` / `:markdown` | toggle non-destructive Markdown presentation for the current buffer |
+| `:nomd` | return the current buffer to literal source display |
 | `:cd <path>` | change the single global working directory |
 | `:cdb` | change to the focused file's directory; errors for unnamed/quickfix buffers |
 | `:pwd` | show the current working directory |
@@ -136,6 +138,8 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
+
+Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
 
 Path semantics: all explicit relative file paths, completion, and shell commands use one process working directory. It starts as the invocation directory and changes globally with `:cd` or `:cdb`; `~` expands. Open buffer paths remain absolute. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 

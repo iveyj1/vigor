@@ -28,6 +28,8 @@ n N                 repeat search / reverse
 :w :q :wq           write, quit, write and quit
 :e path             open file in a new buffer
 :help               open this help buffer
+:md / :markdown     toggle Markdown presentation
+:nomd               show literal Markdown source
 :cd path / :cdb     change cwd / cd to buffer dir
 :pwd                show working directory
 :make [args]        run makeprg into quickfix
@@ -51,6 +53,7 @@ OPTIONS
 scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 
 .py .c .h .sh .bash  automatic string/comment highlighting
+:md aligns Markdown tables virtually; editing restores literal source
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping
