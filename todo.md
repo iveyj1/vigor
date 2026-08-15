@@ -21,6 +21,7 @@
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ** Done
+1. Add `:set wrapcol=N`; nonzero values cap wrap width in display columns and `0` follows terminal content width.
 1. Make `Y` behave as `y$`, and use case-insensitive matching for lowercase literal and lowercase word searches while keeping capitalized or regex searches case-sensitive.
 1. Replace the inherited Nvim/Vim tutor with an exercise-driven tutorial limited to vigor's implemented behavior and deliberate divergences.
 1. Show the acted-on quickfix line in the message bar after opening its location.

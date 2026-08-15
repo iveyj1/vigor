@@ -1,6 +1,7 @@
 set number
 set relativenumber
 set nowrap
+set wrapcol=0
 set scrolloff=5
 # clipboard=osc52|auto|off
 set clipboard=osc52

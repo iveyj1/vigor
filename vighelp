@@ -41,6 +41,7 @@ n N                 repeat search / reverse
 OPTIONS
 
 :set wrap            wrap long lines           :set nowrap          truncate long lines
+:set wrapcol=N       wrap width; 0 uses terminal
 :set wrapmove        j/k move display rows     :set nowrapmove      j/k move text lines
 :set number          show line numbers         :set nonumber        hide line numbers
 :set relativenumber  show relative numbers     :set norelativenumber hide relative numbers

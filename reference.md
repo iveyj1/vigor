@@ -126,6 +126,7 @@ Lowercase literal `/` and `?` patterns ignore case. A capital letter or any rege
 | `:[range]!<cmd>` | pipe lines to shell command stdin and replace the range with stdout (`%`, `.`, `$`, `N,M`) |
 | `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
 | `:set wrap` / `nowrap` | toggle line wrapping |
+| `:set wrapcol=<N>` | wrap at most N content display columns; `0` uses terminal width |
 | `:set wrapmove` / `nowrapmove` | with wrap on, make `j`/`k`/Up/Down move by displayed rows |
 | `:set number` / `nonumber` | toggle absolute line numbers |
 | `:set relativenumber` / `norelativenumber` | toggle relative line numbers |

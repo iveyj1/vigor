@@ -3604,6 +3604,49 @@ def test_word_search_and_hlsearch_use_smart_case():
     print("  PASS: word search and hlsearch use smart case")
 
 
+# ── Phase 59: configurable wrap column ─────────────────────────────────────
+
+def test_wrapcol_wraps_at_configured_display_column():
+    """A nonzero wrapcol wraps before the wider terminal boundary."""
+    path = write_temp("abcdefghij\n")
+    screen, _, code = run_vig(b":set wrapcol=5\r:set wrap\r:q\r",
+                              file_path=path, cols=20, rows=8)
+    os.unlink(path)
+    assert code == 0 and "wrapcol=5" in screen
+    assert "abcde\x1b[K\r\nfghij" in screen, screen[-800:]
+    print("  PASS: wrapcol controls display-row width")
+
+
+def test_wrapcol_drives_wrapmove_and_respects_terminal_width():
+    """wrapmove uses wrapcol, while values wider than the terminal are capped."""
+    p1 = write_temp("abcdefghij\n")
+    _, content, code1 = run_vig(b":set wrapcol=5\r:set wrap\r:set wrapmove\rjiX\x1b:wq\r",
+                                file_path=p1, cols=20)
+    p2 = write_temp("abcdefghijkl\n")
+    screen, _, code2 = run_vig(b":set wrapcol=100\r:set wrap\r:q\r",
+                               file_path=p2, cols=10, rows=8)
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code1 == code2 == 0 and content == "abcdeXfghij\n"
+    assert "abcdefghij\r\nkl" in screen
+    print("  PASS: wrapcol drives movement and caps to terminal")
+
+
+def test_wrapcol_validation_and_startup_config():
+    """wrapcol accepts nonnegative values through :set and startup config."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "line.txt")
+        cfg = os.path.join(d, "vigrc")
+        open(path, "w").write("abcdefgh\n")
+        open(cfg, "w").write("set wrap\nset wrapcol=4\n")
+        screen, _, code = run_vig(b":set wrapcol=-1\r:q\r", file_path=path,
+                                  cols=20, rows=8, env={"VIG_CONFIG": cfg})
+    assert code == 0
+    assert "abcd\x1b[K\r\nefgh" in screen
+    assert "wrapcol must be >= 0" in screen
+    print("  PASS: wrapcol validates and loads from config")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4024,6 +4067,11 @@ def main():
             test_Y_yanks_from_cursor_to_end_of_line,
             test_literal_search_uses_smart_case_but_regex_does_not,
             test_word_search_and_hlsearch_use_smart_case,
+        ]),
+        ("59", "Phase 59 — configurable wrap column", [
+            test_wrapcol_wraps_at_configured_display_column,
+            test_wrapcol_drives_wrapmove_and_respects_terminal_width,
+            test_wrapcol_validation_and_startup_config,
         ]),
     ]
 

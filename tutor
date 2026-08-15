@@ -371,6 +371,7 @@ The status bar shows [current/total] when more than one buffer is open.
 LESSON 13 — WRAPPING, NUMBERS, AND SCROLLING
 
     :set wrap / nowrap
+    :set wrapcol=N       0 uses terminal width; nonzero caps wrap width
     :set wrapmove / nowrapmove
     :set number / nonumber
     :set relativenumber / norelativenumber
@@ -380,7 +381,9 @@ With wrap enabled, long logical lines occupy multiple display rows. With
 wrapmove, j, k, Up, and Down move through those display rows. With nowrapmove,
 they continue to move by logical lines.
 
-Space w toggles wrap without changing the configured wrapmove behavior.
+Space w toggles wrap without changing wrapmove or wrapcol. Tabs count by
+display columns, and a wrapcol wider than the terminal is capped to the
+available content width.
 
 Manual viewport commands:
 

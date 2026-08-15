@@ -302,6 +302,7 @@ class Editor:
         self.search_ignorecase = False  # smart-case flag for active search
         self.search_dir = 1  # 1=forward, -1=backward
         self.opt_wrap = False  # :set wrap
+        self.opt_wrapcol = 0  # :set wrapcol=N (0 uses terminal width)
         self.opt_number = False  # :set number
         self.opt_relnum = False  # :set relativenumber
         self.opt_scrolloff = 0  # :set scrolloff=N
@@ -1203,7 +1204,8 @@ class Editor:
         return self._view_col(self.cy, self.cx)
 
     def _wrap_cols(self):
-        return max(1, self.cols - self._gutter_width())
+        available = max(1, self.cols - self._gutter_width())
+        return min(available, self.opt_wrapcol) if self.opt_wrapcol else available
 
     def _motion_display_row(self, delta):
         """Move vertically while preserving a display column."""
@@ -1627,9 +1629,7 @@ class Editor:
         """How many screen rows does buffer line `line_idx` occupy?"""
         if not self.opt_wrap or self.cols == 0:
             return 1
-        content_cols = self.cols - self._gutter_width()
-        if content_cols <= 0:
-            return 1
+        content_cols = self._wrap_cols()
         display_line = self._view_line(line_idx) if line_idx < len(self.buf.lines) else ""
         # Include the one-past-EOL cursor cell. Exact-width lines therefore
         # have an empty continuation row instead of placing EOL on a character.
@@ -1659,6 +1659,7 @@ class Editor:
             return 1
         else:
             # Wrap text plus its one-past-EOL cursor cell into display rows.
+            content_cols = self._wrap_cols()
             rows_used = 0
             total_rows = len(display_line) // content_cols + 1
             for wrap_row in range(max(0, start_row), total_rows):
@@ -1850,6 +1851,7 @@ class Editor:
                 self._yank_flash = None
         gw = self._gutter_width()
         content_cols = max(1, self.cols - gw)
+        wrap_cols = self._wrap_cols()
 
         screen_rows_used = 0
         cursor_screen_y = 0
@@ -1864,10 +1866,10 @@ class Editor:
             start_row = first_wrap_skip if buf_line == self.scroll else 0
             if buf_line == self.cy:
                 # Track cursor screen position
-                if self.opt_wrap and content_cols > 0:
-                    wrap_row = self._cursor_wrap_row(content_cols)
+                if self.opt_wrap:
+                    wrap_row = self._cursor_wrap_row(wrap_cols)
                     cursor_screen_y = screen_rows_used + wrap_row - start_row
-                    cursor_screen_x = self._cursor_wrap_col(content_cols) + gw
+                    cursor_screen_x = self._cursor_wrap_col(wrap_cols) + gw
                 else:
                     cursor_screen_y = screen_rows_used
                     cursor_screen_x = cursor_display_x - window_hscroll + gw
@@ -3390,9 +3392,22 @@ class Editor:
         if opt == "wrap":
             self.opt_wrap = True
             self.msg = "wrap on"
+            self._ensure_scroll()
         elif opt == "nowrap":
             self.opt_wrap = False
             self.msg = "wrap off"
+            self._ensure_scroll()
+        elif opt.startswith("wrapcol="):
+            try:
+                val = int(opt[len("wrapcol="):])
+                if val < 0:
+                    raise ValueError
+            except ValueError:
+                self.msg = "wrapcol must be >= 0"
+                return
+            self.opt_wrapcol = val
+            self.msg = f"wrapcol={val}"
+            self._ensure_scroll()
         elif opt == "number":
             self.opt_number = True
             self.msg = "number on"
