@@ -299,6 +299,7 @@ class Editor:
         self.register = ""  # unnamed register (last yank/delete text)
         self.reg_linewise = False  # was last register content linewise?
         self.search_pattern = ""  # last / or ? search
+        self.search_ignorecase = False  # smart-case flag for active search
         self.search_dir = 1  # 1=forward, -1=backward
         self.opt_wrap = False  # :set wrap
         self.opt_number = False  # :set number
@@ -1710,7 +1711,7 @@ class Editor:
         if not (self.opt_hlsearch and self.search_pattern):
             return ()
         try:
-            pat = re.compile(self.search_pattern)
+            pat = self._compile_search()
         except re.error:
             return ()
         return tuple((m.start(), m.end()) for m in pat.finditer(line) if m.start() != m.end())
@@ -2463,9 +2464,8 @@ class Editor:
             self._delete_to_eol()
             self._save_dot()
         elif key == "Y":
-            end = min(self.cy + n - 1, len(self.buf.lines) - 1)
-            self._yank_range(self.cy, 0, end, 0, linewise=True)
-            self.msg = f"{n} line(s) yanked"
+            self._yank_range(self.cy, self.cx, self.cy, len(self.buf.lines[self.cy]))
+            self.msg = "yanked"
         elif key == "C":
             self._start_dot(n, "C")
             self._snapshot()
@@ -3661,6 +3661,7 @@ class Editor:
             return
         escaped = re.escape(word)
         self.search_pattern = rf"(?<!\w){escaped}(?!\w)" if whole else escaped
+        self.search_ignorecase = not any(ch.isupper() for ch in word)
         self.search_dir = direction
         self._add_history(self.search_history, self.search_pattern)
         self._search_next(direction)
@@ -3687,6 +3688,9 @@ class Editor:
             self._reset_history_nav()
             if pattern:
                 self.search_pattern = pattern
+                meta = ".^$*+?{}[]\\|()"
+                self.search_ignorecase = (not any(ch.isupper() for ch in pattern)
+                                          and not any(ch in meta for ch in pattern))
                 self._add_history(self.search_history, pattern)
             if self.search_pattern:
                 self._search_next(self.search_dir)
@@ -3696,6 +3700,10 @@ class Editor:
         if key == "BACKSPACE":
             self.mode = Mode.NORMAL
 
+    def _compile_search(self):
+        """Compile the active search with its literal smart-case setting."""
+        return re.compile(self.search_pattern, re.IGNORECASE if self.search_ignorecase else 0)
+
     def _search_next(self, direction):
         """Search for self.search_pattern in the given direction.
         direction: 1=forward, -1=backward."""
@@ -3703,7 +3711,7 @@ class Editor:
             self.msg = "No previous search"
             return
         try:
-            pat = re.compile(self.search_pattern)
+            pat = self._compile_search()
         except re.error as e:
             self.msg = f"Invalid regex: {e}"
             return

@@ -17,11 +17,12 @@ i a I A             insert at cursor/after/start/end
 o O                 open line below / above
 x X                 delete at cursor / before cursor
 d y c + motion      delete, yank, change
+D Y C               delete/yank/change to line end
 p P                 paste after / before
 u / Ctrl-R          undo / redo
 v V                 visual character / line selection
 
-/pattern ?pattern   search forward / backward
+/pattern ?pattern   search forward / backward; literal lowercase ignores case
 * # / g* g#         word search; whole / partial
 n N                 repeat search / reverse
 :command            enter command prompt

@@ -143,7 +143,7 @@ Examples:
     cc      change a logical line
     D       delete to end of line
     C       change to end of line
-    Y       yank a logical line
+    Y       yank to end of line
 
 Exercise: use dw repeatedly to remove the unrelated words.
 
@@ -283,8 +283,10 @@ Exercise: type /platypus and press Enter, then use n and N.
 
     platypus one; platypus two; platypus three
 
-Searches wrap around the buffer. Invalid regular expressions produce a
-message instead of moving. Search history is available with Up and Down.
+Searches wrap around the buffer. Lowercase literal patterns ignore case; a
+capital letter or any regular-expression metacharacter makes the search
+case-sensitive. Lowercase word searches with *, #, g*, and g# also ignore
+case. Invalid regular expressions produce a message instead of moving. Search history is available with Up and Down.
 
 Enable or disable persistent match highlighting with:
 

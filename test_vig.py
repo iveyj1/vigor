@@ -2877,7 +2877,7 @@ def test_search_history_shared_by_slash_and_question():
 def test_help_opens_vighelp_buffer():
     """:help opens the executable-directory help buffer."""
     path = write_temp("source\n")
-    screen, _, code = run_vig(b":help\r42G:q\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":help\r/:set wrap\r:q\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
@@ -3446,7 +3446,7 @@ def test_file_startup_shows_framed_splash_over_editor():
     assert code == 0
     border = "\x1b[49m\x1b[96m╭" + "─" * 37 + "╮"
     assert border in screen, f"Expected 39-column rounded splash frame: {screen[-2000:]}"
-    assert screen.count("│") == 14, "Expected 9-row splash frame"
+    assert screen.count("│") == 16, "Expected 10-row splash frame"
     assert "\x1b[49m\x1b[96m│\x1b[97m" in screen, "Expected default background and colored logo"
     assert screen.index("underlay") < screen.index("╭"), "Editor frame must be drawn before splash overlay"
     assert "| |  / (_)___ _____  _____" in screen, f"Expected splash logo: {screen[-2000:]}"
@@ -3564,6 +3564,44 @@ def test_markdown_does_not_align_pipe_prose_without_rule():
     assert code == 0 and content == source
     assert "one | two" in plain and "one    | two" not in plain
     print("  PASS: Markdown pipe prose stays literal")
+
+
+# ── Phase 58: Y and literal smart-case search ─────────────────────────────
+
+def test_Y_yanks_from_cursor_to_end_of_line():
+    """Y behaves as y$ and ignores a count like D and C."""
+    path = write_temp("alpha beta\n\nthird\n")
+    _, content, code = run_vig(b":set clipboard=off\r6l3Yjp:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "alpha beta\nbeta\nthird\n", content
+    print("  PASS: Y yanks cursor to end of line")
+
+
+def test_literal_search_uses_smart_case_but_regex_does_not():
+    """Lowercase literal searches ignore case; capitals and regex remain sensitive."""
+    p1 = write_temp("foo\nFoo\n")
+    _, c1, code1 = run_vig(b"/foo\riX\x1b:wq\r", file_path=p1)
+    p2 = write_temp("foo\nFOO\nFoo\n")
+    _, c2, code2 = run_vig(b"/Foo\riX\x1b:wq\r", file_path=p2)
+    p3 = write_temp("Foo\nfao\n")
+    _, c3, code3 = run_vig(b"/f.o\riX\x1b:wq\r", file_path=p3)
+    for path in (p1, p2, p3):
+        os.unlink(path)
+    assert code1 == code2 == code3 == 0
+    assert c1 == "foo\nXFoo\n", c1
+    assert c2 == "foo\nFOO\nXFoo\n", c2
+    assert c3 == "Foo\nXfao\n", c3
+    print("  PASS: literal search uses smart case")
+
+
+def test_word_search_and_hlsearch_use_smart_case():
+    """Lowercase word searches and highlighting match uppercase variants."""
+    path = write_temp("foo Foo FOO\n")
+    screen, _, code = run_vig(b":set hlsearch\r*iX\x1bu:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[43;30mFoo\x1b[m" in screen and "\x1b[43;30mFOO\x1b[m" in screen
+    print("  PASS: word search and hlsearch use smart case")
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
@@ -3981,6 +4019,11 @@ def main():
             test_markdown_view_is_per_buffer_and_nomd_disables_it,
             test_markdown_search_maps_back_to_source_for_edit,
             test_markdown_does_not_align_pipe_prose_without_rule,
+        ]),
+        ("58", "Phase 58 — Y and literal smart-case search", [
+            test_Y_yanks_from_cursor_to_end_of_line,
+            test_literal_search_uses_smart_case_but_regex_does_not,
+            test_word_search_and_hlsearch_use_smart_case,
         ]),
     ]
 

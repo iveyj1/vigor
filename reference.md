@@ -32,7 +32,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `yd` + motion | delete and yank over motion (useful with `:set nodelcopy`) |
 | `dd` `yy` `cc` | linewise delete / yank / change |
 | `D` `C` | delete / change to end of line |
-| `Y` | yank entire line |
+| `Y` | yank from cursor to end of logical line |
 | `x` / Delete | delete char at cursor |
 | `X` / Backspace | delete char before cursor |
 | `r{c}` | replace char(s) under cursor with `c` (count: N chars) |
@@ -91,6 +91,8 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 - In `/` and `?` search prompts, Up/Down browse shared search history.
 - Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, `:cd`, and shell paths in `:!` commands.
 - A single completion fills the command line. Multiple completions show a centered rounded-border menu; Up/Down moves the reverse-video selection, Tab/Shift-Tab advance/reverse it with wrapping, Enter copies the selected filename into the command line, and Esc hides the menu.
+
+Lowercase literal `/` and `?` patterns ignore case. A capital letter or any regex metacharacter makes the search case-sensitive. Lowercase `*`, `#`, `g*`, and `g#` word searches also ignore case. Repeats and `hlsearch` retain the active search's case behavior.
 
 ## Ex Commands
 | Command | Action |
