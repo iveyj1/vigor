@@ -3646,6 +3646,34 @@ def test_wrapcol_validation_and_startup_config():
     assert "wrapcol must be >= 0" in screen
     print("  PASS: wrapcol validates and loads from config")
 
+# ── Phase 60: markdown fence hiding ────────────────────────────────────────
+
+def write_named_temp(content, suffix):
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    with os.fdopen(fd, "w") as f:
+        f.write(content)
+    return path
+
+def test_markdownfences_hides_backtick_and_tilde_fences():
+    """:set markdownfences renders markdown fence marker lines blank."""
+    path = write_named_temp("before\n```python\ncode\n```\n~~~\nmore\n~~~\nafter\n", ".md")
+    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "before" in frame and "code" in frame and "more" in frame and "after" in frame
+    assert "```" not in frame and "~~~" not in frame, f"Fence markers should be hidden: {frame[:1000]}"
+    print("  PASS: markdownfences hides backtick and tilde fences")
+
+def test_markdownfences_only_markdown_files():
+    """markdownfences applies only to markdown filenames."""
+    path = write_named_temp("before\n```\ncode\n", ".txt")
+    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "```" in frame, f"Non-markdown fence should remain visible: {frame[:800]}"
+    print("  PASS: markdownfences only affects markdown files")
 
 # ── Runner ─────────────────────────────────────────────────────────────────
 
@@ -4072,6 +4100,10 @@ def main():
             test_wrapcol_wraps_at_configured_display_column,
             test_wrapcol_drives_wrapmove_and_respects_terminal_width,
             test_wrapcol_validation_and_startup_config,
+        ]),
+        ("60", "Phase 60 — markdown fence hiding", [
+            test_markdownfences_hides_backtick_and_tilde_fences,
+            test_markdownfences_only_markdown_files,
         ]),
     ]
 

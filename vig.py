@@ -310,6 +310,7 @@ class Editor:
         self.opt_yankflash = 300  # :set yankflash=N milliseconds
         self.opt_delcopy = True  # :set delcopy/nodelcopy
         self.opt_wrapmove = False  # :set wrapmove/nowrapmove
+        self.opt_markdownfences = False  # :set markdownfences/nomarkdownfences
         self.opt_rghidden = False  # :set rghidden/norghidden
         self.opt_hlsearch = False  # :set hlsearch/nohlsearch
         self.opt_makeprg = "make"  # :set makeprg=<shell command>
@@ -1184,6 +1185,8 @@ class Editor:
         self._ensure_scroll()
 
     def _view_line(self, y):
+        if self._is_markdown_fence_line(self.buf.lines[y]):
+            return ""
         return self.md_lines[y] if self.md_view else self.buf.lines[y].expandtabs(4)
 
     def _view_col(self, y, index):
@@ -1640,6 +1643,15 @@ class Editor:
         if cells < self.cols:
             out.append("\x1b[K")
         out.append("\r\n")
+
+    def _is_markdown_fence_line(self, line):
+        if not self.opt_markdownfences or not self.buf.path:
+            return False
+        lower = self.buf.path.lower()
+        if not (lower.endswith(".md") or lower.endswith(".markdown")):
+            return False
+        stripped = line.lstrip()
+        return stripped.startswith("```") or stripped.startswith("~~~")
 
     def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None, hscroll=0, start_row=0):
         """Render a single buffer line (possibly wrapped). Returns number of screen rows used.
@@ -3468,6 +3480,12 @@ class Editor:
         elif opt == "nowrapmove":
             self.opt_wrapmove = False
             self.msg = "wrapmove off"
+        elif opt == "markdownfences":
+            self.opt_markdownfences = True
+            self.msg = "markdownfences on"
+        elif opt == "nomarkdownfences":
+            self.opt_markdownfences = False
+            self.msg = "markdownfences off"
         elif opt == "rghidden":
             self.opt_rghidden = True
             self.msg = "rghidden on"
