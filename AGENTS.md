@@ -20,6 +20,8 @@ The project goal is a practical, small editor that remains easy to inspect, run,
 - `reference.md` — command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
 - `proposals/build-diagnostics-proposal.md` — accepted diagnostic-producer and quickfix protocol
+- `proposals/mouse-support.md` — proposed mouse scrolling and Visual-selection design
+- `proposals/system-clipboard-paste.md` — proposed explicit system-clipboard import and paste design
 - `scripts/install` — installs `vig.py`/`vig`, stamping the copy with commit/date identification
 - `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper
 - `scripts/update_cloc_by_commit.sh` — saves per-commit `vig.py` cloc history to `scripts/cloc_by_commit.md`

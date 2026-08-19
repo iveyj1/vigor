@@ -6,6 +6,8 @@
 ** Do
 
 ** On hold
+1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.
+1. Proposal: Optional `mouse=off|scroll|visual` SGR mouse support in two phases; see `proposals/mouse-support.md`. Wheel-only estimate 25–45 runtime lines; robust scrolling plus drag Visual selection estimate 90–140 lines.
 1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
 1. Add \v search modifier
 1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
