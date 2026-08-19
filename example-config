@@ -9,5 +9,6 @@ set delcopy
 set wrapmove
 set norghidden
 set hlsearch
+set nomarkdownfences
 set autoindent
 
