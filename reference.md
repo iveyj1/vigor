@@ -76,6 +76,8 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 
 Recognized Python (`.py`), C (`.c`, `.h`), C++ (`.cc`, `.cpp`, `.cxx`, `.hh`, `.hpp`, `.hxx`), and Bash (`.sh`, `.bash`) files receive automatic line-local highlighting. A named file without an extension also uses Bash highlighting when its first line selects exact `bash` or `sh` through a direct path, `env`, or `env -S`; recognized extensions remain authoritative. Recognized entities include comments, strings, numbers, keywords, constants, types, definitions, function names, decorators, preprocessor directives, and shell variables where appropriate. Multiline strings, block comments spanning lines, raw strings, and heredocs are intentionally not tracked.
 
+File-type overrides are per-buffer and survive buffer switches and reloads. `text` disables syntax and Markdown presentation; `markdown` enables Markdown presentation, including optional fence collapsing. `:nomd` only changes presentation and does not clear the detected or forced type.
+
 The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKDOWN_COLOR_NAMES` maps near the top of `vigor/highlight.py` can be edited independently.
 
 ### Search & Replace
@@ -113,6 +115,8 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:help` | open `vighelp` beside the vigor executable |
 | `:md` / `:markdown` | toggle non-destructive Markdown presentation for the current buffer |
 | `:nomd` | return the current buffer to literal source display |
+| `:filetype` / `:ft` | report the current effective file type and whether it is automatic or forced |
+| `:filetype TYPE` / `:ft TYPE` | force `text`, `bash`, `c`, `cpp`, `python`, or `markdown`; `auto` clears the override and redetects |
 | `:cd <path>` | change the single global working directory |
 | `:cdb` | change to the focused file's directory; errors for unnamed/quickfix buffers |
 | `:pwd` | show the current working directory |

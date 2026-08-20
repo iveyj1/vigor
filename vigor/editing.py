@@ -5,7 +5,7 @@ import shutil
 import sys
 import time
 
-from .highlight import build_markdown_view
+from .highlight import build_markdown_view, filetype_for_path
 from .layout import ViewportLayout, display_col, display_index
 from .state import Mode
 
@@ -378,6 +378,12 @@ class EditingMixin:
     def _motion_l(self):
         self.cx += 1
         self._clamp_cursor()
+
+    def _effective_filetype(self):
+        """Return the forced or automatically detected current-buffer type."""
+        if self.filetype_override:
+            return self.filetype_override
+        return filetype_for_path(self.buf.path, self.buf.lines[0])
 
     def _set_markdown_view(self, enabled):
         self.md_view = enabled

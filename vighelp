@@ -31,6 +31,7 @@ n N                 repeat search / reverse
 :help               open this help buffer
 :md / :markdown     toggle Markdown presentation
 :nomd               show literal Markdown source
+:ft [TYPE]          report/force auto,text,bash,c,cpp,python,markdown
 :cd path / :cdb     change cwd / cd to buffer dir
 :pwd                show working directory
 :make [args]        run makeprg into quickfix

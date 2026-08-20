@@ -7,8 +7,8 @@ import time
 
 from . import BUILD_ID, VERSION
 from .highlight import (
-    CURRENT_SEARCH_COLOR, MD_FENCE, SEARCH_COLOR, language_for_path,
-    literal_ignorecase, markdown_spans, search_spans, syntax_spans,
+    CURRENT_SEARCH_COLOR, MD_FENCE, SEARCH_COLOR, literal_ignorecase,
+    markdown_spans, search_spans, syntax_spans,
 )
 from .state import Mode
 
@@ -259,8 +259,7 @@ class RenderMixin:
     def _is_markdown_fence_line(self, y):
         if not (self.md_view and self.opt_markdownfences and self.md_languages):
             return False
-        lower = (self.buf.path or "").lower()
-        return (lower.endswith(".md") or lower.endswith(".markdown")) and self.md_languages[y] is MD_FENCE
+        return self._effective_filetype() == "markdown" and self.md_languages[y] is MD_FENCE
 
     def _syntax_spans(self, line, y=None):
         """Return styled syntax spans for the current buffer's language."""
@@ -271,8 +270,8 @@ class RenderMixin:
             if language is not None:
                 return syntax_spans(None, line, language)
             return markdown_spans(self.buf.lines, line, y)
-        language = language_for_path(self.buf.path, self.buf.lines[0])
-        return syntax_spans(self.buf.path, line, language)
+        filetype = self._effective_filetype()
+        return syntax_spans(None, line, filetype) if filetype != "text" else ()
 
     def _search_spans(self, line):
         """Return persistent or live-preview search spans for a buffer line."""

@@ -4229,6 +4229,77 @@ def test_extensionless_shebang_enables_shell_rendering():
     print("  PASS: extensionless shebang enables shell rendering")
 
 
+# ── Phase 69: per-buffer file types ────────────────────────────────────────
+
+def test_filetype_command_forces_language():
+    """:ft forces syntax highlighting independently of the filename."""
+    path = write_named_temp("def greet():\n    return True\n", ".txt")
+    screen, _, code = run_vig(b":ft python\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "\x1b[94mdef\x1b[m" in screen
+    assert "\x1b[1;36mgreet\x1b[m" in screen
+    print("  PASS: filetype command forces language")
+
+
+def test_filetype_text_disables_syntax():
+    """:ft text suppresses otherwise automatic syntax highlighting."""
+    path = write_named_temp("def greet():\n", ".py")
+    screen, _, code = run_vig(b":ft text\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "\x1b[94mdef\x1b[m" not in last_frame(screen)
+    print("  PASS: filetype text disables syntax")
+
+
+def test_filetype_auto_redetects_and_reports():
+    """:ft auto clears an override and bare :ft reports effective type and source."""
+    path = write_named_temp("def greet():\n", ".py")
+    screen, _, code = run_vig(b":ft text\r:ft auto\r:ft\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "filetype=python (auto)" in screen
+    assert "\x1b[94mdef\x1b[m" in screen
+    print("  PASS: filetype auto redetects and reports")
+
+
+def test_filetype_markdown_controls_presentation():
+    """Markdown and text overrides enable and disable presentation respectively."""
+    path = write_named_temp("# heading\n```\ncode\n```\n", ".txt")
+    screen, _, code = run_vig(b":set markdownfences\r:ft markdown\r:ft\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "filetype=markdown (forced)" in screen
+    assert "\x1b[1;36m# heading\x1b[m" in screen and "[MD]" in screen
+    assert "```" not in last_frame(screen)
+
+    path = write_named_temp("# heading\n", ".md")
+    screen, _, code = run_vig(b":md\r:ft text\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "[MD]" not in last_frame(screen)
+    print("  PASS: filetype Markdown controls presentation")
+
+
+def test_filetype_override_persists_per_buffer_and_reload():
+    """Overrides survive reload and remain isolated across buffer switches."""
+    with tempfile.TemporaryDirectory() as d:
+        shell_path = os.path.join(d, "commands.txt")
+        py_path = os.path.join(d, "code.py")
+        open(shell_path, "w").write("if test $HOME; then echo ok; fi\n")
+        open(py_path, "w").write("def greet():\n")
+        keys = f":ft bash\r:e!\r:e {py_path}\r:p\r:ft\r:q!\r:q\r"
+        screen, _, code = run_vig(keys, file_path=shell_path)
+    assert code == 0 and "filetype=bash (forced)" in screen
+    assert "\x1b[94mif\x1b[m" in screen and "\x1b[95m$HOME\x1b[m" in screen
+    print("  PASS: filetype override persists per buffer and reload")
+
+
+def test_filetype_rejects_unknown_value():
+    """Unknown file-type names report an error without changing detection."""
+    path = write_named_temp("def greet():\n", ".py")
+    screen, _, code = run_vig(b":ft ruby\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "Unknown file type: ruby" in screen
+    assert "\x1b[94mdef\x1b[m" in screen
+    print("  PASS: filetype rejects unknown value")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4713,6 +4784,14 @@ def main():
             test_extensionless_shell_shebang_detection,
             test_extension_and_unsupported_shebang_precedence,
             test_extensionless_shebang_enables_shell_rendering,
+        ]),
+        ("69", "Phase 69 — per-buffer file types", [
+            test_filetype_command_forces_language,
+            test_filetype_text_disables_syntax,
+            test_filetype_auto_redetects_and_reports,
+            test_filetype_markdown_controls_presentation,
+            test_filetype_override_persists_per_buffer_and_reload,
+            test_filetype_rejects_unknown_value,
         ]),
     ]
 

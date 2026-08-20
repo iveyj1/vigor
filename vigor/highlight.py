@@ -225,6 +225,14 @@ def language_for_path(path, first_line=""):
     return "bash" if SHELL_SHEBANG_RE.match(first_line) else None
 
 
+def filetype_for_path(path, first_line=""):
+    """Return an automatically detected file type, falling back to text."""
+    extension = os.path.splitext(path or "")[1].lower()
+    if extension in (".md", ".markdown"):
+        return "markdown"
+    return language_for_path(path, first_line) or "text"
+
+
 def syntax_spans(path, line, language=None):
     """Return line-local syntax spans in source coordinates."""
     lexer = LANGUAGE_LEXERS.get(language or language_for_path(path))

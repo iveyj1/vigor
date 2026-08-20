@@ -39,6 +39,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.md_lines = bs.md_lines
         self.md_maps = bs.md_maps
         self.md_languages = bs.md_languages
+        self.filetype_override = bs.filetype_override
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
@@ -343,6 +344,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         bs.wrap_skip = self._wrap_skip
         bs.md_view, bs.md_lines, bs.md_maps = self.md_view, self.md_lines, self.md_maps
         bs.md_languages = self.md_languages
+        bs.filetype_override = self.filetype_override
         bs._undo_stack = self._undo_stack
         bs._redo_stack = self._redo_stack
         bs._undo_save_depth = self._undo_save_depth
@@ -357,6 +359,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._wrap_skip = bs.wrap_skip
         self.md_view, self.md_lines, self.md_maps = bs.md_view, bs.md_lines, bs.md_maps
         self.md_languages = bs.md_languages
+        self.filetype_override = bs.filetype_override
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth

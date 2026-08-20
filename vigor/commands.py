@@ -12,6 +12,8 @@ from .state import BufferState, Mode
 class CommandMixin:
     """Command subsystem mixed into the application orchestrator."""
 
+    _FILETYPES = frozenset(("auto", "text", "bash", "c", "cpp", "python", "markdown"))
+
     # ── Command mode ───────────────────────────────────────────────────
 
     def _reset_history_nav(self):
@@ -255,6 +257,21 @@ class CommandMixin:
             enabled = False if cmd == "nomd" else not self.md_view
             self._set_markdown_view(enabled)
             self.msg = "markdown view on" if enabled else "markdown view off"
+            self.mode = Mode.NORMAL
+        elif cmd in ("filetype", "ft"):
+            if arg is None:
+                source = "forced" if self.filetype_override else "auto"
+                self.msg = f"filetype={self._effective_filetype()} ({source})"
+            else:
+                value = arg.strip().lower()
+                if value not in self._FILETYPES:
+                    self.msg = f"Unknown file type: {value}"
+                else:
+                    self.filetype_override = None if value == "auto" else value
+                    effective = self._effective_filetype()
+                    self._set_markdown_view(effective == "markdown")
+                    source = "auto" if value == "auto" else "forced"
+                    self.msg = f"filetype={effective} ({source})"
             self.mode = Mode.NORMAL
         elif cmd == "help":
             path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vighelp")
