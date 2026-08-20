@@ -148,9 +148,12 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
 | `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
 | `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit matched ``` or ~~~ opening/closing marker rows |
+| `:set autodetect` / `noautodetect` | enable or disable syntax and automatic Markdown recognition for subsequently opened buffers (default on) |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
+
+With `autodetect` enabled, opening `.md` or `.markdown` automatically enters Markdown presentation; reload preserves automatically detected or forced Markdown presentation. Changing `autodetect` affects only buffers opened afterward. `:ft auto` reruns detection for the current buffer, while explicit `:ft`, `:md`, and `:nomd` remain available when automatic detection is disabled.
 
 Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. Fenced code uses Bash, C, C++, or Python highlighting when the information string is `bash`/`sh`/`shell`, `c`, `cpp`/`c++`/`cc`/`cxx`, or `python`/`py`. Unknown and unlabeled fences remain unstyled code rather than receiving Markdown prose styles. Closing markers must use the opening marker character and at least its length. With `markdownfences`, matched fence-marker source rows occupy no display row, while line numbers, search, scrolling, wrapping, and mouse mapping retain source coordinates. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
 

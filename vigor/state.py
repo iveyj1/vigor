@@ -44,7 +44,7 @@ class BufferState:
 
     __slots__ = (
         "buf", "cx", "cy", "scroll", "wrap_skip",
-        "md_view", "md_lines", "md_maps", "md_languages", "filetype_override",
+        "md_view", "md_lines", "md_maps", "md_languages", "filetype_override", "autodetect",
         "_undo_stack", "_redo_stack",
         "_undo_save_depth", "_undo_branched",
     )
@@ -60,6 +60,7 @@ class BufferState:
         self.md_maps = None
         self.md_languages = None
         self.filetype_override = None
+        self.autodetect = None
         self._undo_stack = []
         self._redo_stack = []
         self._undo_save_depth = 0

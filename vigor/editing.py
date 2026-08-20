@@ -383,7 +383,9 @@ class EditingMixin:
         """Return the forced or automatically detected current-buffer type."""
         if self.filetype_override:
             return self.filetype_override
-        return filetype_for_path(self.buf.path, self.buf.lines[0])
+        if self.buffer_autodetect:
+            return filetype_for_path(self.buf.path, self.buf.lines[0])
+        return "text"
 
     def _set_markdown_view(self, enabled):
         self.md_view = enabled

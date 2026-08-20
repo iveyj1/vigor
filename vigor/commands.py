@@ -260,7 +260,8 @@ class CommandMixin:
             self.mode = Mode.NORMAL
         elif cmd in ("filetype", "ft"):
             if arg is None:
-                source = "forced" if self.filetype_override else "auto"
+                source = ("forced" if self.filetype_override else
+                          "auto" if self.buffer_autodetect else "disabled")
                 self.msg = f"filetype={self._effective_filetype()} ({source})"
             else:
                 value = arg.strip().lower()
@@ -268,6 +269,8 @@ class CommandMixin:
                     self.msg = f"Unknown file type: {value}"
                 else:
                     self.filetype_override = None if value == "auto" else value
+                    if value == "auto":
+                        self.buffer_autodetect = True
                     effective = self._effective_filetype()
                     self._set_markdown_view(effective == "markdown")
                     source = "auto" if value == "auto" else "forced"
@@ -784,6 +787,12 @@ class CommandMixin:
         elif opt == "nomarkdownfences":
             self.opt_markdownfences = False
             self.msg = "markdownfences off"
+        elif opt == "autodetect":
+            self.opt_autodetect = True
+            self.msg = "autodetect on"
+        elif opt == "noautodetect":
+            self.opt_autodetect = False
+            self.msg = "autodetect off"
         elif opt == "rghidden":
             self.opt_rghidden = True
             self.msg = "rghidden on"

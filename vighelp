@@ -54,6 +54,7 @@ OPTIONS
 :set rghidden        rg includes filenames     :set norghidden      default rg filenames
 :set hlsearch        highlight search matches  :set nohlsearch      hide search matches
 :set markdownfences  hide :md fence lines      :set nomarkdownfences show fence lines
+:set autodetect      detect syntax/Markdown    :set noautodetect    new buffers plain
 :set makeprg=CMD     build command for :make
 scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 
