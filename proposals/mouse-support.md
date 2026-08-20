@@ -2,7 +2,7 @@
 
 ### Status
 
-Phase 1 wheel scrolling is implemented on `feature/mouse-scroll`. Cursor positioning and Visual drag selection remain proposed.
+Phase 1 wheel scrolling and Phase 2 cursor positioning are implemented. Visual drag selection remains proposed.
 
 ### Summary
 
@@ -254,7 +254,7 @@ Terminal-native Shift-drag behavior should be documented rather than asserted in
 - Dispatch through `_scroll_view()` with a three-display-row step.
 - Keep `off` as default.
 
-**Phase 2 — cursor positioning**
+**Phase 2 — cursor positioning — implemented**
 
 - Add `mouse=cursor`.
 - Add one shared screen-to-buffer coordinate helper.

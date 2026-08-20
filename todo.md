@@ -13,7 +13,6 @@ These are current pain points and likely development directions. Resolve the lis
 
 1. Collapse Markdown fence-marker lines from `:md` layout instead of rendering them as blank rows; preserve source navigation, search, editing, and cursor mapping.
 1. Enhance syntax highlighting; define target languages and whether multiline lexical state is required before choosing between the current line-local regex model and a stateful scanner.
-1. Mouse-driven cursor positioning without necessarily entering Visual mode; share screen-to-buffer coordinate mapping with mouse selection.
 1. Mouse-driven characterwise Visual selection; use `proposals/mouse-support.md` and define click-versus-drag behavior.
 1. Autosave; define eligibility, delay, unnamed-buffer behavior, error reporting, atomic-write expectations, and interaction with explicit writes.
 
@@ -34,6 +33,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Add mouse cursor positioning for `mouse=cursor|visual`, sharing `ViewportLayout` mapping across wrapping, gutters, and prompt/editing modes; ignore status/message clicks.
 1. Add live `/` and `?` search preview without cursor movement; Esc clears it, invalid regexes are quiet, `hlsearch` controls persistence, and the cursor match has a distinct style.
 1. Add Phase 1 SGR mouse support with `mouse=off|scroll|cursor|visual`; wheel events scroll three display rows in every mode, and reporting restores across terminal handoffs.
 1. Add `:set wrapcol=N`; nonzero values cap wrap width in display columns and `0` follows terminal content width.

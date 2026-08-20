@@ -136,7 +136,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set comment=<str>` | set comment prefix (default `#`) |
 | `:set scrolloff=<N>` | keep N-line vertical margin around cursor |
 | `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `auto`) |
-| `:set mouse=off|scroll|cursor|visual` | SGR mouse mode; wheel scrolls three display rows (`off` default; click/drag behavior is not yet implemented) |
+| `:set mouse=off|scroll|cursor|visual` | SGR mouse mode; wheel scrolls three rows, `cursor`/`visual` clicks position the cursor (`off` default; drag selection is not yet implemented) |
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |

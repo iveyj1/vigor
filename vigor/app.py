@@ -560,6 +560,30 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     # ── Main loop ──────────────────────────────────────────────────────
 
+    def _mouse_position(self, x, y):
+        """Map a content-area mouse cell to a source position."""
+        if y < 0 or y >= self.rows:
+            return None
+        layout = self._viewport_layout()
+        hscroll = 0 if self.opt_wrap else max(
+            0, self._cursor_display_col() - layout.content_cols + 1,
+        )
+        return layout.screen_to_source(y, x, hscroll)
+
+    def _handle_mouse(self, event):
+        """Handle global wheel scrolling and configured cursor clicks."""
+        _, button, action, x, y, _modifiers = event
+        if button == "wheel":
+            self._scroll_view(-1 if action == "up" else 1, 3)
+            return
+        if self.opt_mouse not in ("cursor", "visual") or button != "left" or action != "press":
+            return
+        position = self._mouse_position(x, y)
+        if position:
+            self.cy, self.cx = position
+            self._sticky_cx = None
+            self._clamp_cursor()
+
     def run(self):
         self.term.enter_raw()
         signal.signal(signal.SIGWINCH, lambda *_: self._handle_resize())
@@ -586,9 +610,9 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     if key[0] == "PASTE":
                         self.last_key = "PASTE"
                         self.handle_paste(key[1])
-                    elif key[0] == "MOUSE" and key[1] == "wheel":
+                    elif key[0] == "MOUSE":
                         self.last_key = key
-                        self._scroll_view(-1 if key[2] == "up" else 1, 3)
+                        self._handle_mouse(key)
                     continue
                 self.last_key = key
                 if key == "CTRL_Z":
