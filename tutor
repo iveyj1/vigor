@@ -482,8 +482,8 @@ Remember these deliberate differences:
   - Esc from Insert mode leaves the cursor exactly in place.
   - The cursor may sit one position past the end of a logical line.
   - There is one unnamed register, with no named registers or macros.
-  - Runtime behavior is implemented in one Python file with no curses or
-    third-party dependencies.
+  - Runtime behavior uses compact Python modules with no curses or
+    third-party Python dependencies.
   - Only the commands described by :help and reference.md are supported.
 
 

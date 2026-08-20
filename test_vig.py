@@ -3216,13 +3216,13 @@ def test_install_stamps_build_identification():
         env["VIG_INSTALL_DIR"] = d
         result = subprocess.run([os.path.join(os.path.dirname(VIG), "scripts", "install")],
                                 cwd=os.path.dirname(VIG), env=env, capture_output=True, text=True)
-        installed = open(os.path.join(d, "vig.py")).read()
+        installed = open(os.path.join(d, "vigor", "__init__.py")).read()
         diagnostics_installed = os.access(os.path.join(d, "vig-diagnostics"), os.X_OK)
     assert result.returncode == 0, result.stderr
     assert diagnostics_installed
     assert 'VERSION = "0.1.0"' in installed
     assert re.search(r"BUILD_ID = ['\"][0-9a-f]+ \d{4}-\d{2}-\d{2}(?: dirty)?['\"]", installed)
-    assert 'BUILD_ID = "development"' in open(VIG).read()
+    assert 'BUILD_ID = "development"' in open(os.path.join(os.path.dirname(VIG), "vigor", "__init__.py")).read()
     print("  PASS: installer stamps build identification")
 
 

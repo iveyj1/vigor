@@ -7,21 +7,25 @@
 
 ### Project Overview
 
-vigor is a compact, single-runtime-file, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party Python packages.
+vigor is a compact, module-oriented, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party Python packages.
 
-The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, multiple runtime source modules, and required external runtime tools. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers while `:md` view is active.
+The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, unnecessary abstraction, and required external runtime tools. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers while `:md` view is active.
 
 **Files**
 
-- `vig.py` — editor runtime (~3,860 lines)
-- `vig` — source-tree launcher for `vig.py`
+- `vig.py` — temporary compatibility entry point during the module migration
+- `vig` — source-tree launcher
+- `vigor/app.py` — current editor orchestration and editing implementation
+- `vigor/state.py` — buffer content and per-buffer state
+- `vigor/terminal.py` — raw terminal ownership and input decoding
+- `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — terse help buffer opened by `:help`
 - `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 290 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
 - `todo.md` — active, deferred, and completed work
-- `proposals/` — accepted and deferred feature designs
+- `proposals/` — accepted and deferred feature designs, including `module-architecture.md`
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `scripts/install` — installs the runtime, launcher, and help file while stamping build identification
 - `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper
@@ -37,7 +41,7 @@ Do not commit or check in changes unless the user explicitly resumes check-ins. 
 
 **Keep it compact.** Every feature and every line of code must justify its existence. Compact now means proportionate to the implemented feature set, not adherence to the original prototype's size.
 
-**One runtime file, for now.** The editor runtime remains in `vig.py`; the launcher, help text, tests, proposals, and optional tooling are separate files. Classes and functions use visual section markers (`# ── Section ──`). Because the runtime has become highly cross-cutting, reassess this constraint before another substantial feature rather than assuming one file is always the simpler architecture.
+**Module-oriented runtime.** Runtime code is migrating into the `vigor` package according to `proposals/module-architecture.md`. Keep dependency direction explicit, avoid circular imports, and prefer cohesive modules over either one monolith or many tiny files. `vig.py` is only a temporary compatibility entry point.
 
 **Stdlib only.** Runtime code uses Python stdlib modules only: currently `sys`, `os`, `re`, `base64`, `termios`, `tty`, `atexit`, `signal`, `shutil`, `select`, `shlex`, `time`, `enum`, and local `subprocess` imports for shell/clipboard commands. No pip packages. No curses. Tests add PTY/tempfile/terminal-control helpers.
 
@@ -87,9 +91,9 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **BufferState** — bundles a `Buffer` with per-buffer state: cursor position (`cx`, `cy`), logical-line scroll offset, wrapped-row top offset (`wrap_skip`), Markdown presentation state/projection (`md_view`, `md_lines`, `md_maps`), and undo/redo history (`_undo_stack`, `_redo_stack`, `_undo_save_depth`, `_undo_branched`). Uses `__slots__` for efficiency. Created once per opened file. Opening or creating a buffer replaces an untouched initial unnamed buffer rather than retaining it.
 
-**Editor** — top-level state container. Holds a list of `BufferState` objects (`self.buffers`) and a current index (`self.buf_idx`). Working attributes (`self.buf`, `self.cx`, `self.cy`, `self.scroll`, undo stacks) point to the current buffer's state. `_save_buf_state()` syncs working attrs back to the current `BufferState`; `_load_buf_state(idx)` loads from a `BufferState` into working attrs; `_switch_buffer(idx)` does save + load + clamp + scroll + reset mode. Also holds current mode, command-line input, status message, visual anchor, terminal dimensions, count prefix accumulator, and run flag. One instance, created in `main()`. The unnamed register is shared across all buffers.
+**Editor** — top-level state container in `vigor/app.py`. Holds a list of `BufferState` objects (`self.buffers`) and a current index (`self.buf_idx`). Working attributes (`self.buf`, `self.cx`, `self.cy`, `self.scroll`, undo stacks) point to the current buffer's state. `_save_buf_state()` syncs working attrs back to the current `BufferState`; `_load_buf_state(idx)` loads from a `BufferState` into working attrs; `_switch_buffer(idx)` does save + load + clamp + scroll + reset mode. Also holds current mode, command-line input, status message, visual anchor, terminal dimensions, count prefix accumulator, and run flag. One instance, created in `main()`. The unnamed register is shared across all buffers.
 
-**Terminal** — manages raw mode via `termios`, reads keys one at a time with escape sequence decoding, and restores terminal state on exit via `atexit`.
+**Terminal** — `vigor/terminal.py` manages raw mode via `termios`, reads keys one at a time with escape sequence decoding, and restores terminal state on exit via `atexit`.
 
 **Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of: content rows (with optional line number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. Rendering is split into `_render_line` (handles wrap/truncate for a buffer line, prepends gutter) and `_render_visible` (applies line-local regex syntax spans and selection highlighting to a visible segment). Markdown presentation builds per-buffer projected display lines and source-to-display maps; it styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. Any mutation disables the projection before editing.
 
