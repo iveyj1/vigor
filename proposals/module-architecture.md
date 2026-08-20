@@ -2,7 +2,7 @@
 
 ### Status
 
-Implementation in progress on `architecture/module-split`. Package entry-point, state, terminal, highlighting, layout, buffer editing, command, and mode boundaries are in place; further orchestration cleanup remains.
+Module split implemented on `architecture/module-split`; pending review and merge. Follow-up cleanup of remaining no-op undo boundaries is tracked separately from the structural migration.
 
 The installed editor may contain multiple source files. Python stdlib-only and raw-ANSI constraints remain. No packaging framework or pip installation is required.
 
@@ -68,7 +68,7 @@ The application loop owns deadlines for splash dismissal, yank flash, and future
 
 ### Migration Phases
 
-**Phase A — package scaffold and low-coupling state**
+**Phase A — package scaffold and low-coupling state — complete**
 
 - Add `vigor` package and module entry point.
 - Extract `Buffer`, `BufferState`, and `Terminal` without behavioral changes.
@@ -76,25 +76,25 @@ The application loop owns deadlines for splash dismissal, yank flash, and future
 - Keep a temporary `vig.py` entry point.
 - Update installation and build stamping.
 
-**Phase B — highlighting and presentation**
+**Phase B — highlighting and presentation — complete**
 
 - Extract syntax, search-span, and Markdown projection logic.
 - Keep spans in source coordinates.
 - Preserve line-local highlighting behavior.
 
-**Phase C — shared layout**
+**Phase C — shared layout — complete**
 
 - Introduce visible-row records and bidirectional coordinate mapping.
 - Move viewport, wrap, gutter, rendering, and cursor placement together.
 - Preserve exact-width EOL and oversized-line behavior.
 
-**Phase D — editing core**
+**Phase D — editing core — structurally complete**
 
 - Extract motions, range normalization, register operations, undo, and mutations.
 - Enforce the buffer invariant that each `Buffer.lines` item contains no newline.
-- Remove no-op undo snapshots.
+- Empty-register paste no longer creates an undo snapshot; complete no-op undo cleanup is deferred as a focused behavior change.
 
-**Phase E — modes and commands**
+**Phase E — modes and commands — complete**
 
 - Split modal dispatch from editing primitives.
 - Extract ex parsing, completion, quickfix, clipboard, and subprocess execution.
