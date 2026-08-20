@@ -22,6 +22,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/layout.py` — display columns, visible viewport rows, and bidirectional coordinate mapping
 - `vigor/editing.py` — buffer-level ranges, transformations, and invariant-preserving paste
 - `vigor/commands.py` — prompts, ex commands, completion, quickfix, and subprocesses
+- `vigor/modes.py` — Normal, Insert, Visual, and Search input dispatch
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — terse help buffer opened by `:help`
 - `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 293 test functions)
@@ -109,7 +110,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Growth seams** — anticipated mouse positioning/selection and collapsed Markdown rows must share one authoritative layout that maps source positions to screen cells and screen cells back to source positions. Do not add independent coordinate calculations for each feature. Autosave should use explicit main-loop deadlines rather than a background thread. Enhanced multiline syntax highlighting would require per-line lexical state or a state cache; keep the current regex path if enhancements remain line-local.
 
-**Mode handlers** — `handle_normal`, `handle_insert`, `handle_command`, `handle_visual`. Each is a flat `if/elif` chain. The main loop dispatches based on `self.mode`.
+**Mode handlers** — `vigor.modes.ModeMixin` owns Normal, Insert, Visual, and Search dispatch; `vigor.commands.CommandMixin` owns Command dispatch. The application loop dispatches based on `self.mode`. Handlers remain direct `if/elif` chains and call editing/orchestration helpers through the composed `Editor`.
 
 **Motion dispatch** — `_exec_motion(key, n)` is the single source of truth for all motion execution (`h l j k w W b B e E` and arrow keys). It is called by `handle_normal`, `handle_visual`, and `_apply_motion` (which wraps it with cursor save/restore for operator-pending). Vertical motion preserves `_sticky_cx`, restoring the desired column after a shorter line. The `_MOTION_KEYS` frozenset provides O(1) membership checks.
 
