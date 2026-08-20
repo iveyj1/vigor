@@ -14,12 +14,12 @@ The project goal is a practical editor that remains inspectable despite a featur
 **Files**
 
 - `vig` — source-tree and installed launcher for `python3 -m vigor`
-- `vigor/app.py` — current editor orchestration and editing implementation
+- `vigor/app.py` — editor state composition, buffer orchestration, viewport control, and event loop
 - `vigor/state.py` — buffer content and per-buffer state
 - `vigor/terminal.py` — raw terminal ownership and input decoding
 - `vigor/highlight.py` — source-coordinate syntax, search, and Markdown presentation helpers
-- `vigor/layout.py` — display columns, visible viewport rows, and bidirectional coordinate mapping
-- `vigor/editing.py` — buffer-level ranges, transformations, and invariant-preserving paste
+- `vigor/layout.py` — display columns, visible rows, bidirectional coordinate mapping, and rendering
+- `vigor/editing.py` — undo, motions, operators, registers, and buffer mutations
 - `vigor/commands.py` — prompts, ex commands, completion, quickfix, and subprocesses
 - `vigor/modes.py` — Normal, Insert, Visual, and Search input dispatch
 - `vigor/__main__.py` — `python3 -m vigor` entry point
@@ -101,7 +101,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Terminal** — `vigor/terminal.py` manages raw mode via `termios`, reads keys one at a time with escape sequence decoding, and restores terminal state on exit via `atexit`.
 
-**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of content rows (with optional line-number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. `vigor.layout.ViewportLayout` produces visible rows and maps source positions to/from screen cells; `_render_visible` applies source-coordinate spans to each visible segment. `vigor.highlight` builds per-buffer Markdown display lines and source-to-display maps and returns source-coordinate search/syntax spans. Markdown presentation styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. Any mutation disables the projection before editing.
+**Rendering** — `vigor.layout.RenderMixin` performs one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of content rows (with optional line-number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. `vigor.layout.ViewportLayout` produces visible rows and maps source positions to/from screen cells; `_render_visible` applies source-coordinate spans to each visible segment. `vigor.highlight` builds per-buffer Markdown display lines and source-to-display maps and returns source-coordinate search/syntax spans. Markdown presentation styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. Any mutation disables the projection before editing.
 
 **Line numbers** — `_gutter_width()` returns the gutter width (0 when disabled, otherwise a five-column number field plus one separator, expanding when the file exceeds 99,999 lines). `_gutter_str(buf_line, gutter_width)` right-aligns absolute numbers when `relativenumber` is off. With `relativenumber`, the cursor row shows its absolute number flush left while other rows show right-aligned relative distances. Content columns are reduced by the gutter width. In wrap mode, only the first wrapped row of a line shows the number; continuation rows get blank padding.
 
@@ -111,7 +111,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Mode handlers** — `vigor.modes.ModeMixin` owns Normal, Insert, Visual, and Search dispatch; `vigor.commands.CommandMixin` owns Command dispatch. The application loop dispatches based on `self.mode`. Handlers remain direct `if/elif` chains and call editing/orchestration helpers through the composed `Editor`.
 
-**Motion dispatch** — `_exec_motion(key, n)` is the single source of truth for all motion execution (`h l j k w W b B e E` and arrow keys). It is called by `handle_normal`, `handle_visual`, and `_apply_motion` (which wraps it with cursor save/restore for operator-pending). Vertical motion preserves `_sticky_cx`, restoring the desired column after a shorter line. The `_MOTION_KEYS` frozenset provides O(1) membership checks.
+**Motion dispatch** — `vigor.editing.EditingMixin._exec_motion(key, n)` is the single source of truth for all motion execution (`h l j k w W b B e E` and arrow keys). It is called by `handle_normal`, `handle_visual`, and `_apply_motion` (which wraps it with cursor save/restore for operator-pending). Vertical motion preserves `_sticky_cx`, restoring the desired column after a shorter line. The `_MOTION_KEYS` frozenset provides O(1) membership checks.
 
 **Operator-pending** — typing `d`, `y`, or `c` in Normal mode sets `pending_op` and saves the current count in `pending_count`. The next key is treated as a motion. The operator then acts on the range from the original cursor to where the motion would land. Doubled operators (e.g., `dd`) are linewise. `_exec_operator` coordinates motion simulation (via `_apply_motion`), range normalization, and the delete/yank/change action. Text objects (`iw`, `aw`, `i(`, `a"`, etc.) are handled as a sub-state within operator-pending via `_pending_textobj`.
 

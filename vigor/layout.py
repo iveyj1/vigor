@@ -1,7 +1,28 @@
-"""Display-column and viewport layout shared by rendering and mouse input."""
+"""Display-column, viewport mapping, and full-frame rendering."""
+
+import os
+import re
+import sys
+import time
+
+from . import BUILD_ID, VERSION
+from .highlight import SEARCH_COLOR, markdown_spans, search_spans, syntax_spans
+from .state import Mode
 
 
 TABSTOP = 4
+SPLASH = (
+    " _    ___                 ",
+    "| |  / (_)___ _____  _____",
+    "| | / / / __ `/ __ \\/ ___/",
+    "| |/ / / /_/ / /_/ / /    ",
+    "|___/_/\\__, /\\____/_/     ",
+    "      /____/",
+    "  -- markdown style -- ",
+)
+SPLASH_BG = "\x1b[49m"
+SPLASH_FRAME = "\x1b[96m"
+SPLASH_FG = "\x1b[97m"
 
 
 def display_col(line, index):
@@ -113,3 +134,266 @@ class ViewportLayout:
         content_x = max(0, screen_x - self.gutter_width)
         target = min(row.display_start + content_x, len(self.view_line(row.source_y)))
         return row.source_y, self.display_to_source(row.source_y, target)
+
+
+class RenderMixin:
+    """Full-frame rendering over the shared viewport layout."""
+
+    def _gutter_width(self):
+        """Width of line number gutter (0 if line numbers disabled)."""
+        if not self.opt_number and not self.opt_relnum:
+            return 0
+        return max(5, len(str(len(self.buf.lines)))) + 1
+
+    def _gutter_str(self, buf_line, gutter_width):
+        """Format the line number string for a given buffer line."""
+        if gutter_width == 0:
+            return ""
+        width = gutter_width - 1
+        if self.opt_relnum and buf_line == self.cy:
+            return str(buf_line + 1).ljust(width) + " "
+        num = abs(buf_line - self.cy) if self.opt_relnum else buf_line + 1
+        return str(num).rjust(width) + " "
+
+    def _cursor_wrap_row(self, content_cols):
+        """Displayed wrap row for the cursor within its buffer line."""
+        return self._cursor_display_col() // content_cols if content_cols > 0 else 0
+
+    def _cursor_wrap_col(self, content_cols):
+        """Displayed wrap column for the cursor within its buffer line."""
+        return self._cursor_display_col() % content_cols if content_cols > 0 else 0
+
+    def _line_screen_rows(self, line_idx):
+        """How many screen rows does buffer line `line_idx` occupy?"""
+        if self.cols == 0:
+            return 1
+        return self._viewport_layout().line_rows(line_idx)
+
+    def _end_screen_row(self, out, cells):
+        """End a rendered row without erasing a full-width final cell."""
+        if cells < self.cols:
+            out.append("\x1b[K")
+        out.append("\r\n")
+
+    def _is_markdown_fence_line(self, line):
+        if not (self.md_view and self.opt_markdownfences) or not self.buf.path:
+            return False
+        lower = self.buf.path.lower()
+        if not (lower.endswith(".md") or lower.endswith(".markdown")):
+            return False
+        stripped = line.lstrip()
+        return stripped.startswith("```") or stripped.startswith("~~~")
+
+    def _syntax_spans(self, line, y=None):
+        """Return styled syntax spans for the current buffer's language."""
+        if self.md_view:
+            return markdown_spans(self.buf.lines, line, y)
+        return syntax_spans(self.buf.path, line)
+
+    def _search_spans(self, line):
+        """Return active search highlight spans for a buffer line."""
+        if not (self.opt_hlsearch and self.search_pattern):
+            return ()
+        try:
+            return search_spans(line, self._compile_search())
+        except re.error:
+            return ()
+
+    def _render_visible(self, visible, buf_line, col_offset, sel, out):
+        """Render a segment with line-local syntax and optional reverse video."""
+        if not visible:
+            return
+        start, end = col_offset, col_offset + len(visible)
+        line = self.buf.lines[buf_line]
+        spans = tuple((self._view_col(buf_line, sx), self._view_col(buf_line, ex), color)
+                      for sx, ex, color in self._syntax_spans(line, buf_line))
+        search_spans = tuple((self._view_col(buf_line, sx), self._view_col(buf_line, ex))
+                             for sx, ex in self._search_spans(line))
+        bounds = {start, end}
+        for sx, ex, _ in spans:
+            if sx < end and ex > start:
+                bounds.update((max(start, sx), min(end, ex)))
+        for sx, ex in search_spans:
+            if sx < end and ex > start:
+                bounds.update((max(start, sx), min(end, ex)))
+        select_start = select_end = None
+        if sel:
+            sy, sx, ey, ex = sel
+            if sy <= buf_line <= ey:
+                select_start = max(start, self._view_col(buf_line, sx) if buf_line == sy else start)
+                select_end = min(end, self._view_col(buf_line, ex) if buf_line == ey else end)
+                if select_start < select_end:
+                    bounds.update((select_start, select_end))
+        spans = iter(spans)
+        active = next(spans, None)
+        for left, right in zip(sorted(bounds), sorted(bounds)[1:]):
+            while active and active[1] <= left:
+                active = next(spans, None)
+            color = active[2] if active and active[0] <= left < active[1] else ""
+            searched = any(sx <= left < ex for sx, ex in search_spans)
+            selected = select_start is not None and select_start <= left < select_end
+            if color:
+                out.append(color)
+            if searched:
+                out.append(SEARCH_COLOR)
+            if selected:
+                out.append("\x1b[7m")
+            out.append(visible[left - start:right - start])
+            if color or searched or selected:
+                out.append("\x1b[m")
+
+    def _append_completion_box(self, out):
+        """Overlay centered completion menu with a rounded border."""
+        if self.mode != Mode.COMMAND or not self.comp_matches or self.cols < 8 or self.rows < 5:
+            return
+        hpad = 2
+        vpad = 1
+        max_items = max(1, self.rows - 4 - 2 * vpad)
+        item_rows = min(len(self.comp_matches), max_items)
+        text_w = min(max(len(n) for n in self.comp_matches), self.cols - 2 - 2 * hpad)
+        inner_w = text_w + 2 * hpad
+        box_w = inner_w + 2
+        box_h = item_rows + 2 * vpad + 2
+        top = max(1, (self.rows - box_h) // 2 + 1)
+        left = max(1, (self.cols - box_w) // 2 + 1)
+        start = max(0, min(self.comp_index - item_rows + 1, len(self.comp_matches) - item_rows))
+        out.append(f"\x1b[{top};{left}H╭" + "─" * inner_w + "╮")
+        for i in range(vpad):
+            out.append(f"\x1b[{top + 1 + i};{left}H│" + " " * inner_w + "│")
+        item_top = top + 1 + vpad
+        for row, idx in enumerate(range(start, start + item_rows), item_top):
+            text = (" " * hpad + self.comp_matches[idx][:text_w] + " " * hpad).ljust(inner_w)
+            out.append(f"\x1b[{row};{left}H│")
+            if idx == self.comp_index:
+                out.append("\x1b[7m" + text + "\x1b[m")
+            else:
+                out.append(text)
+            out.append("│")
+        bottom_pad_top = item_top + item_rows
+        for i in range(vpad):
+            out.append(f"\x1b[{bottom_pad_top + i};{left}H│" + " " * inner_w + "│")
+        out.append(f"\x1b[{top + box_h - 1};{left}H╰" + "─" * inner_w + "╯")
+
+    def _append_splash(self, out):
+        """Overlay a centered framed logo on the completed editor frame."""
+        total_rows = self.rows + 2
+        if self.cols < 2 or total_rows < 2:
+            return
+        logo_width = max(len(line) for line in SPLASH)
+        box_width = min(self.cols, max(logo_width + 2, (logo_width * 3) // 2))
+        box_height = min(total_rows, max(len(SPLASH) + 2, (len(SPLASH) * 3) // 2))
+        inner_width, inner_height = box_width - 2, box_height - 2
+        top = (2 * (total_rows - box_height)) // 10 + 1  # place box high on the screen
+        left = (self.cols - box_width) // 2 + 1
+        out.append(f"\x1b[{top};{left}H{SPLASH_BG}{SPLASH_FRAME}╭" + "─" * inner_width + "╮\x1b[m")
+
+        footer_row = inner_height - 1 if inner_height > len(SPLASH) else None
+        logo_rows = min(len(SPLASH), inner_height - (footer_row is not None))
+        logo_start = max(0, (len(SPLASH) - logo_rows) // 2)
+        logo_top = max(0, (inner_height - (footer_row is not None) - logo_rows) // 2)
+        crop = max(0, (logo_width - inner_width) // 2)
+        for i in range(inner_height):
+            text = " " * inner_width
+            if i == footer_row:
+                text = f"v{VERSION} · {BUILD_ID}"[:inner_width].center(inner_width)
+            elif logo_top <= i < logo_top + logo_rows:
+                line = SPLASH[logo_start + i - logo_top].ljust(logo_width)
+                line = line[crop:crop + inner_width]
+                text = line.center(inner_width)
+            row = top + i + 1
+            out.append(f"\x1b[{row};{left}H{SPLASH_BG}{SPLASH_FRAME}│{SPLASH_FG}{text}{SPLASH_FRAME}│\x1b[m")
+        out.append(f"\x1b[{top + box_height - 1};{left}H{SPLASH_BG}{SPLASH_FRAME}╰" + "─" * inner_width + "╯\x1b[m")
+
+    def render(self):
+        out = []
+        out.append("\x1b[?25l")  # hide cursor
+        out.append("\x1b[H")     # cursor home
+        out.append("\x1b[J")     # clear old frame before drawing leading blanks
+        out.append("\x1b[?7l")   # no autowrap during full-frame redraws
+
+        sel = self._selection_range()
+        if sel is None and self._yank_flash:
+            expires, sy, sx, ey, ex, linewise = self._yank_flash
+            if time.monotonic() < expires:
+                if linewise:
+                    sel = (sy, 0, ey, len(self.buf.lines[ey]))
+                else:
+                    sel = (sy, sx, ey, ex)
+            else:
+                self._yank_flash = None
+        layout = self._viewport_layout()
+        gw = layout.gutter_width
+        cursor_display_x = self._cursor_display_col()
+        window_hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
+        cursor_screen_y = cursor_screen_x = 0
+        cursor_position = layout.source_to_screen(self.cy, self.cx, window_hscroll)
+        if cursor_position:
+            cursor_screen_y, cursor_screen_x = cursor_position
+
+        visible_rows = layout.visible_rows(window_hscroll)
+        for row in visible_rows:
+            out.append(self._gutter_str(row.source_y, gw) if row.wrap_row == 0 else " " * gw)
+            self._render_visible(row.text, row.source_y, row.display_start, sel, out)
+            self._end_screen_row(out, gw + len(row.text))
+        screen_rows_used = len(visible_rows)
+
+        # Fill remaining rows with tildes
+        while screen_rows_used < self.rows:
+            out.append("~")
+            self._end_screen_row(out, 1)
+            screen_rows_used += 1
+
+        self._append_completion_box(out)
+        out.append(f"\x1b[{self.rows + 1};1H")
+
+        # Status bar (reverse video)
+        out.append("\x1b[7m")
+        fname = self.buf.path or "[No Name]"
+        dirty = " [+]" if self.buf.dirty else ""
+        presentation = " [MD]" if self.md_view else ""
+        mode_str = self.mode.value
+        count_str = str(self.count) if self.count > 0 else ""
+        buf_info = f"[{self.buf_idx + 1}/{len(self.buffers)}] " if len(self.buffers) > 1 else ""
+        left = f" {mode_str} | {buf_info}{fname}{dirty}{presentation}"
+        right = f" {count_str} {self.cy + 1}:{self.cx + 1} "
+        pad = self.cols - len(left) - len(right)
+        if pad < 0:
+            pad = 0
+        status = left + " " * pad + right
+        status = status[:self.cols]
+        out.append(status)
+        out.append("\x1b[m")  # reset
+        self._end_screen_row(out, len(status))
+
+        # Command / message bar
+        if self.mode == Mode.COMMAND:
+            cmd_display = (":" + self.cmd)[:self.cols]
+        elif self.mode == Mode.SEARCH:
+            prompt = "/" if self.search_dir == 1 else "?"
+            cmd_display = (prompt + self.cmd)[:self.cols]
+        else:
+            cmd_display = (self.msg[:self.cols] if self.msg else "")
+        out.append(cmd_display)
+        if len(cmd_display) < self.cols:
+            out.append("\x1b[K")
+
+        if self._splash:
+            self._append_splash(out)
+        else:
+            # Cursor shape: block for normal/visual/command, bar for insert
+            if self.mode == Mode.INSERT:
+                out.append("\x1b[6 q")  # steady bar
+            else:
+                out.append("\x1b[2 q")  # steady block
+
+            # Position real cursor (use prompt cursor while editing a prompt)
+            if self.mode in (Mode.COMMAND, Mode.SEARCH):
+                screen_y, screen_x = self.rows + 2, min(self.cols, self.cmd_cx + 2)
+            else:
+                screen_y = cursor_screen_y + 1  # 1-indexed
+                screen_x = cursor_screen_x + 1  # 1-indexed
+            out.append(f"\x1b[{screen_y};{screen_x}H")
+            out.append("\x1b[?25h")  # show cursor
+
+        sys.stdout.write("".join(out))
+        sys.stdout.flush()
