@@ -74,7 +74,9 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 
 ### Syntax Highlighting
 
-Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight line-local strings in yellow and comments in green. Multiline strings, block comments spanning lines, and heredocs are intentionally not tracked.
+Recognized Python (`.py`), C (`.c`, `.h`), C++ (`.cc`, `.cpp`, `.cxx`, `.hh`, `.hpp`, `.hxx`), and Bash (`.sh`, `.bash`) files receive automatic line-local highlighting. Recognized entities include comments, strings, numbers, keywords, constants, types, definitions, function names, decorators, preprocessor directives, and shell variables where appropriate. Multiline strings, block comments spanning lines, raw strings, and heredocs are intentionally not tracked.
+
+The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKDOWN_COLOR_NAMES` maps near the top of `vigor/highlight.py` can be edited independently.
 
 ### Search & Replace
 | Key / Command | Action |
@@ -141,12 +143,12 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
 | `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
-| `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit rows whose source starts with ``` or ~~~ |
+| `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit matched ``` or ~~~ opening/closing marker rows |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
 
-Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. With `markdownfences`, fence-marker source rows occupy no display row, while line numbers, search, scrolling, wrapping, and mouse mapping retain source coordinates. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
+Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. Fenced code uses Bash, C, C++, or Python highlighting when the information string is `bash`/`sh`/`shell`, `c`, `cpp`/`c++`/`cc`/`cxx`, or `python`/`py`. Unknown and unlabeled fences remain unstyled code rather than receiving Markdown prose styles. Closing markers must use the opening marker character and at least its length. With `markdownfences`, matched fence-marker source rows occupy no display row, while line numbers, search, scrolling, wrapping, and mouse mapping retain source coordinates. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
 
 Path semantics: all explicit relative file paths, completion, and shell commands use one process working directory. It starts as the invocation directory and changes globally with `:cd` or `:cdb`; `~` expands. Open buffer paths remain absolute. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 

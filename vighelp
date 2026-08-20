@@ -56,9 +56,9 @@ OPTIONS
 :set makeprg=CMD     build command for :make
 scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 
-.py .c .h .sh .bash  automatic string/comment highlighting
+.py .c/.h C++ .sh   line-local language highlighting
 :md aligns Markdown tables virtually; editing restores literal source
-markdownfences removes ``` and ~~~ marker rows from :md layout
+Markdown fences: python/py, bash/sh/shell, c, cpp/c++/cc/cxx syntax
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping

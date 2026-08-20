@@ -4071,14 +4071,125 @@ def test_wrapmove_skips_collapsed_fence_rows():
 
 def test_all_hidden_markdown_rows_render_safely():
     """A projection containing only hidden markers renders and exits safely."""
-    path = write_named_temp("```\n~~~\n", ".md")
+    path = write_named_temp("```\n```\n~~~\n~~~\n", ".md")
     screen, content, code = run_vig(
         b":set markdownfences\r:md\r:q\r", file_path=path,
     )
     os.unlink(path)
-    assert code == 0 and content == "```\n~~~\n"
+    assert code == 0 and content == "```\n```\n~~~\n~~~\n"
     assert "```" not in last_frame(screen) and "~~~" not in last_frame(screen)
     print("  PASS: all-hidden Markdown projection is safe")
+
+
+# ── Phase 66: enhanced language highlighting ──────────────────────────────
+
+def _syntax_tokens(path, line):
+    from vigor.highlight import syntax_spans
+    return {line[start:end]: color for start, end, color in syntax_spans(path, line)}
+
+
+def test_named_syntax_color_maps_are_complete():
+    """Semantic syntax entities resolve through an easily editable named palette."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    expected = {"comment", "string", "number", "keyword", "type", "constant",
+                "definition", "function", "decorator", "preprocessor", "variable"}
+    assert expected <= SYNTAX_COLOR_NAMES.keys()
+    assert all(name in NAMED_COLORS for name in SYNTAX_COLOR_NAMES.values())
+    print("  PASS: named syntax color maps are complete")
+
+
+def test_python_highlights_language_entities():
+    """Python recognizes decorators, definitions, keywords, constants, and numbers."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    colors = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+    decorator = _syntax_tokens("demo.py", "@pkg.route")
+    tokens = _syntax_tokens("demo.py", "async def greet(value=0x2A): return True")
+    assert decorator["@pkg.route"] == colors["decorator"]
+    assert tokens["async"] == colors["keyword"] and tokens["def"] == colors["keyword"]
+    assert tokens["greet"] == colors["definition"] and tokens["0x2A"] == colors["number"]
+    assert tokens["True"] == colors["constant"]
+    print("  PASS: Python language entities highlighted")
+
+
+def test_c_and_cpp_highlight_language_entities():
+    """C-family extensions recognize directives, types, definitions, and calls."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    colors = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+    directive = _syntax_tokens("demo.c", "#define LIMIT 0x10")
+    c_tokens = _syntax_tokens("demo.c", 'struct Item { uint32_t n; printf("x"); }')
+    cpp_tokens = _syntax_tokens("demo.hpp", "namespace demo { class Widget { constexpr bool run(); }; }")
+    assert directive["#define"] == colors["preprocessor"] and directive["0x10"] == colors["number"]
+    assert c_tokens["struct"] == colors["keyword"] and c_tokens["Item"] == colors["definition"]
+    assert c_tokens["uint32_t"] == colors["type"] and c_tokens["printf"] == colors["function"]
+    assert cpp_tokens["demo"] == colors["definition"] and cpp_tokens["Widget"] == colors["definition"]
+    assert cpp_tokens["constexpr"] == colors["keyword"] and cpp_tokens["bool"] == colors["type"]
+    assert cpp_tokens["run"] == colors["function"]
+    print("  PASS: C and C++ language entities highlighted")
+
+
+def test_bash_highlights_language_entities():
+    """Bash recognizes functions, builtins, variables, numbers, and comments."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    colors = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+    tokens = _syntax_tokens("demo.bash", "build() { local n=12; printf $HOME; # note")
+    assert tokens["build"] == colors["definition"] and tokens["local"] == colors["function"]
+    assert tokens["12"] == colors["number"] and tokens["printf"] == colors["function"]
+    assert tokens["$HOME"] == colors["variable"] and tokens["# note"] == colors["comment"]
+    print("  PASS: Bash language entities highlighted")
+
+
+# ── Phase 67: Markdown fenced-code highlighting ────────────────────────────
+
+def test_markdown_fences_highlight_supported_languages():
+    """Supported fence information strings select their language lexers."""
+    source = ("```python\ndef greet(value=42):\n    return True\n```\n"
+              "```bash\nif test $HOME; then printf \"ok\"; fi\n```\n"
+              "```c\n#define LIMIT 10\n```\n"
+              "```cpp\nconstexpr bool run();\n```\n")
+    path = write_named_temp(source, ".md")
+    screen, content, code = run_vig(
+        b":set markdownfences\r:md\r:q\r", file_path=path, rows=20,
+    )
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0 and content == source
+    assert "\x1b[94mdef\x1b[m" in frame and "\x1b[1;36mgreet\x1b[m" in frame
+    assert "\x1b[95m$HOME\x1b[m" in frame and "\x1b[95m#define\x1b[m" in frame
+    assert "\x1b[94mconstexpr\x1b[m" in frame and "\x1b[36mbool\x1b[m" in frame
+    print("  PASS: Markdown fences highlight supported languages")
+
+
+def test_markdown_fence_language_aliases():
+    """Documented short fence names map to the four supported lexers."""
+    from vigor.highlight import MD_FENCE, markdown_fence_languages
+    lines = ["```py", "x", "```", "```sh", "x", "```", "```c++", "x", "```"]
+    languages = markdown_fence_languages(lines)
+    assert languages[0] is MD_FENCE and languages[2] is MD_FENCE
+    assert languages[1] == "python" and languages[4] == "bash" and languages[7] == "cpp"
+    print("  PASS: Markdown fence language aliases")
+
+
+def test_unknown_fence_suppresses_markdown_prose_styles():
+    """Unknown fenced code remains literal and is not styled as Markdown prose."""
+    source = "# title\n```text\n# code, not a heading\ndef plain():\n```\n"
+    path = write_named_temp(source, ".md")
+    screen, _, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0 and "\x1b[1;36m# title\x1b[m" in frame
+    assert "\x1b[1;36m# code, not a heading\x1b[m" not in frame
+    assert "\x1b[94mdef\x1b[m" not in frame
+    print("  PASS: unknown fences suppress Markdown prose styles")
+
+
+def test_markdown_fence_matching_respects_marker_kind_and_length():
+    """Only a same-kind, sufficiently long marker closes a fenced block."""
+    from vigor.highlight import MD_FENCE, markdown_fence_languages
+    lines = ["~~~~python", "```", "def value():", "~~~", "~~~~"]
+    languages = markdown_fence_languages(lines)
+    assert languages[0] is MD_FENCE and languages[4] is MD_FENCE
+    assert languages[1:4] == ["python", "python", "python"]
+    print("  PASS: Markdown fence matching respects marker and length")
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
@@ -4548,6 +4659,18 @@ def main():
             test_mouse_wheel_counts_collapsed_display_rows,
             test_wrapmove_skips_collapsed_fence_rows,
             test_all_hidden_markdown_rows_render_safely,
+        ]),
+        ("66", "Phase 66 — enhanced language highlighting", [
+            test_named_syntax_color_maps_are_complete,
+            test_python_highlights_language_entities,
+            test_c_and_cpp_highlight_language_entities,
+            test_bash_highlights_language_entities,
+        ]),
+        ("67", "Phase 67 — Markdown fenced-code highlighting", [
+            test_markdown_fences_highlight_supported_languages,
+            test_markdown_fence_language_aliases,
+            test_unknown_fence_suppresses_markdown_prose_styles,
+            test_markdown_fence_matching_respects_marker_kind_and_length,
         ]),
     ]
 
