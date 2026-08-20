@@ -57,6 +57,7 @@ OPTIONS
 scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 
 .py .c/.h C++ .sh   line-local language highlighting
+extensionless bash/sh shebangs select shell highlighting
 :md aligns Markdown tables virtually; editing restores literal source
 Markdown fences: python/py, bash/sh/shell, c, cpp/c++/cc/cxx syntax
 

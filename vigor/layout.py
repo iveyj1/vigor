@@ -7,8 +7,8 @@ import time
 
 from . import BUILD_ID, VERSION
 from .highlight import (
-    CURRENT_SEARCH_COLOR, MD_FENCE, SEARCH_COLOR, literal_ignorecase, markdown_spans,
-    search_spans, syntax_spans,
+    CURRENT_SEARCH_COLOR, MD_FENCE, SEARCH_COLOR, language_for_path,
+    literal_ignorecase, markdown_spans, search_spans, syntax_spans,
 )
 from .state import Mode
 
@@ -271,7 +271,8 @@ class RenderMixin:
             if language is not None:
                 return syntax_spans(None, line, language)
             return markdown_spans(self.buf.lines, line, y)
-        return syntax_spans(self.buf.path, line)
+        language = language_for_path(self.buf.path, self.buf.lines[0])
+        return syntax_spans(self.buf.path, line, language)
 
     def _search_spans(self, line):
         """Return persistent or live-preview search spans for a buffer line."""

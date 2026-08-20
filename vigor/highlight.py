@@ -99,6 +99,9 @@ LANGUAGE_ALIASES = {
 }
 MD_FENCE = object()
 MD_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
+SHELL_SHEBANG_RE = re.compile(
+    r"^#!\s*(?:(?:\S*/)?env(?:\s+-S)?\s+)?(?:\S*/)?(?:bash|sh)(?=\s|$)"
+)
 
 
 def expand_with_map(line, padding=None):
@@ -213,9 +216,13 @@ def markdown_spans(lines, line, y):
                  if ch == "|" and (i == 0 or line[i - 1] != "\\"))
 
 
-def language_for_path(path):
-    """Return the supported language name selected by a file extension."""
-    return EXTENSION_LANGUAGES.get(os.path.splitext(path or "")[1].lower())
+def language_for_path(path, first_line=""):
+    """Select a language by extension, then an extensionless shell shebang."""
+    extension = os.path.splitext(path or "")[1].lower()
+    language = EXTENSION_LANGUAGES.get(extension)
+    if language or extension or not path:
+        return language
+    return "bash" if SHELL_SHEBANG_RE.match(first_line) else None
 
 
 def syntax_spans(path, line, language=None):
