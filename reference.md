@@ -141,12 +141,12 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
 | `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
-| `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, render lines starting with ``` or ~~~ as blank |
+| `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit rows whose source starts with ``` or ~~~ |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
 
-Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
+Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. With `markdownfences`, fence-marker source rows occupy no display row, while line numbers, search, scrolling, wrapping, and mouse mapping retain source coordinates. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
 
 Path semantics: all explicit relative file paths, completion, and shell commands use one process working directory. It starts as the invocation directory and changes globally with `:cd` or `:cdb`; `~` expands. Open buffer paths remain absolute. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 

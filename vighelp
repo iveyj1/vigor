@@ -58,7 +58,7 @@ scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 
 .py .c .h .sh .bash  automatic string/comment highlighting
 :md aligns Markdown tables virtually; editing restores literal source
-markdownfences hides ``` and ~~~ marker lines in :md Markdown view
+markdownfences removes ``` and ~~~ marker rows from :md layout
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping

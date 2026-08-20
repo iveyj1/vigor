@@ -455,60 +455,19 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self.cx = line_len
 
     def _move_view_top(self, delta):
-        """Move the viewport top by one logical line or wrapped display row."""
-        if not self.opt_wrap:
-            new = max(0, min(self.scroll + delta, max(0, len(self.buf.lines) - self.rows)))
-            moved = new != self.scroll
-            self.scroll, self._wrap_skip = new, 0
-            return moved
-        self.scroll = max(0, min(self.scroll, len(self.buf.lines) - 1))
-        self._wrap_skip = min(self._wrap_skip, self._line_screen_rows(self.scroll) - 1)
-        if delta > 0:
-            if self._wrap_skip + 1 < self._line_screen_rows(self.scroll):
-                self._wrap_skip += 1
-            elif self.scroll < len(self.buf.lines) - 1:
-                self.scroll += 1
-                self._wrap_skip = 0
-            else:
-                return False
-        elif self._wrap_skip > 0:
-            self._wrap_skip -= 1
-        elif self.scroll > 0:
-            self.scroll -= 1
-            self._wrap_skip = self._line_screen_rows(self.scroll) - 1
-        else:
-            return False
-        return True
+        """Move the viewport top by one displayed row."""
+        self.scroll, self._wrap_skip, moved = self._viewport_layout().move_top(delta)
+        return moved
 
     def _cursor_view_row(self):
         """Return the cursor's display row relative to the viewport top."""
-        if not self.opt_wrap:
-            return self.cy - self.scroll
-        if self.cy < self.scroll:
-            return -1
-        if self.cy == self.scroll:
-            return self._cursor_wrap_row(self._wrap_cols()) - self._wrap_skip
-        row = self._line_screen_rows(self.scroll) - self._wrap_skip
-        for y in range(self.scroll + 1, self.cy):
-            row += self._line_screen_rows(y)
-        return row + self._cursor_wrap_row(self._wrap_cols())
+        return self._viewport_layout().source_view_row(self.cy, self.cx)
 
     def _position_at_view_row(self, target, col):
         """Move cursor to a viewport display row, preserving column where possible."""
-        if not self.opt_wrap:
-            self.cy = min(self.scroll + target, len(self.buf.lines) - 1)
-            self.cx = self._view_index(self.cy, col)
-            return
-        y, wrap_row = self.scroll, self._wrap_skip
-        while y < len(self.buf.lines) - 1:
-            available = self._line_screen_rows(y) - wrap_row
-            if target < available:
-                break
-            target -= available
-            y, wrap_row = y + 1, 0
-        wrap_row += target
-        self.cy = y
-        self.cx = self._view_index(y, wrap_row * self._wrap_cols() + col)
+        position = self._viewport_layout().position_at_view_row(target, col)
+        if position:
+            self.cy, self.cx = position
 
     def _scroll_view(self, delta, n=1):
         """Scroll viewport by display rows, moving cursor only to keep it visible."""
@@ -527,33 +486,23 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     def _center_cursor(self):
         """Center cursor vertically as closely as file boundaries permit."""
-        if not self.opt_wrap:
-            self.scroll = max(0, min(self.cy - self.rows // 2,
-                                     max(0, len(self.buf.lines) - self.rows)))
-            self._wrap_skip = 0
+        layout = self._viewport_layout()
+        target = layout.nearest_visible(self.cy, 1)
+        if target is None:
             return
-        self.scroll = self.cy
-        self._wrap_skip = self._cursor_wrap_row(self._wrap_cols())
+        self.scroll = target
+        self._wrap_skip = (self._cursor_wrap_row(self._wrap_cols())
+                           if self.opt_wrap and target == self.cy else 0)
         for _ in range(self.rows // 2):
             if not self._move_view_top(-1):
                 break
 
     def _ensure_scroll(self):
         """Adjust viewport only as far as needed to keep cursor visible."""
-        if not self.opt_wrap:
-            self._wrap_skip = 0
-            max_scroll = max(0, len(self.buf.lines) - self.rows)
-            margin = min(self.opt_scrolloff, max(0, (self.rows - 1) // 2))
-            if self.cy < self.scroll + margin:
-                self.scroll = self.cy - margin
-            elif self.cy > self.scroll + self.rows - 1 - margin:
-                self.scroll = self.cy - (self.rows - 1 - margin)
-            self.scroll = max(0, min(self.scroll, max_scroll))
+        origin, skip = self._viewport_layout().origin()
+        if origin is None:
             return
-        self.scroll = max(0, min(self.scroll, len(self.buf.lines) - 1))
-        self._wrap_skip = max(0, min(self._wrap_skip, self._line_screen_rows(self.scroll) - 1))
-        if self.cy < self.scroll:
-            self.scroll, self._wrap_skip = self.cy, 0
+        self.scroll, self._wrap_skip = origin, skip
         margin = min(self.opt_scrolloff, max(0, (self.rows - 1) // 2))
         row = self._cursor_view_row()
         while row < margin and self._move_view_top(-1):

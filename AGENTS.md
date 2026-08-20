@@ -9,7 +9,7 @@
 
 vigor is a compact, module-oriented, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party Python packages.
 
-The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, unnecessary abstraction, and required external runtime tools. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers while `:md` view is active.
+The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, unnecessary abstraction, and required external runtime tools. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding removes ```/~~~ marker rows from Markdown layout while `:md` view is active, without changing source text.
 
 **Files**
 
@@ -24,7 +24,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/modes.py` — Normal, Insert, Visual, and Search input dispatch
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — terse help buffer opened by `:help`
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 310 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 317 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -103,7 +103,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Terminal** — `vigor/terminal.py` manages raw mode via `termios`, reads keys and structured paste/mouse events with escape-sequence decoding, and restores terminal state on exit via `atexit`. Mouse reporting is disabled on exit, suspension, and temporary handoff, then restored with raw mode.
 
-**Rendering** — `vigor.layout.RenderMixin` performs one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of content rows (with optional line-number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. `vigor.layout.ViewportLayout` produces visible rows and maps source positions to/from screen cells; `_render_visible` applies source-coordinate spans to each visible segment. `vigor.highlight` builds per-buffer Markdown display lines and source-to-display maps and returns source-coordinate search/syntax spans. Markdown presentation styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. Any mutation disables the projection before editing.
+**Rendering** — `vigor.layout.RenderMixin` performs one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of content rows (with optional line-number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. `vigor.layout.ViewportLayout` produces visible rows and maps source positions to/from screen cells; `_render_visible` applies source-coordinate spans to each visible segment. `vigor.highlight` builds per-buffer Markdown display lines and source-to-display maps and returns source-coordinate search/syntax spans. Markdown presentation styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. With `markdownfences`, `ViewportLayout` omits marker source rows from display while retaining source line numbers, search positions, mouse mapping, and wrapped scrolling. A cursor on a hidden marker maps to the nearest visible row; any mutation disables the projection before editing.
 
 **Line numbers** — `_gutter_width()` returns the gutter width (0 when disabled, otherwise a five-column number field plus one separator, expanding when the file exceeds 99,999 lines). `_gutter_str(buf_line, gutter_width)` right-aligns absolute numbers when `relativenumber` is off. With `relativenumber`, the cursor row shows its absolute number flush left while other rows show right-aligned relative distances. Content columns are reduced by the gutter width. In wrap mode, only the first wrapped row of a line shows the number; continuation rows get blank padding.
 
@@ -188,7 +188,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 310 test functions organized into 63 phase groups (selectors 1–64, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 317 test functions organized into 64 phase groups (selectors 1–65, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ### Workflow for AI Agents
