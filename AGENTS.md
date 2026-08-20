@@ -20,9 +20,10 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/terminal.py` — raw terminal ownership and input decoding
 - `vigor/highlight.py` — source-coordinate syntax, search, and Markdown presentation helpers
 - `vigor/layout.py` — display columns, visible viewport rows, and bidirectional coordinate mapping
+- `vigor/editing.py` — buffer-level ranges, transformations, and invariant-preserving paste
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — terse help buffer opened by `:help`
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 291 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 293 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -111,7 +112,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Operator-pending** — typing `d`, `y`, or `c` in Normal mode sets `pending_op` and saves the current count in `pending_count`. The next key is treated as a motion. The operator then acts on the range from the original cursor to where the motion would land. Doubled operators (e.g., `dd`) are linewise. `_exec_operator` coordinates motion simulation (via `_apply_motion`), range normalization, and the delete/yank/change action. Text objects (`iw`, `aw`, `i(`, `a"`, etc.) are handled as a sub-state within operator-pending via `_pending_textobj`.
 
-**Register and clipboard** — `_set_register(text, linewise)` stores text in the unnamed register and copies to system clipboard according to `opt_clipboard`: `osc52` (OSC 52), `auto` (best-effort external command, then OSC 52 fallback), or `off`. Yank operations briefly highlight yanked text for `opt_yankflash` milliseconds (default 300; `:set yankflash=0` disables it). When `delcopy` is set (default), delete operators update the unnamed register; with `nodelcopy`, `d{motion}` deletes without changing it and `yd{motion}` deletes while updating it. `_paste_after` / `_paste_before` insert register contents — linewise paste inserts whole lines above/below; charwise paste inserts inline. `reg_linewise` tracks whether the register holds lines or characters, which determines paste behavior.
+**Register and clipboard** — `_set_register(text, linewise)` stores text in the unnamed register and copies to system clipboard according to `opt_clipboard`: `osc52` (OSC 52), `auto` (best-effort external command, then OSC 52 fallback), or `off`. Yank operations briefly highlight yanked text for `opt_yankflash` milliseconds (default 300; `:set yankflash=0` disables it). When `delcopy` is set (default), delete operators update the unnamed register; with `nodelcopy`, `d{motion}` deletes without changing it and `yd{motion}` deletes while updating it. `_paste_after` / `_paste_before` delegate to `vigor.editing.paste`; linewise paste inserts whole lines above/below, while multiline characterwise paste splits into logical buffer lines without storing embedded newlines. `reg_linewise` tracks whether the register holds lines or characters, which determines paste behavior.
 
 **Visual edit ops** — `d`/`x`, `y`, and `c` work in both VISUAL and VISUAL_LINE modes. `_visual_delete` and `_visual_yank` normalize the selection via `_selection_range`, then delegate to `_delete_range` / `_yank_range`. After the operation, mode returns to NORMAL (or INSERT for `c`).
 
@@ -182,7 +183,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 291 test functions organized into 59 phase groups (selectors 1–60, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 293 test functions organized into 59 phase groups (selectors 1–60, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ### Workflow for AI Agents

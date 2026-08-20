@@ -844,6 +844,26 @@ def test_p_charwise_paste():
     assert content.strip() == "whello orld", f"Expected 'whello orld', got: {content!r}"
     print("  PASS: dw + p charwise paste")
 
+
+def test_multiline_charwise_paste_preserves_line_invariant():
+    """A multiline character register pastes as distinct buffer lines."""
+    path = write_temp("abc\ndef\n")
+    screen, content, code = run_vig(b"vjypdd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "aabc\ndef\n", f"Expected inserted logical row to be deleted, got: {content!r}"
+    print("  PASS: multiline charwise paste preserves logical lines")
+
+
+def test_empty_paste_does_not_create_undo_state():
+    """An empty-register paste does not keep the buffer dirty after undo."""
+    path = write_temp("abc\n")
+    screen, _, code = run_vig(b"pxu:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0, f"Expected clean quit after undo, got: {screen[-500:]!r}"
+    print("  PASS: empty paste creates no undo state")
+
+
 # ── Phase 9 — Visual Edit ─────────────────────────────────────────────────
 
 def test_visual_delete():
@@ -3800,6 +3820,8 @@ def main():
             test_C_changes_to_end,
             test_dd_on_last_line,
             test_p_charwise_paste,
+            test_multiline_charwise_paste_preserves_line_invariant,
+            test_empty_paste_does_not_create_undo_state,
         ]),
         ("9", "Phase 9 — Visual Edit", [
             test_visual_delete,

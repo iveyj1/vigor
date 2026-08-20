@@ -16,6 +16,12 @@ from .highlight import (
     ANSI_ESCAPE, SEARCH_COLOR, build_markdown_view, markdown_spans,
     search_spans, syntax_spans,
 )
+from .editing import (
+    change_case as edit_change_case,
+    delete_range as edit_delete_range,
+    paste as edit_paste,
+    yank_range as edit_yank_range,
+)
 from .layout import ViewportLayout, display_col, display_index
 from .state import BufferState
 from .terminal import Terminal
@@ -1670,39 +1676,13 @@ class Editor:
 
     def _delete_range(self, sy, sx, ey, ex, linewise=False, copy=True):
         """Delete text from (sy,sx) to (ey,ex). Returns deleted text."""
-        if not linewise and (sy, sx) == (ey, ex):
+        text, self.cy, self.cx, changed = edit_delete_range(
+            self.buf.lines, sy, sx, ey, ex, linewise,
+        )
+        if not changed:
             return ""
-        if linewise:
-            # Delete entire lines sy..ey
-            deleted = self.buf.lines[sy:ey + 1]
-            text = "\n".join(deleted)
-            del self.buf.lines[sy:ey + 1]
-            if not self.buf.lines:
-                self.buf.lines = [""]
-            self.cy = min(sy, len(self.buf.lines) - 1)
-            self.cx = 0
-            if copy:
-                self._set_register(text, linewise=True)
-        else:
-            # Character-wise delete
-            if sy == ey:
-                line = self.buf.lines[sy]
-                text = line[sx:ex]
-                self.buf.lines[sy] = line[:sx] + line[ex:]
-            else:
-                first = self.buf.lines[sy]
-                last = self.buf.lines[ey]
-                text = first[sx:]
-                for mid_y in range(sy + 1, ey):
-                    text += "\n" + self.buf.lines[mid_y]
-                text += "\n" + last[:ex]
-                # Now rebuild: keep first[:sx] + last[ex:], delete middle
-                self.buf.lines[sy] = first[:sx] + last[ex:]
-                del self.buf.lines[sy + 1:ey + 1]
-            self.cy = sy
-            self.cx = sx
-            if copy:
-                self._set_register(text, linewise=False)
+        if copy:
+            self._set_register(text, linewise=linewise)
         self.buf.dirty = True
         self._clamp_cursor()
         return text
@@ -1714,20 +1694,11 @@ class Editor:
 
     def _yank_range(self, sy, sx, ey, ex, linewise=False):
         """Yank text from (sy,sx) to (ey,ex) without deleting."""
+        text = edit_yank_range(self.buf.lines, sy, sx, ey, ex, linewise)
+        self._set_register(text, linewise=linewise)
         if linewise:
-            text = "\n".join(self.buf.lines[sy:ey + 1])
-            self._set_register(text, linewise=True)
             self._flash_yank(sy, 0, ey, len(self.buf.lines[ey]), linewise=True)
         else:
-            if sy == ey:
-                text = self.buf.lines[sy][sx:ex]
-            else:
-                parts = [self.buf.lines[sy][sx:]]
-                for mid_y in range(sy + 1, ey):
-                    parts.append(self.buf.lines[mid_y])
-                parts.append(self.buf.lines[ey][:ex])
-                text = "\n".join(parts)
-            self._set_register(text, linewise=False)
             self._flash_yank(sy, sx, ey, ex, linewise=False)
         return text
 
@@ -1746,12 +1717,8 @@ class Editor:
 
     def _change_case_range(self, sy, sx, ey, ex, func):
         """Apply func to the half-open character range without touching registers."""
-        for y in range(sy, ey + 1):
-            line = self.buf.lines[y]
-            start = sx if y == sy else 0
-            end = ex if y == ey else len(line)
-            self.buf.lines[y] = line[:start] + func(line[start:end]) + line[end:]
-        self.buf.dirty = True
+        if edit_change_case(self.buf.lines, sy, sx, ey, ex, func):
+            self.buf.dirty = True
 
     def _exec_operator(self, op, motion_key, n, extra_n=None):
         """Execute operator (d/y/c or case conversion) with a motion."""
@@ -2152,15 +2119,17 @@ class Editor:
                 self._delete_range(self.cy, self.cx, self.cy, end)
             self._enter_insert()
         elif key == "p":
-            self._start_dot(n, "p")
-            self._snapshot()
-            self._paste_after()
-            self._save_dot()
+            if self.register:
+                self._start_dot(n, "p")
+                self._snapshot()
+                self._paste_after()
+                self._save_dot()
         elif key == "P":
-            self._start_dot(n, "P")
-            self._snapshot()
-            self._paste_before()
-            self._save_dot()
+            if self.register:
+                self._start_dot(n, "P")
+                self._snapshot()
+                self._paste_before()
+                self._save_dot()
         # O/o — open line
         elif key == "o":
             self._start_dot(n, "o")
@@ -2238,34 +2207,20 @@ class Editor:
     # ── Paste ──────────────────────────────────────────────────────────
 
     def _paste_after(self):
-        if not self.register:
-            return
-        if self.reg_linewise:
-            lines = self.register.split("\n")
-            for i, line in enumerate(lines):
-                self.buf.lines.insert(self.cy + 1 + i, line)
-            self.cy += 1
-            self.cx = 0
-        else:
-            line = self.buf.lines[self.cy]
-            pos = min(self.cx + 1, len(line))
-            self.buf.lines[self.cy] = line[:pos] + self.register + line[pos:]
-            self.cx = pos + len(self.register) - 1
-        self.buf.dirty = True
+        self.cy, self.cx, changed = edit_paste(
+            self.buf.lines, self.cy, self.cx, self.register, self.reg_linewise,
+        )
+        if changed:
+            self.buf.dirty = True
+        return changed
 
     def _paste_before(self):
-        if not self.register:
-            return
-        if self.reg_linewise:
-            lines = self.register.split("\n")
-            for i, line in enumerate(lines):
-                self.buf.lines.insert(self.cy + i, line)
-            self.cx = 0
-        else:
-            line = self.buf.lines[self.cy]
-            self.buf.lines[self.cy] = line[:self.cx] + self.register + line[self.cx:]
-            self.cx = self.cx + len(self.register) - 1
-        self.buf.dirty = True
+        self.cy, self.cx, changed = edit_paste(
+            self.buf.lines, self.cy, self.cx, self.register, self.reg_linewise, before=True,
+        )
+        if changed:
+            self.buf.dirty = True
+        return changed
 
     # ── Insert mode ────────────────────────────────────────────────────
 
