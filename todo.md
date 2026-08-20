@@ -1,18 +1,32 @@
-** Sticky notes
+### Standing Guidance
 1) Do not support legacy configurations, file formats, or removed behaviors.  Remove any dead code due to changes.  There are no existing implementations or configuration files. 
 2) Review proposed changes for estimated change size.  If the net increase in number of lines of code in the runtime for an individual item exceeds about 50, notify me before implementation.
 3) If minor changes to proposed functionality would result in significant code savings, bring that to light before implementation.
 
-** Do
+### Active
 
-** On hold
+No implementation-ready item is currently specified.
+
+### Anticipated Changes
+
+These are current pain points and likely development directions. Resolve the listed semantics before implementation.
+
+1. Mouse wheel scrolling; use the staged SGR design in `proposals/mouse-support.md`.
+1. Improve visible search-hit highlighting beyond the existing optional `hlsearch` behavior; define colors, current-match treatment, and default behavior.
+1. Collapse Markdown fence-marker lines from `:md` layout instead of rendering them as blank rows; preserve source navigation, search, editing, and cursor mapping.
+1. Enhance syntax highlighting; define target languages and whether multiline lexical state is required before choosing between the current line-local regex model and a stateful scanner.
+1. Mouse-driven cursor positioning without necessarily entering Visual mode; share screen-to-buffer coordinate mapping with mouse selection.
+1. Mouse-driven characterwise Visual selection; use `proposals/mouse-support.md` and define click-versus-drag behavior.
+1. Autosave; define eligibility, delay, unnamed-buffer behavior, error reporting, atomic-write expectations, and interaction with explicit writes.
+
+### On Hold
 1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.
 1. Proposal: Optional `mouse=off|scroll|visual` SGR mouse support in two phases; see `proposals/mouse-support.md`. Wheel-only estimate 25–45 runtime lines; robust scrolling plus drag Visual selection estimate 90–140 lines.
 1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
 1. Add \v search modifier
 1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
 1. Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
-1. Proposal: Visual Block mode via Ctrl-V, with rectangle selection and d/y/I/Ctrl-A/g Ctrl-A. Requires decisions on short-line padding, blockwise register/paste semantics, numeric scope/format/progression, tabs, and whether first scope excludes A/c/r/paste/case operators. Estimated 150–250 net lines plus tests.
+1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
 1. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 1. marks
 1. configurable keymaps
@@ -20,7 +34,7 @@
 1. filtering on partially typed command entry for : command history
 1. add 'kjk' alias for <esc> in insert mode(s)
 
-** Done
+### Completed
 1. Add `:set wrapcol=N`; nonzero values cap wrap width in display columns and `0` follows terminal content width.
 1. Make `Y` behave as `y$`, and use case-insensitive matching for lowercase literal and lowercase word searches while keeping capitalized or regex searches case-sensitive.
 1. Replace the inherited Nvim/Vim tutor with an exercise-driven tutorial limited to vigor's implemented behavior and deliberate divergences.

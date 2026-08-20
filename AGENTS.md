@@ -5,42 +5,46 @@
 > No tables unless genuinely tabular data. No horizontal rules between sections.
 
 
-## Project Overview
+### Project Overview
 
-vigor is a compact, single-file, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party packages.
+vigor is a compact, single-runtime-file, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party Python packages.
 
-The project goal is a practical, small editor that remains easy to inspect, run, and modify as one file. It is no longer a tiny minimal prototype; it intentionally includes common vi-style editing features while avoiding plugin systems, macros, multiple source modules, and external runtime dependencies. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers while `:md` view is active.
+The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, multiple runtime source modules, and required external runtime tools. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers while `:md` view is active.
 
 **Files**
 
-- `vig.py` — the entire editor (~3,200 lines)
+- `vig.py` — editor runtime (~3,860 lines)
+- `vig` — source-tree launcher for `vig.py`
+- `vighelp` — terse help buffer opened by `:help`
 - `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 290 test functions)
-- `archive/PLAN.md` — retired original development plan, kept for history only
-- `AGENTS.md` — this document
-- `reference.md` — command reference
+- `AGENTS.md` — current requirements, architecture, and contributor guidance
+- `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
-- `proposals/build-diagnostics-proposal.md` — accepted diagnostic-producer and quickfix protocol
-- `proposals/mouse-support.md` — proposed mouse scrolling and Visual-selection design
-- `proposals/system-clipboard-paste.md` — proposed explicit system-clipboard import and paste design
-- `scripts/install` — installs `vig.py`/`vig`, stamping the copy with commit/date identification
+- `todo.md` — active, deferred, and completed work
+- `proposals/` — accepted and deferred feature designs
+- `archive/PLAN.md` — retired original development plan, kept for history only
+- `scripts/install` — installs the runtime, launcher, and help file while stamping build identification
 - `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper
 - `scripts/update_cloc_by_commit.sh` — saves per-commit `vig.py` cloc history to `scripts/cloc_by_commit.md`
 
-## Management
-In this chat, I'll provide requirements for numbered development phases.  When each phase is complete and functional, update AGENTS, commit the code, and move to the next phase.  Review the phases for guidance when they are provided and ask for any needed clarifications.  If a feature is asked for in the chat, add it to the requirements.
+### Management
 
-## General Guidance
+Requirements may arrive as numbered development phases. Review all supplied phases before implementation and ask any necessary questions together. Add requested features to the requirements.
 
-**Keep it compact.** Every feature and every line of code must justify its existence. If something can be left out without losing specified vi-style editing capability, leave it out.
+Do not commit or check in changes unless the user explicitly resumes check-ins. Keep completed work in a working, testable state regardless of commit policy.
 
-**One file.** The editor lives entirely in `vig.py`. Classes and functions are organized by visual section markers (`# ── Section ──`) rather than by module. This keeps the call graph obvious, searchable, and greppable.
+### General Guidance
 
-**Stdlib only.** Runtime code uses Python stdlib modules only: currently `sys`, `os`, `re`, `base64`, `termios`, `tty`, `atexit`, `signal`, `shutil`, `select`, `enum`, and local `subprocess` imports for shell/clipboard commands. No pip packages. No curses. Tests add PTY/tempfile/terminal-control helpers.
+**Keep it compact.** Every feature and every line of code must justify its existence. Compact now means proportionate to the implemented feature set, not adherence to the original prototype's size.
+
+**One runtime file, for now.** The editor runtime remains in `vig.py`; the launcher, help text, tests, proposals, and optional tooling are separate files. Classes and functions use visual section markers (`# ── Section ──`). Because the runtime has become highly cross-cutting, reassess this constraint before another substantial feature rather than assuming one file is always the simpler architecture.
+
+**Stdlib only.** Runtime code uses Python stdlib modules only: currently `sys`, `os`, `re`, `base64`, `termios`, `tty`, `atexit`, `signal`, `shutil`, `select`, `shlex`, `time`, `enum`, and local `subprocess` imports for shell/clipboard commands. No pip packages. No curses. Tests add PTY/tempfile/terminal-control helpers.
 
 **ANSI, not curses.** All terminal control uses escape sequences written to stdout. This gives us complete control over what bytes hit the terminal and keeps the rendering logic transparent.
 
 
-## Requirements
+### Requirements
 
 **Modes**
 
@@ -50,13 +54,13 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 - VISUAL / VISUAL LINE — selection with reverse video highlight
 - SEARCH — `/` or `?` prompt for pattern input, Enter executes
 
-**Normal mode commands** — `h j k l` (movement), `w W b B e E` (word motions), `gg` / `G` (go to first/last line, or line N with count), `0` (column 0), `^` (first non-blank), `$` (end of line), `Home` / `End` (start/end of line), `Ctrl-D` / `Ctrl-U` (half-page down/up), `Ctrl-E` / `Ctrl-Y` (scroll viewport down/up), `f t F T` (find char on line), `;` `,` (repeat/reverse find), `%` (match bracket), `i I a A` (enter insert), `o` / `O` (open line below/above), `v V` (enter visual), `:` (enter command), `/` `?` (search forward/backward), `*` / `#` (whole-word search under cursor forward/backward), `g*` / `g#` (partial-word search under cursor forward/backward), `n` `N` (repeat search same/opposite direction), `u` (undo), `Ctrl-R` (redo), `Ctrl-C Ctrl-C` (`:qall`), `Ctrl-C q` (`:qall!`), `.` (dot repeat last change), `x` / Delete (delete char under cursor), `X` / Backspace (delete char before cursor), `r{char}` (replace char under cursor; count replaces N chars), `s` (substitute char and enter Insert; count deletes N chars before Insert), `~` (toggle case under cursor; count applies to N chars), `g~` / `gU` / `gu` (toggle/upper/lower-case operators), `J` (join with next line), `<space>` (leader key for shortcuts: `<space>d` deletes the current buffer, `<space>w` toggles wrap, `<space>n` next buffer, `<space>N` previous buffer, `<space>c` quickfix buffer, `<space>o` opens the current quickfix location, and `<space>j` / `<space>k` open the next/previous quickfix location). All motions accept a count prefix (`3j`, `5w`, `3G`, etc.). Operators `d y c` enter operator-pending mode and combine with a motion (`dw`, `cw`, `yj`). `yd{motion}` deletes and copies, which is useful when `nodelcopy` is set. Operators also combine with text objects (`diw`, `ci(`, `da"`, etc.). Doubled operators (`dd`, `yy`, `cc`) act linewise. `>>` / `<<` indent/dedent lines by 4 spaces. `gcc` toggles line comment. Shortcuts `D Y C` operate from the cursor to end-of-line. `p` / `P` paste from the unnamed register after/before the cursor. For an unrecognized one-key Space combination, Space is a no-op and the following key is dispatched normally.
+**Normal mode commands** — `h j k l` (movement), `w W b B e E` (word motions), `gg` / `G` (go to first/last line, or line N with count), `0` (column 0), `^` (first non-blank), `$` (end of line), `Home` / `End` (start/end of line), `Ctrl-D` / `Ctrl-U` (half-page down/up), `Ctrl-E` / `Ctrl-Y` (scroll viewport down/up), `f t F T` (find char on line), `;` `,` (repeat/reverse find), `%` (match bracket), `i I a A` (enter insert), `o` / `O` (open line below/above), `v V` (enter visual), `:` (enter command), `/` `?` (search forward/backward), `*` / `#` (whole-word search under cursor forward/backward), `g*` / `g#` (partial-word search under cursor forward/backward), `n` `N` (repeat search same/opposite direction), `u` (undo), `Ctrl-R` (redo), `Ctrl-C Ctrl-C` (`:qall`), `Ctrl-C q` (`:qall!`), `.` (dot repeat last change), `x` / Delete (delete char under cursor), `X` / Backspace (delete char before cursor), `r{char}` (replace char under cursor; count replaces N chars), `s` (substitute char and enter Insert; count deletes N chars before Insert), `~` (toggle case under cursor; count applies to N chars), `g~` / `gU` / `gu` (toggle/upper/lower-case operators), `J` (join with next line), `<space>` (leader key for shortcuts: `<space>d` deletes the current buffer, `<space>w` toggles wrap, `<space>n` next buffer, `<space>N` previous buffer, `<space>c` quickfix buffer, `<space>o` opens the current quickfix location, and `<space>j` / `<space>k` open the next/previous quickfix location). Movement and editing commands accept count prefixes where documented (`3j`, `5w`, `3G`, etc.). Operators `d y c` enter operator-pending mode and combine with a motion (`dw`, `cw`, `yj`). `yd{motion}` deletes and copies, which is useful when `nodelcopy` is set. Operators also combine with text objects (`diw`, `ci(`, `da"`, etc.). Doubled operators (`dd`, `yy`, `cc`) act linewise. `>>` / `<<` indent/dedent lines by 4 spaces. `gcc` toggles line comment. Shortcuts `D Y C` operate from the cursor to end-of-line. `p` / `P` paste from the unnamed register after/before the cursor. For an unrecognized one-key Space combination, Space is a no-op and the following key is dispatched normally.
 
 **Command mode** — Left/Right, Backspace, and Delete edit the prompt, with the terminal cursor on the prompt; Up/Down browse command history and Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, `:cd`, and shell paths in `:!` commands. A single completion fills the command line; multiple matches show a centered rounded-border menu with reverse-video selection. Up/Down moves the selection, Tab/Shift-Tab advance/reverse it with wrapping, Enter copies the selected filename into the command line, and Esc hides the menu. `:new`, `:help` (open executable-directory `vighelp`), `:md` / `:markdown` (toggle non-destructive Markdown presentation), `:nomd` (literal source display), `:cd <path>` (change the single global working directory), `:cdb` (change to the focused file's directory), `:pwd` (show the working directory), `:e[dit] <path>` (adds a new buffer), `:e[dit]!` (reloads current named buffer from disk and discards unsaved changes; errors if unnamed), `:w[rite] [path]`, `:q[uit]` (closes buffer if >1, else quits; refuses if dirty), `:q!` (force), `:wq` (write and close buffer/quit), `:qa` / `:qall` / `:qa!` / `:qall!` (quit all buffers), `:n` / `:next` / `:bn` (next buffer), `:p` / `:prev` / `:bp` (prev buffer), `:ls` (list buffers), `:k` / `:bdelete` (delete buffer, blocks if dirty), `:k!` / `:bdelete!` (force delete buffer), `:[range]s/pat/repl/[g]` (substitute), `:set <option>` (set wrap/nowrap/wrapcol=N/wrapmove/nowrapmove/number/nonumber/relativenumber/norelativenumber/autoindent/noautoindent/comment=X/scrolloff=N/clipboard=osc52|auto|off/yankflash=N/delcopy/nodelcopy/rghidden/norghidden/hlsearch/nohlsearch/markdownfences/nomarkdownfences/makeprg=CMD), `:make [args]` (run `makeprg`, default `make`, into quickfix), `:qf !<cmd>` (run any diagnostic producer into quickfix), `:rg <pattern> [path]` (run `rg -n --column`, plus `-H` when `rghidden` is set, into a quickfix buffer), `:rgf [path]` (launch optional `fzf`; Enter sends all filtered ripgrep results into quickfix), `:read <file>` (insert file below cursor), `:read !<cmd>` (insert command output below cursor), `:! <cmd>` / `:!<cmd>` (run shell command and show one-line truncated output in the message bar), `:[range]!<cmd>` (pipe lines to shell command stdin and replace the range with stdout), and `:[range]!!<cmd>` / `:!!<cmd>` (pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer). Explicit relative paths resolve from the single process working directory, initially the invocation directory and changed globally by `:cd`/`:cdb`; `~` expands. Quickfix remembers its producer working directory so later directory changes do not reinterpret results. If `:w`/`:wq` targets a missing parent directory, vigor prompts to create it before writing.
 
 **Insert mode** — printable characters insert at cursor. Bracketed paste inserts pasted text literally, normalizing CRLF/CR to LF and not interpreting tabs, Esc, or newlines as typed keys. Tab inserts spaces to the next 4-column tab stop. Enter splits the line (with autoindent, copies leading whitespace). Backspace deletes backward or joins lines. Delete removes the character under cursor. Arrow keys and Home/End move the cursor via `_exec_motion`, same as in Normal mode. Esc returns to NORMAL without moving the cursor.
 
-**Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled; nonzero `wrapcol` caps wrapping at that display column, while terminal content width remains the hard maximum. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, vigor renders the initial editor frame and overlays a centered, rounded, colored rectangle approximately one and a half times the logo's width and height. A footer shows the semantic version and build identifier (`development` in source, commit/date in installed copies). The overlay remains until a keypress for an unnamed buffer, or for up to one second when command-line files are opened; the dismissing key still executes normally. An existing directory argument instead opens the directory immediately in the filename-completion menu with no splash. Other arguments open as buffers, later directory arguments are ignored, and Esc cancels directory completion without closing those buffers.
+**Full terminal** — vigor uses the entire terminal window. Content rows = terminal height minus 2 (status bar + command/message bar). Long lines are truncated by default and wrapped when `:set wrap` is enabled; nonzero `wrapcol` caps wrapping at that display column, while terminal content width remains the hard maximum. In nowrap mode, the visible window horizontally scrolls as needed to keep the cursor visible. With `wrapmove`, vertical motions (`j`/`k`/Up/Down) move by displayed rows inside wrapped lines. At startup, vigor renders the initial editor frame and overlays a horizontally centered, rounded, colored rectangle high on the screen, approximately one and a half times the logo's width and height. A footer shows the semantic version and build identifier (`development` in source, commit/date in installed copies). The overlay remains until a keypress for an unnamed buffer, or for up to two seconds when command-line files are opened; the dismissing key still executes normally. An existing directory argument instead opens the directory immediately in the filename-completion menu with no splash. Other arguments open as buffers, later directory arguments are ignored, and Esc cancels directory completion without closing those buffers.
 
 
 **Project tooling**
@@ -64,7 +68,7 @@ In this chat, I'll provide requirements for numbered development phases.  When e
 - `scripts/vig-diagnostics [--cwd DIR] <command> [args...]` runs a command directly, preserves its exit status and merged output, strips ANSI, and normalizes GCC/Clang locations and Python traceback frames to absolute quickfix paths. It is optional tooling, not an editor runtime dependency.
 - `scripts/update_cloc_by_commit.sh` records cloc counts and short commit subjects for every commit reachable from the current branch.
 
-## Divergences from vi
+### Divergences from vi
 
 vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
@@ -77,7 +81,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 **Minimal ex commands.** vi has dozens of ex commands. vigor supports only: new, edit, write, quit, wq, qa, next, prev, ls, k/bdelete, cd/cdb/pwd, set, substitute, read, bang, make, qf, rg, and rgf. Abbreviations (`:e`, `:w`, `:q`, `:r`, `:n`, `:p`, `:k`) work.
 
 
-## Architecture
+### Architecture
 
 **Buffer** — a `list[str]` where each element is one line of text (no trailing newline stored). A `path` and `dirty` flag track file association and modification state. Saving writes each line followed by `\n`.
 
@@ -92,6 +96,8 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 **Line numbers** — `_gutter_width()` returns the gutter width (0 when disabled, otherwise a five-column number field plus one separator, expanding when the file exceeds 99,999 lines). `_gutter_str(buf_line, gutter_width)` right-aligns absolute numbers when `relativenumber` is off. With `relativenumber`, the cursor row shows its absolute number flush left while other rows show right-aligned relative distances. Content columns are reduced by the gutter width. In wrap mode, only the first wrapped row of a line shows the number; continuation rows get blank padding.
 
 **Line wrap / horizontal scroll** — tabs are rendered as spaces to four-column stops, with `_display_col` / `_display_index` translating between buffer indices and display columns for cursor placement, highlighting, horizontal scrolling, and vertical sticky-column motion. When `opt_wrap` is true, each logical line is split into display rows at `_wrap_cols()`: terminal content width (total cols minus gutter), capped by nonzero `opt_wrapcol`. The one-past-EOL cursor cell participates in wrapping, so an exact-width logical line gets a blank continuation display row for EOL. `_line_screen_rows(line_idx)` computes this layout. The render loop tracks `screen_rows_used` and `cursor_screen_y`/`cursor_screen_x`; `_ensure_scroll` keeps the cursor visible. The per-buffer `_wrap_skip` skips display rows within the top logical line, persists manual viewport scrolling across buffer switches, and supports narrow resizes. With `wrapmove`, vertical motions preserve a display column and cross between the last/first display rows of adjacent logical lines symmetrically. When wrap is off, all visible buffer lines share one horizontal offset based on the cursor column.
+
+**Growth seams** — anticipated mouse positioning/selection and collapsed Markdown rows must share one authoritative layout that maps source positions to screen cells and screen cells back to source positions. Do not add independent coordinate calculations for each feature. Autosave should use explicit main-loop deadlines rather than a background thread. Enhanced multiline syntax highlighting would require per-line lexical state or a state cache; keep the current regex path if enhancements remain line-local.
 
 **Mode handlers** — `handle_normal`, `handle_insert`, `handle_command`, `handle_visual`. Each is a flat `if/elif` chain. The main loop dispatches based on `self.mode`.
 
@@ -139,7 +145,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 **Read, bang, filter, build, and ripgrep** — `:read <file>` inserts file contents below the cursor. `:read !<cmd>` inserts command output. `:! <cmd>` / `:!<cmd>` runs a shell command and shows one-line truncated output in the message bar. `:[range]!<cmd>` pipes the selected lines to a shell command and replaces the range with stdout; `:[range]!!<cmd>` does the same but opens stdout in a new unnamed buffer, with `:!!<cmd>` defaulting to the whole buffer. Filter ranges support `%`, `.`, `$`, line numbers, and `N,M`. `:qf !<cmd>` runs a shell diagnostic producer, merges stdout/stderr, strips ANSI, normalizes `path:line:message` to column 1, retains all output in quickfix, and records the producer cwd for later relative-location opening. `:make [args]` runs configurable `makeprg` through the same path without a timeout. `:rg <pattern> [path]` runs ripgrep and captures hits in the remembered quickfix buffer; no hits leave the current buffer active and show a status message. `:rgf [path]` temporarily hands the terminal to optional `fzf` for a live ripgrep picker; Enter loads all filtered rows into quickfix. `<space>o` parses `file:line:column:` under the cursor, opens/switches to that location, and shows the acted-on quickfix line in the message bar. `<space>j` / `<space>k` advance the remembered quickfix row without wrapping and open the next/previous valid location. `_exec_read(arg)`, filters, bang, and rg commands use `subprocess.run`.
 
 
-## Implementation Notes
+### Implementation Notes
 
 **Raw mode** — `tty.setraw()` disables canonical mode, echo, and signal generation. Bracketed paste is enabled while vigor owns the terminal and disabled on restore/suspend. The original `termios` attributes are saved and restored via `atexit`. The SIGWINCH handler re-queries terminal size and triggers a redraw. Ctrl-Z restores terminal state, moves the terminal cursor to the bottom line, sends `SIGTSTP` for normal job control, and re-enters raw mode when the process returns to the foreground. Ctrl-C cancels pending input/state and returns to Normal mode; in Normal mode `Ctrl-C Ctrl-C` aliases `:qall` and `Ctrl-C q` aliases `:qall!`.
 
@@ -158,7 +164,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 **Resize** — `SIGWINCH` triggers `_handle_resize`, which re-queries `shutil.get_terminal_size()`, re-clamps cursor and scroll, and calls `render()` immediately.
 
 
-## Testing
+### Testing
 
 **Harness** — each test forks a child process connected via `pty.openpty()`. The child exec's `python3 vig.py <file>`. The parent sends logical keys via `os.write()` and accumulates screen output from `os.read()` in a `bytearray`. No test framework — plain `assert`.
 
@@ -170,10 +176,10 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 290 test functions organized into 60 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 290 test functions organized into 59 phase groups (selectors 1–60, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
-## Workflow for AI Agents
+### Workflow for AI Agents
 
 **Front-load clarification.** Before starting a phase or significant change, gather all ambiguous requirements in a single batch of questions. Then proceed through implementation autonomously without stopping for confirmation on routine decisions.
 

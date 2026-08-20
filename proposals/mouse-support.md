@@ -29,6 +29,7 @@ Recommended option:
 ```vim
 :set mouse=off
 :set mouse=scroll
+:set mouse=cursor
 :set mouse=visual
 ```
 
@@ -36,11 +37,12 @@ Semantics:
 
 - `off` — do not request mouse events; preserve current terminal-native behavior.
 - `scroll` — wheel events scroll vigor; click events are ignored.
-- `visual` — wheel scrolling plus left-button click and drag into Visual mode.
+- `cursor` — wheel scrolling plus left-click cursor positioning.
+- `visual` — cursor behavior plus left-button drag into Visual mode.
 
-`off` should remain the default.
+`off` should remain the default. Cursor positioning and drag selection are separate anticipated features, so the configuration should not require Visual mode merely to place the cursor.
 
-A smaller `mouse` / `nomouse` boolean would save a few lines but would not let users request wheel handling without editor-aware selection.
+A smaller `mouse` / `nomouse` boolean would save a few lines but would not let users choose wheel-only or cursor-only handling.
 
 ### Terminal Protocol
 
@@ -149,17 +151,19 @@ Recommended initial `mouse=visual` behavior:
 
 - Translate screen coordinates to a buffer position.
 - Move the cursor there.
-- Set `visual_anchor` to that position.
-- Enter characterwise Visual mode.
+- In `mouse=visual`, remember that position as a possible drag anchor.
+- Do not enter Visual mode until a drag-motion event arrives; a click without motion remains cursor positioning.
 
-**Left-button motion**
+**Left-button motion in `mouse=visual`**
 
+- Enter characterwise Visual mode from the remembered press anchor.
 - Translate the latest coordinates.
 - Update the cursor and visible selection.
 
 **Left release**
 
-- Leave the selection active in Visual mode.
+- If dragging occurred, leave the selection active in Visual mode.
+- Otherwise, retain the positioned cursor without creating a selection.
 - Do not yank automatically.
 
 **Clicks outside content**
@@ -250,21 +254,29 @@ Terminal-native Shift-drag behavior should be documented rather than asserted in
 - Dispatch through `_scroll_view()` with a three-display-row step.
 - Keep `off` as default.
 
-**Phase 2 — Visual selection**
+**Phase 2 — cursor positioning**
 
-- Add `mouse=visual`.
+- Add `mouse=cursor`.
 - Add one shared screen-to-buffer coordinate helper.
+- Support left-click cursor placement without changing editing mode unless separately specified.
+
+**Phase 3 — Visual selection**
+
+- Add `mouse=visual` on top of cursor positioning.
 - Support left press, drag motion, and release.
-- Leave the result active in Visual mode.
+- Leave a dragged result active in Visual mode.
+- Treat a press/release without motion as cursor positioning.
 - Exclude edge autoscroll and multi-click gestures.
 
 This split lands useful wheel support with a compact first change and isolates the substantially more complex coordinate mapping and selection behavior.
 
 ### Decisions Required Before Implementation
 
-- Confirm `mouse=off|scroll|visual` names and default `off`.
+- Confirm `mouse=off|scroll|cursor|visual` names and default `off`.
 - Confirm three display rows per wheel event.
 - Confirm wheel scrolling remains active in Insert, Command, Search, and Visual modes.
-- Confirm mouse release leaves Visual mode active without yanking.
+- Define whether cursor clicks retain Insert mode and how content clicks behave while Command/Search prompts are active.
+- Confirm a click without drag only positions the cursor.
+- Confirm mouse release after dragging leaves Visual mode active without yanking.
 - Confirm Shift-drag is the documented terminal-native selection escape hatch.
 - Confirm status/message clicks are ignored.

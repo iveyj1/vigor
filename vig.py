@@ -1810,7 +1810,6 @@ class Editor:
         if self.cols < 2 or total_rows < 2:
             return
         logo_width = max(len(line) for line in SPLASH)
-# <<<<<<< HEAD
         box_width = min(self.cols, max(logo_width + 2, (logo_width * 3) // 2))
         box_height = min(total_rows, max(len(SPLASH) + 2, (len(SPLASH) * 3) // 2))
         inner_width, inner_height = box_width - 2, box_height - 2
@@ -1834,15 +1833,6 @@ class Editor:
             row = top + i + 1
             out.append(f"\x1b[{row};{left}H{SPLASH_BG}{SPLASH_FRAME}│{SPLASH_FG}{text}{SPLASH_FRAME}│\x1b[m")
         out.append(f"\x1b[{top + box_height - 1};{left}H{SPLASH_BG}{SPLASH_FRAME}╰" + "─" * inner_width + "╯\x1b[m")
-# =======
-#         top = max(1, (self.rows + 2 - len(SPLASH)) // 2)
-#         left = max(1, (self.cols - logo_width) // 2 + 1)
-#         out = ["\x1b[?25l\x1b[2J"]
-#         for row, line in enumerate(SPLASH, top):
-#             out.append(f"\x1b[{row};{left}H{line}")
-#         sys.stdout.write("".join(out))
-#         sys.stdout.flush()
-# >>>>>>> 9bec9ca (tweak splash)
 
     def render(self):
         out = []

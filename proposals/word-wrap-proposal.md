@@ -59,20 +59,15 @@ This behavior must be decided before implementation.
 
 ### Current Architecture
 
-Current wrapping uses fixed-width slices:
+Current wrapping expands tabs to display columns, then divides each logical line into fixed-width display segments. The fixed-segment assumption appears in related paths:
 
-```python
-line[0:cols], line[cols:2*cols], ...
-```
-
-The fixed-width assumption appears in four related paths:
-
-- `_line_screen_rows()` calculates rows using line length and content width.
-- `_render_line()` renders chunks beginning at fixed column multiples.
-- `render()` calculates cursor screen coordinates with division and modulo.
+- `_line_screen_rows()` calculates the number of display rows.
+- `_render_line()` renders chunks beginning at fixed display-column multiples.
+- Cursor helpers calculate wrapped row and column with division and modulo.
 - `_motion_display_row()` implements `wrapmove` using fixed row offsets.
+- `_position_at_view_row()` maps viewport rows back to source positions.
 
-Changing only `_render_line()` would render word wrapping but leave cursor placement, scrolling, and movement incorrect. All four paths must share one layout calculation.
+Changing only `_render_line()` would leave cursor placement, viewport scrolling, and movement inconsistent. These paths need one shared variable-segment layout.
 
 ### Proposed Design
 
@@ -137,13 +132,11 @@ Normal `j` and `k` behavior remains logical-line movement when `nowrapmove` is a
 
 Update `_line_screen_rows()` to return the number of calculated segments. Existing wrapped scrolling can then count word-wrapped rows consistently.
 
-### Existing Oversized-Line Limitation
+### Wrapped Viewport State
 
-Vigor stores wrapped scroll position as a logical buffer-line index. It cannot represent a viewport beginning partway through a logical line.
+Vigor now stores both a logical top line (`scroll`) and a wrapped-row offset (`wrap_skip`) per buffer. Oversized logical lines can therefore begin partway through the viewport and remain scrollable.
 
-Consequently, a single logical line taller than the entire content area cannot always keep its lower wrapped rows visible. This limitation already exists with fixed-column wrapping; word wrapping may make it more noticeable.
-
-A complete fix would add a wrapped-row offset alongside `self.scroll` and update rendering, cursor visibility, buffer switching, and resize handling. That work is separable from word-boundary wrapping but should be considered before implementation.
+A word-wrap implementation must preserve that model while replacing fixed row arithmetic with shared segment boundaries. No separate oversized-line scrolling fix is currently required.
 
 ### Option and Configuration Work
 
@@ -173,7 +166,7 @@ The implementation should explicitly handle:
 - Syntax spans crossing soft-wrap boundaries.
 - Insertions and deletions that move an existing boundary.
 
-Vigor currently treats Python characters as display columns and does not fully account for wide Unicode characters or literal tab display widths. Word wrapping can retain that existing limitation rather than expanding the scope.
+Vigor expands tabs to four-column stops and maps them back to source indices. It still treats other Python characters as one display column, so wide and combining Unicode characters are not fully supported. Word wrapping can retain that limitation rather than expanding the scope.
 
 ### Testing Plan
 
@@ -197,7 +190,7 @@ Add PTY tests for:
 - Boundary recalculation after editing.
 - Boundary recalculation after terminal resize.
 
-If oversized-line scrolling is included, add tests where one logical line occupies more display rows than the terminal content area.
+Include a regression test where one logical line occupies more display rows than the terminal content area.
 
 ### Estimated Size
 
@@ -207,8 +200,6 @@ A correct implementation integrated with rendering, cursor placement, scrolling,
 - 60–100 test lines.
 - Small documentation and option-wiring changes.
 
-Fixing the oversized-single-line scrolling limitation in the same change would likely add another 30–60 runtime lines plus tests.
-
 ### Decisions Required
 
 Before implementation, decide:
@@ -216,4 +207,3 @@ Before implementation, decide:
 1. Whether the option is named `wordwrap` / `nowordwrap` or `linebreak` / `nolinebreak`.
 2. Whether boundary whitespace is visually consumed or displayed on one of the adjacent rows.
 3. How a cursor on visually consumed whitespace is positioned.
-4. Whether oversized-single-line wrapped scrolling is fixed in the same phase or tracked separately.

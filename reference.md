@@ -8,7 +8,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 
 **Modes:** NORMAL, INSERT, VISUAL, VISUAL LINE, COMMAND, SEARCH
 
-## Movement
+### Movement
 | Key | Action |
 |-----|--------|
 | `h` `j` `k` `l` | left / down / up / right |
@@ -25,7 +25,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | Arrow keys | work in Normal, Insert, Visual |
 | Home / End | start / end of line (Normal & Insert) |
 
-## Operators + Motions / Text Objects
+### Operators + Motions / Text Objects
 | Key | Action |
 |-----|--------|
 | `d` `y` `c` + motion | delete / yank / change over motion |
@@ -47,7 +47,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `i(` `a(` `i[` `a[` `i{` `a{` | inner / around brackets |
 | `i"` `a"` `i'` `a'` | inner / around quotes |
 
-## Editing
+### Editing
 | Key | Action |
 |-----|--------|
 | `i` `I` `a` `A` | enter Insert mode (at cursor / first col / after cursor / end of line) |
@@ -61,7 +61,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `Ctrl-C q` | force quit all buffers (`:qall!`) |
 | `.` | dot-repeat last change |
 
-## Visual Mode
+### Visual Mode
 | Key | Action |
 |-----|--------|
 | `v` | enter character-wise visual |
@@ -72,11 +72,11 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `c` | change selection |
 | `gc` | toggle comment on selected lines |
 
-## Syntax Highlighting
+### Syntax Highlighting
 
 Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight line-local strings in yellow and comments in green. Multiline strings, block comments spanning lines, and heredocs are intentionally not tracked.
 
-## Search & Replace
+### Search & Replace
 | Key / Command | Action |
 |---------------|--------|
 | `/pattern` | search forward (Python regular expression), including later hits on the current line |
@@ -86,7 +86,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 | `n` / `N` | next / previous match; successful searches center when practical |
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; range: `%`, `N,M`) |
 
-## Command/Search Input
+### Command/Search Input
 - In `:` command mode, Up/Down browse command history.
 - In `/` and `?` search prompts, Up/Down browse shared search history.
 - Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, `:cd`, and shell paths in `:!` commands.
@@ -94,7 +94,7 @@ Recognized `.py`, `.c`, `.h`, `.sh`, and `.bash` files automatically highlight l
 
 Lowercase literal `/` and `?` patterns ignore case. A capital letter or any regex metacharacter makes the search case-sensitive. Lowercase `*`, `#`, `g*`, and `g#` word searches also ignore case. Repeats and `hlsearch` retain the active search's case behavior.
 
-## Ex Commands
+### Ex Commands
 | Command | Action |
 |---------|--------|
 | `:w` [path] | write file; prompts before creating missing parent directories |
@@ -147,7 +147,7 @@ Markdown presentation styles ATX headers, list markers, and valid pipe tables. T
 
 Path semantics: all explicit relative file paths, completion, and shell commands use one process working directory. It starts as the invocation directory and changes globally with `:cd` or `:cdb`; `~` expands. Open buffer paths remain absolute. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 
-## Build Diagnostics
+### Build Diagnostics
 
 `:qf !<cmd>` and `:make` retain ordinary output for context while quickfix navigation skips non-location rows. Navigable producers emit `path:line:column: message`; `path:line: message` is normalized to column 1. ANSI escapes are stripped, nonzero output is retained, and silent successful builds leave the current buffer active.
 
@@ -162,7 +162,7 @@ The optional producer wrapper normalizes GCC/Clang output and Python traceback f
 
 It executes arguments directly rather than through a shell; use `sh -c '...'` explicitly for pipelines or redirection. `--cwd DIR` changes the producer command's directory. Recognized relative GCC/Clang and Python paths become absolute. Vigor also records each quickfix producer's cwd, so later `:cd` commands do not reinterpret generic relative results. See `proposals/build-diagnostics-proposal.md` for the protocol.
 
-## Multi-Buffer
+### Multi-Buffer
 | Key / Command | Action |
 |---------------|--------|
 | `:n` `:bn` | next buffer |
@@ -180,7 +180,7 @@ For an unrecognized one-key Space combination, Space is a no-op and the followin
 Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>j`/`<space>k` navigate and open remembered quickfix items from either quickfix or source buffers. A successful open shows the acted-on quickfix line in the message bar. `<space>c` returns to quickfix.
 | Status bar `[N/M]` | shown when >1 buffer open |
 
-## Insert Mode
+### Insert Mode
 | Key | Action |
 |-----|--------|
 | Printable chars | insert at cursor |
@@ -193,14 +193,14 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 | Home / End | start / end of line |
 | Escape | return to Normal mode |
 
-## Startup Config
+### Startup Config
 - Unless `VIG_NO_CONFIG` is set, vig reads `~/.vigrc` then `$XDG_CONFIG_HOME/vig/config`.
 - `VIG_CONFIG=/path/to/file` reads only that file.
 - Lines are simple set-style options: `set number`, `relativenumber`, `scrolloff=3`, etc.
 - Blank lines and lines starting with `#` are ignored.
 
-## Terminal Features
-- Startup first renders the editor, then overlays a centered rounded logo frame. Input dismisses it and still executes; command-line file startup also dismisses it after one second.
+### Terminal Features
+- Startup first renders the editor, then overlays a horizontally centered rounded logo frame high on the screen. Input dismisses it and still executes; command-line file startup also dismisses it after two seconds.
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker
 - Existing tab characters render as spaces to four-column stops; cursor movement, wrapping, scrolling, and highlighting use those display columns

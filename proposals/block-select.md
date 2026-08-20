@@ -1,16 +1,16 @@
-## Visual Block mode and commands
- ### Current State
+# Visual Block Mode Proposal
 
- Block select was proposed but never implemented.
+### Status
 
- - Commit 272284b only recorded a proposal.
- - backlog now requests block select with highlighting and d y p c s r.
- - vig.py only has VISUAL and VISUAL_LINE.
- - Ctrl-V is currently discarded by Terminal.read_key() as an unrecognized control character.
+Proposal only. No implementation has been started, and the initial command scope remains undecided.
 
-### Required Code
+- `vig.py` only has `VISUAL` and `VISUAL_LINE`.
+- `Terminal.read_key()` currently discards Ctrl-V as an unrecognized control character.
+- `todo.md` defers the feature and points here for scope and design decisions.
 
- Core mode and rendering
+### Full Implementation
+
+**Core mode and rendering**
 
  - Add Mode.VISUAL_BLOCK.
  - Decode byte 0x16 as CTRL_V.
@@ -19,7 +19,7 @@
  - Add _block_bounds() returning normalized top, left, bottom, right coordinates.
  - Update _render_visible() to highlight the same column range on every selected line, including wrapped and horizontally scrolled lines.
 
- Block operations
+**Block operations**
 
  - d / x: remove the selected slice independently from each line, shifting remaining text left.
  - y: copy each selected row as a separate register row.
@@ -30,7 +30,7 @@
  The last item is the most involved because current Insert mode edits only one line. A block-change implementation needs to record inserted text and replicate it across selected rows,
  including handling Esc, Backspace, Delete, Enter, and bracketed paste.
 
- Register changes
+**Register changes**
 
  The register currently distinguishes only characterwise versus linewise using reg_linewise. It should become three-way:
 
@@ -40,7 +40,7 @@
 
  Blockwise paste must retain a list of rows and the rectangle width. Clipboard output can remain newline-separated text.
 
- Short-line behavior
+**Short-line behavior**
 
  Operations need defined behavior when a selected or pasted rectangle extends beyond a line’s end. Recommended Vim-like behavior:
 
@@ -49,9 +49,9 @@
  - Paste pads destination lines with spaces up to the insertion column.
  - Block change pads short lines before inserting replicated text.
 
- ### Tests and Documentation
+### Tests and Documentation
 
- Add PTY tests covering:
+Add PTY tests covering:
 
  - Ctrl-V entry and Esc exit.
  - Rectangular highlight.
@@ -66,10 +66,10 @@
 
  Update reference.md and AGENTS.md.
 
- ### Estimate
+### Estimate
 
- - Highlight plus d/y: roughly 80–120 runtime lines plus tests.
- - Full backlog (d y p c s r): roughly 180–280 runtime lines plus 100–180 test lines.
+- Highlight plus `d`/`y`: roughly 80–120 runtime lines plus tests.
+- Broader `d`/`y`/`p`/`c`/`s`/`r` scope: roughly 180–280 runtime lines plus 100–180 test lines.
  - Block change/insertion and blockwise paste account for most of the complexity.
 
  Before implementation, the main decisions are:
@@ -79,8 +79,9 @@
  3. Whether short lines are space-padded.
  4. Whether to include obvious visual aliases/operators now: x, ~, g~, gU, gu, I, and A.
 
-## Limited alternative
-### Proposed Semantics
+### Limited Alternative
+
+**Proposed semantics**
 
  Without full block mode:
 
@@ -107,7 +108,7 @@
    xy
  ```
 
- ### Code Required
+**Code required**
 
  Approximately 35–60 runtime lines:
 
@@ -120,9 +121,9 @@
 
  No register redesign, blockwise paste, new mode, or rendering changes are required.
 
- ### Tests and Documentation
+**Tests and documentation**
 
- Roughly 30–50 test lines covering:
+Roughly 30–50 test lines covering:
 
  - Default one-character deletion.
  - Counted deletion.
