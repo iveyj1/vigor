@@ -2,7 +2,7 @@
 
 ### Status
 
-Phase 1 wheel scrolling and Phase 2 cursor positioning are implemented. Visual drag selection remains proposed.
+All three phases are implemented: wheel scrolling, cursor positioning, and characterwise Visual drag selection.
 
 ### Summary
 
@@ -260,7 +260,7 @@ Terminal-native Shift-drag behavior should be documented rather than asserted in
 - Add one shared screen-to-buffer coordinate helper.
 - Support left-click cursor placement without changing editing mode unless separately specified.
 
-**Phase 3 — Visual selection**
+**Phase 3 — Visual selection — implemented**
 
 - Add `mouse=visual` on top of cursor positioning.
 - Support left press, drag motion, and release.

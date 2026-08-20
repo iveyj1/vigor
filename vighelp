@@ -48,7 +48,7 @@ OPTIONS
 :set autoindent      copy indent on new lines  :set noautoindent    disable autoindent
 :set comment=X       comment prefix             :set scrolloff=N     cursor screen margin
 :set clipboard=MODE  osc52, auto, or off       :set yankflash=N     yank highlight ms
-:set mouse=MODE      off, scroll, cursor, visual; wheel/click support
+:set mouse=MODE      off, scroll, cursor, visual; wheel/click/drag
 :set delcopy         deletes update register   :set nodelcopy       preserve register
 :set rghidden        rg includes filenames     :set norghidden      default rg filenames
 :set hlsearch        highlight search matches  :set nohlsearch      hide search matches

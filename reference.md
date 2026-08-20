@@ -136,7 +136,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set comment=<str>` | set comment prefix (default `#`) |
 | `:set scrolloff=<N>` | keep N-line vertical margin around cursor |
 | `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `auto`) |
-| `:set mouse=off|scroll|cursor|visual` | SGR mouse mode; wheel scrolls three rows, `cursor`/`visual` clicks position the cursor (`off` default; drag selection is not yet implemented) |
+| `:set mouse=off|scroll|cursor|visual` | SGR mouse mode; wheel scrolls three rows, clicks position the cursor, and `visual` enables characterwise drag selection (`off` default) |
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
@@ -203,7 +203,9 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 - Blank lines and lines starting with `#` are ignored.
 
 ### Terminal Features
-- `mouse=scroll|cursor|visual` enables SGR wheel reporting in every editor mode; reporting is disabled during exit, suspension, and temporary terminal handoff
+- `mouse=scroll|cursor|visual` enables SGR wheel reporting in every editor mode; `cursor` adds click positioning and `visual` adds characterwise drag selection
+- Mouse release leaves a dragged Visual selection active without yanking; click without drag only positions, and status/message clicks are ignored
+- Mouse reporting is disabled during exit, suspension, and temporary terminal handoff; Shift-drag remains the terminal-native selection escape hatch where supported
 - Startup first renders the editor, then overlays a horizontally centered rounded logo frame high on the screen. Input dismisses it and still executes; command-line file startup also dismisses it after two seconds.
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker

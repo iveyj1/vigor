@@ -3944,6 +3944,53 @@ def test_mouse_click_ignores_status_and_message_rows():
     print("  PASS: mouse click ignores status and message rows")
 
 
+# ── Phase 64: mouse Visual selection ──────────────────────────────────────
+
+def test_mouse_drag_creates_visual_selection():
+    """Left press and drag create a characterwise Visual selection."""
+    path = write_temp("abcde\nfghij\n")
+    keys = (b":set clipboard=off\r:set mouse=visual\r"
+            b"\x1b[<0;2;1M\x1b[<32;4;2M\x1b[<0;4;2md:wq\r")
+    screen, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "aj\n"
+    assert "VISUAL" in screen
+    print("  PASS: mouse drag creates Visual selection")
+
+
+def test_mouse_visual_drag_normalizes_reverse_selection():
+    """Dragging backward produces the same normalized Visual range."""
+    path = write_temp("abcde\nfghij\n")
+    keys = (b":set clipboard=off\r:set mouse=visual\r"
+            b"\x1b[<0;4;2M\x1b[<32;2;1M\x1b[<0;2;1md:wq\r")
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "aj\n"
+    print("  PASS: reverse mouse drag normalizes selection")
+
+
+def test_mouse_visual_click_without_drag_retains_mode():
+    """A press/release without motion remains cursor positioning, not selection."""
+    path = write_temp("one\ntwo\n")
+    keys = (b":set mouse=visual\ri"
+            b"\x1b[<0;2;2M\x1b[<0;2;2mX\x1b:wq\r")
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "one\ntXwo\n"
+    print("  PASS: mouse click without drag retains mode")
+
+
+def test_mouse_visual_release_does_not_yank():
+    """Releasing a mouse selection leaves it active without replacing the register."""
+    path = write_temp("abcde\nfghij\n")
+    keys = (b":set clipboard=off\ryy:set mouse=visual\r"
+            b"\x1b[<0;2;1M\x1b[<32;4;2M\x1b[<0;4;2m\x03P:wq\r")
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abcde\nabcde\nfghij\n"
+    print("  PASS: mouse Visual release does not yank")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4396,6 +4443,12 @@ def main():
             test_mouse_click_retains_insert_command_and_search_modes,
             test_mouse_click_uses_wrapped_and_gutter_layout,
             test_mouse_click_ignores_status_and_message_rows,
+        ]),
+        ("64", "Phase 64 — mouse Visual selection", [
+            test_mouse_drag_creates_visual_selection,
+            test_mouse_visual_drag_normalizes_reverse_selection,
+            test_mouse_visual_click_without_drag_retains_mode,
+            test_mouse_visual_release_does_not_yank,
         ]),
     ]
 
