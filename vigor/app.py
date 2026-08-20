@@ -76,6 +76,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.opt_relnum = False  # :set relativenumber
         self.opt_scrolloff = 0  # :set scrolloff=N
         self.opt_clipboard = "auto"  # :set clipboard=osc52|auto|off
+        self.opt_mouse = "off"  # :set mouse=off|scroll|cursor|visual
         self.opt_yankflash = 300  # :set yankflash=N milliseconds
         self.opt_delcopy = True  # :set delcopy/nodelcopy
         self.opt_wrapmove = False  # :set wrapmove/nowrapmove
@@ -109,7 +110,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.quickfix_cwd = os.getcwd()
         self.last_key = ""  # last decoded key read from terminal
         self._load_config()
-        self.term = Terminal()
+        self.term = Terminal(self.opt_mouse)
         self._update_size()
         self._startup_completion = startup_dir is not None
         self._splash = not self._startup_completion
@@ -581,9 +582,13 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 key = self.term.read_key()
                 if not key:
                     continue
-                if isinstance(key, tuple) and key[0] == "PASTE":
-                    self.last_key = "PASTE"
-                    self.handle_paste(key[1])
+                if isinstance(key, tuple):
+                    if key[0] == "PASTE":
+                        self.last_key = "PASTE"
+                        self.handle_paste(key[1])
+                    elif key[0] == "MOUSE" and key[1] == "wheel":
+                        self.last_key = key
+                        self._scroll_view(-1 if key[2] == "up" else 1, 3)
                     continue
                 self.last_key = key
                 if key == "CTRL_Z":

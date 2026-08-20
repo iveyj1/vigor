@@ -134,6 +134,7 @@ Lowercase literal `/` and `?` patterns ignore case. A capital letter or any rege
 | `:set comment=<str>` | set comment prefix (default `#`) |
 | `:set scrolloff=<N>` | keep N-line vertical margin around cursor |
 | `:set clipboard=osc52|auto|off` | clipboard copy mode (current default `auto`) |
+| `:set mouse=off|scroll|cursor|visual` | SGR mouse mode; wheel scrolls three display rows (`off` default; click/drag behavior is not yet implemented) |
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
@@ -200,6 +201,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 - Blank lines and lines starting with `#` are ignored.
 
 ### Terminal Features
+- `mouse=scroll|cursor|visual` enables SGR wheel reporting in every editor mode; reporting is disabled during exit, suspension, and temporary terminal handoff
 - Startup first renders the editor, then overlays a horizontally centered rounded logo frame high on the screen. Input dismisses it and still executes; command-line file startup also dismisses it after two seconds.
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker

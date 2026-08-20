@@ -5,6 +5,7 @@ set wrapcol=0
 set scrolloff=5
 # clipboard=osc52|auto|off
 set clipboard=osc52
+set mouse=off
 set yankflash=300
 set delcopy
 set wrapmove

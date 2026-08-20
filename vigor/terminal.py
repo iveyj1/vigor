@@ -2,32 +2,49 @@
 
 import atexit
 import os
+import re
 import select
 import sys
 import termios
 import tty
 
 
+MOUSE_DISABLE = "\x1b[?1002l\x1b[?1000l\x1b[?1006l"
+
+
 class Terminal:
     """Raw mode management and key reading."""
 
-    def __init__(self):
+    def __init__(self, mouse_mode="off"):
         self.fd = sys.stdin.fileno()
         self.old_attrs = termios.tcgetattr(self.fd)
+        self.mouse_mode = mouse_mode
         atexit.register(self.restore)
+
+    def _mouse_enable(self):
+        if self.mouse_mode == "off":
+            return ""
+        motion = "\x1b[?1002h" if self.mouse_mode == "visual" else ""
+        return "\x1b[?1000h" + motion + "\x1b[?1006h"
+
+    def set_mouse(self, mode):
+        """Apply configured SGR mouse reporting while the terminal is owned."""
+        self.mouse_mode = mode
+        sys.stdout.write(MOUSE_DISABLE + self._mouse_enable())
+        sys.stdout.flush()
 
     def enter_raw(self):
         tty.setraw(self.fd)
         # Disable autowrap while vigor owns the terminal. The renderer clears
         # each line after writing it; if a full-width line autowraps first,
         # that clear can hit the next row and smear scrolling/status text.
-        sys.stdout.write("\x1b[?2004h\x1b[?7l")
+        sys.stdout.write("\x1b[?2004h\x1b[?7l" + self._mouse_enable())
         sys.stdout.flush()
 
     def restore(self):
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, self.old_attrs)
-        # Disable bracketed paste, restore autowrap, show cursor, clear screen on exit
-        sys.stdout.write("\x1b[?2004l\x1b[?7h\x1b[?25h\x1b[2J\x1b[H")
+        # Disable reporting/paste, restore autowrap, show cursor, clear screen on exit.
+        sys.stdout.write(MOUSE_DISABLE + "\x1b[?2004l\x1b[?7h\x1b[?25h\x1b[2J\x1b[H")
         sys.stdout.flush()
 
     def suspend_restore(self):
@@ -43,7 +60,7 @@ class Terminal:
         attrs[6][termios.VMIN] = 1
         attrs[6][termios.VTIME] = 0
         termios.tcsetattr(self.fd, termios.TCSAFLUSH, attrs)
-        sys.stdout.write("\x1b[?2004l\x1b[?7h\x1b[0 q\x1b[?25h")
+        sys.stdout.write(MOUSE_DISABLE + "\x1b[?2004l\x1b[?7h\x1b[0 q\x1b[?25h")
         sys.stdout.flush()
 
     def read_key(self):
@@ -67,9 +84,11 @@ class Terminal:
                     seq.extend(c)
                     if 0x40 <= c[0] <= 0x7E:
                         break
-                    if len(seq) > 16:
-                        return "ESC"
+                    if len(seq) > 48:
+                        return ""
                 code = bytes(seq)
+                if code.startswith(b"<"):
+                    return self._decode_mouse(code)
                 if code == b"A":
                     return "UP"
                 if code == b"B":
@@ -126,6 +145,22 @@ class Terminal:
         if ch < 32:
             return ""
         return chr(ch)
+
+    @staticmethod
+    def _decode_mouse(code):
+        """Decode one SGR mouse sequence into a structured logical event."""
+        match = re.fullmatch(rb"<(\d+);(\d+);(\d+)([Mm])", code)
+        if not match:
+            return ""
+        value, x, y = (int(match.group(i)) for i in range(1, 4))
+        modifiers = value & (4 | 8 | 16)
+        if value & 64:
+            button = "wheel"
+            action = "down" if value & 1 else "up"
+        else:
+            button = ("left", "middle", "right", "none")[value & 3]
+            action = "release" if match.group(4) == b"m" else ("drag" if value & 32 else "press")
+        return ("MOUSE", button, action, max(0, x - 1), max(0, y - 1), modifiers)
 
     def _read_bracketed_paste(self):
         """Read bytes until the bracketed-paste end marker."""
