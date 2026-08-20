@@ -10,7 +10,7 @@ import tempfile
 import select
 import re
 
-VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig.py")
+VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig")
 VIG_DIAGNOSTICS = os.path.join(os.path.dirname(VIG), "scripts", "vig-diagnostics")
 FRAME_MARKER = b"\x1b[?25l\x1b[H"
 PASTE_START = b"\x1b[200~"
@@ -169,7 +169,7 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
             os.environ["VIG_NO_CONFIG"] = "1"
         else:
             os.environ.update(env)
-        os.execvp(sys.executable, [sys.executable, VIG] + all_paths)
+        os.execvp(VIG, [VIG] + all_paths)
         os._exit(1)
 
     os.close(slave)
@@ -630,7 +630,7 @@ def run_vig_with_resize(keys_before, keys_after, new_rows, new_cols,
         os.dup2(slave, 2)
         if slave > 2:
             os.close(slave)
-        os.execvp(sys.executable, [sys.executable, VIG, file_path])
+        os.execvp(VIG, [VIG, file_path])
         os._exit(1)
 
     os.close(slave)
@@ -2276,6 +2276,7 @@ def test_clipboard_auto_prefers_external_command():
         bindir = os.path.join(d, "bin")
         os.mkdir(bindir)
         open(path, "w").write("abc\n")
+        os.symlink(sys.executable, os.path.join(bindir, "python3"))
         xclip = os.path.join(bindir, "xclip")
         open(xclip, "w").write("#!/bin/sh\n/bin/cat > \"$CLIP_OUT\"\n")
         os.chmod(xclip, 0o755)
@@ -2384,7 +2385,7 @@ def test_ctrl_z_stops_process():
         if slave > 2:
             os.close(slave)
         os.environ["VIG_NO_CONFIG"] = "1"
-        os.execvp(sys.executable, [sys.executable, VIG, path])
+        os.execvp(VIG, [VIG, path])
         os._exit(1)
     os.close(slave)
     output = bytearray()

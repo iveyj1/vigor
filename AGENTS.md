@@ -13,8 +13,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 
 **Files**
 
-- `vig.py` — temporary compatibility entry point during the module migration
-- `vig` — source-tree launcher
+- `vig` — source-tree and installed launcher for `python3 -m vigor`
 - `vigor/app.py` — current editor orchestration and editing implementation
 - `vigor/state.py` — buffer content and per-buffer state
 - `vigor/terminal.py` — raw terminal ownership and input decoding
@@ -34,7 +33,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `scripts/install` — installs the runtime, launcher, and help file while stamping build identification
 - `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper
-- `scripts/update_cloc_by_commit.sh` — saves per-commit `vig.py` cloc history to `scripts/cloc_by_commit.md`
+- `scripts/update_cloc_by_commit.sh` — saves per-commit runtime Python cloc history to `scripts/cloc_by_commit.md`
 
 ### Management
 
@@ -46,7 +45,7 @@ Do not commit or check in changes unless the user explicitly resumes check-ins. 
 
 **Keep it compact.** Every feature and every line of code must justify its existence. Compact now means proportionate to the implemented feature set, not adherence to the original prototype's size.
 
-**Module-oriented runtime.** Runtime code is migrating into the `vigor` package according to `proposals/module-architecture.md`. Keep dependency direction explicit, avoid circular imports, and prefer cohesive modules over either one monolith or many tiny files. `vig.py` is only a temporary compatibility entry point.
+**Module-oriented runtime.** Runtime code lives in the `vigor` package according to `proposals/module-architecture.md`. Keep dependency direction explicit, avoid circular imports, and prefer cohesive modules over either one monolith or many tiny files. The `vig` launcher invokes `python3 -m vigor`.
 
 **Stdlib only.** Runtime code uses Python stdlib modules only: currently `sys`, `os`, `re`, `base64`, `termios`, `tty`, `atexit`, `signal`, `shutil`, `select`, `shlex`, `time`, `enum`, and local `subprocess` imports for shell/clipboard commands. No pip packages. No curses. Tests add PTY/tempfile/terminal-control helpers.
 
@@ -177,7 +176,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 ### Testing
 
-**Harness** — each test forks a child process connected via `pty.openpty()`. The child exec's `python3 vig.py <file>`. The parent sends logical keys via `os.write()` and accumulates screen output from `os.read()` in a `bytearray`. No test framework — plain `assert`.
+**Harness** — each test forks a child process connected via `pty.openpty()`. The child execs the `vig` launcher, which runs `python3 -m vigor`. The parent sends logical keys via `os.write()` and accumulates screen output from `os.read()` in a `bytearray`. No test framework — plain `assert`.
 
 **PTY sizing** — the harness sets the PTY window size to 24×80 via `TIOCSWINSZ` before forking. Resize tests change the size and send `SIGWINCH` to the child.
 

@@ -2,7 +2,7 @@
 
 ### Status
 
-Accepted for implementation on `architecture/module-split`.
+Implementation in progress on `architecture/module-split`. Package entry-point, state, terminal, highlighting, layout, buffer editing, command, and mode boundaries are in place; further orchestration cleanup remains.
 
 The installed editor may contain multiple source files. Python stdlib-only and raw-ANSI constraints remain. No packaging framework or pip installation is required.
 
@@ -19,7 +19,6 @@ The installed editor may contain multiple source files. Python stdlib-only and r
 ```text
 vig
 vighelp
-vig.py                     temporary compatibility entry point
 vigor/
     __init__.py             version and build identification
     __main__.py             module entry point
@@ -33,7 +32,7 @@ vigor/
     highlight.py            search, syntax, and Markdown spans
 ```
 
-The compatibility `vig.py` remains only while tests and external invocation move to `python3 -m vigor`. It is removed before the migration is considered complete.
+The launcher and PTY harness invoke `python3 -m vigor`; no compatibility `vig.py` remains.
 
 ### Dependency Direction
 
@@ -101,11 +100,11 @@ The application loop owns deadlines for splash dismissal, yank flash, and future
 - Extract ex parsing, completion, quickfix, clipboard, and subprocess execution.
 - Keep orchestration in `app.py`.
 
-**Phase F — remove compatibility entry point**
+**Phase F — module entry point — complete**
 
-- Make the launcher and PTY harness use `python3 -m vigor`.
-- Remove `vig.py`.
-- Update documentation and installer manifests.
+- The launcher and PTY harness use `python3 -m vigor`.
+- The compatibility `vig.py` has been removed.
+- Documentation and installer manifests use the package runtime.
 
 ### Phase Gates
 
