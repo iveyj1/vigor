@@ -1,6 +1,6 @@
 # vig — Command Reference
 
-vig is a compact, single-file, vi-style terminal editor. Runtime code lives in `vig.py`, uses Python stdlib only, and talks to the terminal with raw ANSI escape codes rather than curses.
+vig is a compact, vi-style terminal editor. Runtime code lives in the `vigor` package, uses Python stdlib only, and talks to the terminal with raw ANSI escape codes rather than curses.
 
 The splash footer identifies the source as `v0.1.0 · development`; `scripts/install` stamps installed copies with the Git commit and commit date.
 

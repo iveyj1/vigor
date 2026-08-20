@@ -10,7 +10,7 @@ import tempfile
 import select
 import re
 
-VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig.py")
+VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig")
 VIG_DIAGNOSTICS = os.path.join(os.path.dirname(VIG), "scripts", "vig-diagnostics")
 FRAME_MARKER = b"\x1b[?25l\x1b[H"
 PASTE_START = b"\x1b[200~"
@@ -169,7 +169,7 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
             os.environ["VIG_NO_CONFIG"] = "1"
         else:
             os.environ.update(env)
-        os.execvp(sys.executable, [sys.executable, VIG] + all_paths)
+        os.execvp(VIG, [VIG] + all_paths)
         os._exit(1)
 
     os.close(slave)
@@ -630,7 +630,7 @@ def run_vig_with_resize(keys_before, keys_after, new_rows, new_cols,
         os.dup2(slave, 2)
         if slave > 2:
             os.close(slave)
-        os.execvp(sys.executable, [sys.executable, VIG, file_path])
+        os.execvp(VIG, [VIG, file_path])
         os._exit(1)
 
     os.close(slave)
@@ -843,6 +843,26 @@ def test_p_charwise_paste():
     # charwise p inserts after cursor: "w" + "hello " + "orld" = "whello orld"
     assert content.strip() == "whello orld", f"Expected 'whello orld', got: {content!r}"
     print("  PASS: dw + p charwise paste")
+
+
+def test_multiline_charwise_paste_preserves_line_invariant():
+    """A multiline character register pastes as distinct buffer lines."""
+    path = write_temp("abc\ndef\n")
+    screen, content, code = run_vig(b"vjypdd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "aabc\ndef\n", f"Expected inserted logical row to be deleted, got: {content!r}"
+    print("  PASS: multiline charwise paste preserves logical lines")
+
+
+def test_empty_paste_does_not_create_undo_state():
+    """An empty-register paste does not keep the buffer dirty after undo."""
+    path = write_temp("abc\n")
+    screen, _, code = run_vig(b"pxu:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0, f"Expected clean quit after undo, got: {screen[-500:]!r}"
+    print("  PASS: empty paste creates no undo state")
+
 
 # ── Phase 9 — Visual Edit ─────────────────────────────────────────────────
 
@@ -2256,6 +2276,7 @@ def test_clipboard_auto_prefers_external_command():
         bindir = os.path.join(d, "bin")
         os.mkdir(bindir)
         open(path, "w").write("abc\n")
+        os.symlink(sys.executable, os.path.join(bindir, "python3"))
         xclip = os.path.join(bindir, "xclip")
         open(xclip, "w").write("#!/bin/sh\n/bin/cat > \"$CLIP_OUT\"\n")
         os.chmod(xclip, 0o755)
@@ -2364,7 +2385,7 @@ def test_ctrl_z_stops_process():
         if slave > 2:
             os.close(slave)
         os.environ["VIG_NO_CONFIG"] = "1"
-        os.execvp(sys.executable, [sys.executable, VIG, path])
+        os.execvp(VIG, [VIG, path])
         os._exit(1)
     os.close(slave)
     output = bytearray()
@@ -3206,6 +3227,25 @@ def test_tab_expansion_preserves_highlight_boundaries():
     print("  PASS: tab expansion preserves highlight boundaries")
 
 
+def test_layout_maps_source_and_screen_coordinates():
+    """Shared layout maps exact-width EOL and wrapped rows in both directions."""
+    from vigor.layout import ViewportLayout, display_col, display_index
+    lines = ["abcde", "x\ty"]
+    view = lambda y: lines[y].expandtabs(4)
+    layout = ViewportLayout(
+        len(lines), view,
+        lambda y, x: display_col(lines[y], x),
+        lambda y, x: display_index(lines[y], x),
+        rows=4, cols=5, gutter_width=0, wrap=True, wrapcol=0,
+        scroll=0, wrap_skip=0,
+    )
+    assert layout.source_to_screen(0, 5) == (1, 0)
+    assert layout.screen_to_source(1, 0) == (0, 5)
+    assert layout.source_to_screen(1, 2) == (2, 4)
+    assert layout.screen_to_source(2, 4) == (1, 2)
+    print("  PASS: layout maps source and screen coordinates")
+
+
 # ── Phase 54: build identification ────────────────────────────────────────
 
 def test_install_stamps_build_identification():
@@ -3216,13 +3256,13 @@ def test_install_stamps_build_identification():
         env["VIG_INSTALL_DIR"] = d
         result = subprocess.run([os.path.join(os.path.dirname(VIG), "scripts", "install")],
                                 cwd=os.path.dirname(VIG), env=env, capture_output=True, text=True)
-        installed = open(os.path.join(d, "vig.py")).read()
+        installed = open(os.path.join(d, "vigor", "__init__.py")).read()
         diagnostics_installed = os.access(os.path.join(d, "vig-diagnostics"), os.X_OK)
     assert result.returncode == 0, result.stderr
     assert diagnostics_installed
     assert 'VERSION = "0.1.0"' in installed
     assert re.search(r"BUILD_ID = ['\"][0-9a-f]+ \d{4}-\d{2}-\d{2}(?: dirty)?['\"]", installed)
-    assert 'BUILD_ID = "development"' in open(VIG).read()
+    assert 'BUILD_ID = "development"' in open(os.path.join(os.path.dirname(VIG), "vigor", "__init__.py")).read()
     print("  PASS: installer stamps build identification")
 
 
@@ -3781,6 +3821,8 @@ def main():
             test_C_changes_to_end,
             test_dd_on_last_line,
             test_p_charwise_paste,
+            test_multiline_charwise_paste_preserves_line_invariant,
+            test_empty_paste_does_not_create_undo_state,
         ]),
         ("9", "Phase 9 — Visual Edit", [
             test_visual_delete,
@@ -4079,6 +4121,7 @@ def main():
             test_tab_display_columns_drive_sticky_vertical_motion,
             test_tabbed_line_hscroll_uses_display_columns,
             test_tab_expansion_preserves_highlight_boundaries,
+            test_layout_maps_source_and_screen_coordinates,
         ]),
         ("54", "Phase 54 — build identification", [
             test_install_stamps_build_identification,

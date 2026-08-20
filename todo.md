@@ -20,6 +20,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. Autosave; define eligibility, delay, unnamed-buffer behavior, error reporting, atomic-write expectations, and interaction with explicit writes.
 
 ### On Hold
+1. Remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
 1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.
 1. Proposal: Optional `mouse=off|scroll|visual` SGR mouse support in two phases; see `proposals/mouse-support.md`. Wheel-only estimate 25–45 runtime lines; robust scrolling plus drag Visual selection estimate 90–140 lines.
 1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)

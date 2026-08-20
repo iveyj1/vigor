@@ -1,6 +1,6 @@
-### vig.py cloc by commit
+### Runtime Python cloc by commit
 
-Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or historical `ved.py`).
+Generated with `scripts/cloc.pl` against `vigor/*.py`, or the historical `vig.py`/`ved.py` runtime.
 
 | Commit | Code | Blank | Comment | Added | Subject |
 |---|---:|---:|---:|---:|---|
@@ -114,3 +114,34 @@ Generated with `scripts/cloc.pl` against each commit version of `vig.py` (or his
 | `ed91cd7` | 3110 | 240 | 257 | 7 | Add buffer delete leader key |
 | `47fc641` | 3110 | 240 | 257 | 0 | update todo, move splash logo up, keep for longer |
 | `8de15ba` | 3148 | 242 | 259 | 38 | Add build diagnostics quickfix commands |
+| `3f4ae03` | 3148 | 242 | 259 | 0 | Add optional diagnostic producer wrapper |
+| `f996031` | 3148 | 242 | 259 | 0 | reorganize docs |
+| `d4850b4` | 3148 | 242 | 259 | 0 | Add example diagnostic failures |
+| `cf736ae` | 3163 | 242 | 259 | 15 | Use a global working directory |
+| `a49f192` | 3165 | 242 | 259 | 2 | Show opened quickfix diagnostics |
+| `3f7ac48` | 3165 | 242 | 259 | 0 | Rewrite tutor for vigor |
+| `933ce9a` | 3165 | 242 | 259 | 0 | remove inst |
+| `7f0616c` | 3165 | 242 | 259 | 0 | update example-config |
+| `5d55787` | 3165 | 242 | 259 | 0 | Add mouse support proposal |
+| `0a7628d` | 3165 | 242 | 259 | 0 | Add system clipboard paste proposal |
+| `abd6803` | 3165 | 242 | 269 | 0 | tweak splash |
+| `1002475` | 3294 | 251 | 273 | 129 | Add non-destructive Markdown view |
+| `d84d190` | 3165 | 242 | 269 | -129 | Merge branch 'main' of github.com:iveyj1/vigor |
+| `585a08e` | 3294 | 251 | 273 | 129 | Merge branch 'main' into feature/markdown-view |
+| `d13156f` | 3295 | 251 | 273 | 1 | add markdown notice to splash |
+| `f5a93b4` | 3301 | 252 | 274 | 6 | Add literal smart-case search |
+| `939f979` | 3316 | 252 | 274 | 15 | Add configurable wrap column |
+| `ae42be6` | 3182 | 243 | 269 | -134 | Add markdown fence hiding |
+| `b2b7bcb` | 3182 | 243 | 269 | 0 | Merge branch 'main' of github.com:iveyj1/vigor |
+| `b29f327` | 3333 | 253 | 274 | 151 | Merge branch 'main' into feature/markdown-view |
+| `3d8666d` | 3333 | 253 | 274 | 0 | Document markdownfences in help |
+| `d4c5c21` | 3333 | 253 | 274 | 0 | Limit markdown fence hiding to markdown view |
+| `7043357` | 3333 | 253 | 264 | 0 | Reconcile project guidance and proposals |
+| `f9e32e3` | 3345 | 260 | 265 | 12 | Start module-oriented runtime architecture |
+| `dfa660e` | 3348 | 271 | 268 | 3 | Extract highlighting and Markdown presentation |
+| `11df664` | 3376 | 287 | 271 | 28 | Centralize viewport coordinate layout |
+| `1294a61` | 3390 | 297 | 273 | 14 | Extract invariant-preserving editing ranges |
+| `8b33e1d` | 3397 | 302 | 274 | 7 | Extract command and quickfix subsystem |
+| `ed2796b` | 3401 | 318 | 276 | 4 | Extract modal input dispatch |
+| `ae0e3dd` | 3401 | 318 | 276 | 0 | Use package module as runtime entry point |
+| `c58bdfd` | 3404 | 295 | 260 | 3 | Separate editing and rendering from orchestration |

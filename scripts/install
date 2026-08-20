@@ -7,15 +7,17 @@ trap 'echo "Interrupted" >&2; exit 130' INT
 instdir="${VIG_INSTALL_DIR:-$HOME/.config/scripts}"
 mkdir -p "$instdir"
 build_id="$(git log -1 --format='%h %cs' 2>/dev/null || printf development)"
-if [[ "$build_id" != development ]] && ! git diff --quiet HEAD -- vig.py; then
+if [[ "$build_id" != development ]] && ! git diff --quiet HEAD -- vigor; then
     build_id="$build_id dirty"
 fi
-BUILD_ID="$build_id" python3 - "$instdir/vig.py" <<'PY'
+rm -rf "$instdir/vigor"
+cp -R vigor "$instdir/"
+BUILD_ID="$build_id" python3 - "$instdir/vigor/__init__.py" <<'PY'
 import os, pathlib, sys
-text = pathlib.Path("vig.py").read_text()
+path = pathlib.Path(sys.argv[1])
+text = path.read_text()
 text = text.replace('BUILD_ID = "development"', f"BUILD_ID = {os.environ['BUILD_ID']!r}", 1)
-pathlib.Path(sys.argv[1]).write_text(text)
+path.write_text(text)
 PY
-cp vig "$instdir/"
-cp vighelp "$instdir/"
+cp vig vighelp "$instdir/"
 cp scripts/vig-diagnostics "$instdir/"
