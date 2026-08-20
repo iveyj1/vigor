@@ -4366,6 +4366,118 @@ def test_explicit_commands_override_disabled_detection():
     print("  PASS: explicit commands override disabled detection")
 
 
+# ── Phase 71: retained manual-save versions ────────────────────────────────
+
+def test_saveversions_rotates_prior_disk_contents():
+    """Explicit writes retain N adjacent prior versions, newest at generation one."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        keys = (b":set saveversions=2\r:%s/one/two/\r:w\r"
+                b":%s/two/three/\r:w\r:%s/three/four/\r:wq\r")
+        _, content, code = run_vig(keys, file_path=path)
+        newest = open(os.path.join(d, ".vigor-bak.note.txt.1")).read()
+        older = open(os.path.join(d, ".vigor-bak.note.txt.2")).read()
+        names = os.listdir(d)
+    assert code == 0 and content == "four\n"
+    assert newest == "three\n" and older == "two\n"
+    assert ".vigor-bak.note.txt.3" not in names
+    print("  PASS: saveversions rotates prior disk contents")
+
+
+def test_saveversions_skips_unchanged_and_new_targets():
+    """Unchanged explicit writes and first writes of new files create no versions."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        new_path = os.path.join(d, "new.txt")
+        open(path, "w").write("one\n")
+        _, _, code = run_vig(
+            b":set saveversions=2\r:%s/one/two/\r:w\r:w\r:q\r", file_path=path,
+        )
+        _, new_content, new_code = run_vig(
+            b":set saveversions=2\rihello\x1b:wq\r", file_path=new_path,
+        )
+        names = os.listdir(d)
+    assert code == new_code == 0 and new_content == "hello\n"
+    assert ".vigor-bak.note.txt.1" in names and ".vigor-bak.note.txt.2" not in names
+    assert ".vigor-bak.new.txt.1" not in names
+    print("  PASS: saveversions skips unchanged and new targets")
+
+
+def test_saveversions_preserves_existing_save_as_target():
+    """Writing to another existing path retains that target's prior bytes."""
+    with tempfile.TemporaryDirectory() as d:
+        source = os.path.join(d, "source.txt")
+        target = os.path.join(d, "target.txt")
+        open(source, "w").write("source\n")
+        open(target, "w").write("target\n")
+        _, _, code = run_vig(
+            f":set saveversions=1\r:w {target}\r:q\r", file_path=source,
+        )
+        written = open(target).read()
+        backup = open(os.path.join(d, ".vigor-bak.target.txt.1")).read()
+    assert code == 0 and written == "source\n" and backup == "target\n"
+    print("  PASS: saveversions preserves save-as target")
+
+
+def test_saveversions_reduction_removes_excess_generations():
+    """Reducing retention removes generations above the new limit on the next write."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        keys = (b":set saveversions=3\r:%s/one/two/\r:w\r:%s/two/three/\r:w\r"
+                b":set saveversions=1\r:%s/three/four/\r:wq\r")
+        _, _, code = run_vig(keys, file_path=path)
+        names = os.listdir(d)
+    assert code == 0 and ".vigor-bak.note.txt.1" in names
+    assert ".vigor-bak.note.txt.2" not in names and ".vigor-bak.note.txt.3" not in names
+    print("  PASS: saveversions reduction removes excess generations")
+
+
+def test_saveversions_failure_blocks_write():
+    """A failed promised backup leaves the original target untouched and dirty."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        os.mkdir(os.path.join(d, ".vigor-bak.note.txt.1"))
+        screen, content, code = run_vig(
+            b":set saveversions=1\r:%s/one/two/\r:w\r:q!\r", file_path=path,
+        )
+    assert code == 0 and content == "one\n"
+    assert "Can't preserve prior version" in screen
+    print("  PASS: saveversions failure blocks write")
+
+
+def test_backup_files_do_not_version_themselves():
+    """Opening a generated-name backup cannot create recursive backup chains."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, ".vigor-bak.note.txt.1")
+        open(path, "w").write("one\n")
+        _, content, code = run_vig(
+            b":set saveversions=3\r:%s/one/two/\r:wq\r", file_path=path,
+        )
+        names = os.listdir(d)
+    assert code == 0 and content == "two\n" and names == [".vigor-bak.note.txt.1"]
+    print("  PASS: backup files do not version themselves")
+
+
+def test_saveversions_validates_and_loads_from_config():
+    """Retention validates 0..100 and uses the normal startup-config path."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        config = os.path.join(d, "config")
+        open(path, "w").write("one\n")
+        open(config, "w").write("set saveversions=1\n")
+        screen, _, code = run_vig(
+            b":%s/one/two/\r:wq\r", file_path=path, env={"VIG_CONFIG": config},
+        )
+        bad, _, bad_code = run_vig(b":set saveversions=101\r:q\r", file_path=path)
+        exists = os.path.exists(os.path.join(d, ".vigor-bak.note.txt.1"))
+    assert code == bad_code == 0 and exists
+    assert "saveversions must be 0..100" in bad
+    print("  PASS: saveversions validates and loads from config")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4864,6 +4976,15 @@ def main():
             test_autodetect_option_affects_only_new_buffers,
             test_noautodetect_config_disables_initial_recognition,
             test_explicit_commands_override_disabled_detection,
+        ]),
+        ("71", "Phase 71 — retained manual-save versions", [
+            test_saveversions_rotates_prior_disk_contents,
+            test_saveversions_skips_unchanged_and_new_targets,
+            test_saveversions_preserves_existing_save_as_target,
+            test_saveversions_reduction_removes_excess_generations,
+            test_saveversions_failure_blocks_write,
+            test_backup_files_do_not_version_themselves,
+            test_saveversions_validates_and_loads_from_config,
         ]),
     ]
 

@@ -89,6 +89,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.opt_hlsearch = False  # :set hlsearch/nohlsearch
         self.opt_makeprg = "make"  # :set makeprg=<shell command>
         self.opt_autodetect = True  # detect syntax and Markdown for newly opened buffers
+        self.opt_saveversions = 0  # prior disk versions retained on explicit writes
         self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
@@ -180,7 +181,36 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         """Resolve a command path against the process working directory."""
         return os.path.abspath(os.path.expanduser(path.strip()))
 
-    def _write_buffer_to_path(self, path, close_after=False):
+    def _preserve_version(self, path):
+        """Rotate adjacent prior-disk versions before an explicit overwrite."""
+        count, base = self.opt_saveversions, os.path.basename(path)
+        if not count or base.startswith(".vigor-bak.") or not os.path.isfile(path):
+            return
+        with open(path, "r", newline="") as f:
+            if f.read() == self.buf.serialized():
+                return
+        parent = os.path.dirname(path) or "."
+        prefix = f".vigor-bak.{base}."
+        temp = os.path.join(parent, prefix + f"tmp.{os.getpid()}")
+        try:
+            shutil.copy2(path, temp)
+            for generation in range(count, 1, -1):
+                older = os.path.join(parent, prefix + str(generation - 1))
+                if os.path.exists(older):
+                    os.replace(older, os.path.join(parent, prefix + str(generation)))
+            os.replace(temp, os.path.join(parent, prefix + "1"))
+            for name in os.listdir(parent):
+                if name.startswith(prefix) and name[len(prefix):].isdigit():
+                    if int(name[len(prefix):]) > count:
+                        os.unlink(os.path.join(parent, name))
+        except OSError:
+            try:
+                os.unlink(temp)
+            except OSError:
+                pass
+            raise
+
+    def _write_buffer_to_path(self, path, close_after=False, manual=True):
         """Write current buffer, prompting first if parent directories are missing."""
         parent = os.path.dirname(path) or "."
         if parent and not os.path.isdir(parent):
@@ -188,6 +218,13 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self.msg = f'Create directory "{parent}"? (y/n)'
             self.mode = Mode.NORMAL
             return False
+        if manual:
+            try:
+                self._preserve_version(path)
+            except OSError as e:
+                self.msg = f"Can't preserve prior version: {e.strerror or str(e)}"
+                self.mode = Mode.NORMAL
+                return False
         try:
             if self.buf.save(path):
                 self._undo_save_depth = len(self._undo_stack)

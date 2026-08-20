@@ -27,13 +27,15 @@ class Buffer:
         else:
             self.lines = [""]
 
+    def serialized(self):
+        return "".join(line + "\n" for line in self.lines)
+
     def save(self, path=None):
         p = path or self.path
         if not p:
             return False
         with open(p, "w") as f:
-            for line in self.lines:
-                f.write(line + "\n")
+            f.write(self.serialized())
         self.path = p
         self.dirty = False
         return True

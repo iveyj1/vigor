@@ -30,6 +30,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Add `saveversions=N` retained prior-disk versions for changed explicit writes, using ignored adjacent `.vigor-bak.<basename>.N` files; block writes when promised preservation fails.
 1. Add global `autodetect` / `noautodetect` policy for newly opened buffers, automatic `.md`/`.markdown` presentation, startup config support, and explicit current-buffer redetection through `:ft auto`.
 1. Add per-buffer `:filetype` / `:ft` reporting and overrides for auto, text, Bash, C, C++, Python, and Markdown, with persistence across switches and reloads.
 1. Detect direct, `env`, and `env -S` Bash/sh shebangs for highlighting named extensionless files while keeping recognized extensions authoritative.
