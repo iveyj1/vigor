@@ -145,3 +145,14 @@ Generated with `scripts/cloc.pl` against `vigor/*.py`, or the historical `vig.py
 | `ed2796b` | 3401 | 318 | 276 | 4 | Extract modal input dispatch |
 | `ae0e3dd` | 3401 | 318 | 276 | 0 | Use package module as runtime entry point |
 | `c58bdfd` | 3404 | 295 | 260 | 3 | Separate editing and rendering from orchestration |
+| `2998c80` | 3404 | 295 | 260 | 0 | Record completed module migration |
+| `983ae97` | 3404 | 295 | 260 | 0 | Add phase status reporting guidance |
+| `b19a1c2` | 3404 | 295 | 260 | 0 | Merge module-oriented runtime architecture |
+| `112b922` | 3447 | 300 | 262 | 43 | Add SGR mouse wheel scrolling |
+| `c42f962` | 3447 | 300 | 262 | 0 | Merge SGR mouse wheel scrolling |
+| `21b10b1` | 3461 | 302 | 263 | 14 | Preview visible search matches |
+| `66ed1e7` | 3461 | 302 | 263 | 0 | Merge live search highlighting |
+| `cec5aa1` | 3481 | 304 | 265 | 20 | Add mouse cursor positioning |
+| `389189b` | 3511 | 304 | 265 | 30 | Add mouse Visual drag selection |
+| `c17674f` | 3511 | 304 | 265 | 0 | Merge mouse cursor and Visual interaction |
+| `e917373` | 3511 | 304 | 265 | 0 | Restore phase commit workflow |
