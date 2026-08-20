@@ -3206,6 +3206,25 @@ def test_tab_expansion_preserves_highlight_boundaries():
     print("  PASS: tab expansion preserves highlight boundaries")
 
 
+def test_layout_maps_source_and_screen_coordinates():
+    """Shared layout maps exact-width EOL and wrapped rows in both directions."""
+    from vigor.layout import ViewportLayout, display_col, display_index
+    lines = ["abcde", "x\ty"]
+    view = lambda y: lines[y].expandtabs(4)
+    layout = ViewportLayout(
+        len(lines), view,
+        lambda y, x: display_col(lines[y], x),
+        lambda y, x: display_index(lines[y], x),
+        rows=4, cols=5, gutter_width=0, wrap=True, wrapcol=0,
+        scroll=0, wrap_skip=0,
+    )
+    assert layout.source_to_screen(0, 5) == (1, 0)
+    assert layout.screen_to_source(1, 0) == (0, 5)
+    assert layout.source_to_screen(1, 2) == (2, 4)
+    assert layout.screen_to_source(2, 4) == (1, 2)
+    print("  PASS: layout maps source and screen coordinates")
+
+
 # ── Phase 54: build identification ────────────────────────────────────────
 
 def test_install_stamps_build_identification():
@@ -4079,6 +4098,7 @@ def main():
             test_tab_display_columns_drive_sticky_vertical_motion,
             test_tabbed_line_hscroll_uses_display_columns,
             test_tab_expansion_preserves_highlight_boundaries,
+            test_layout_maps_source_and_screen_coordinates,
         ]),
         ("54", "Phase 54 — build identification", [
             test_install_stamps_build_identification,

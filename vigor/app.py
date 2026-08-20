@@ -16,6 +16,7 @@ from .highlight import (
     ANSI_ESCAPE, SEARCH_COLOR, build_markdown_view, markdown_spans,
     search_spans, syntax_spans,
 )
+from .layout import ViewportLayout, display_col, display_index
 from .state import BufferState
 from .terminal import Terminal
 
@@ -884,27 +885,6 @@ class Editor:
         self.cx += 1
         self._clamp_cursor()
 
-    @staticmethod
-    def _display_col(line, index):
-        """Display column of a buffer index, expanding tabs to four-column stops."""
-        col = 0
-        for ch in line[:index]:
-            col += 4 - col % 4 if ch == "\t" else 1
-        return col
-
-    @classmethod
-    def _display_index(cls, line, target):
-        """Buffer index at or immediately before a target display column."""
-        col = 0
-        for i, ch in enumerate(line):
-            width = 4 - col % 4 if ch == "\t" else 1
-            if col + width > target:
-                return i
-            col += width
-            if col == target:
-                return i + 1
-        return len(line)
-
     def _set_markdown_view(self, enabled):
         self.md_view = enabled
         if enabled:
@@ -922,11 +902,11 @@ class Editor:
     def _view_col(self, y, index):
         if self.md_view:
             return self.md_maps[y][min(index, len(self.md_maps[y]) - 1)]
-        return self._display_col(self.buf.lines[y], index)
+        return display_col(self.buf.lines[y], index)
 
     def _view_index(self, y, target):
         if not self.md_view:
-            return self._display_index(self.buf.lines[y], target)
+            return display_index(self.buf.lines[y], target)
         mapping = self.md_maps[y]
         for i, col in enumerate(mapping):
             if col >= target:
@@ -936,9 +916,15 @@ class Editor:
     def _cursor_display_col(self):
         return self._view_col(self.cy, self.cx)
 
+    def _viewport_layout(self):
+        return ViewportLayout(
+            len(self.buf.lines), self._view_line, self._view_col, self._view_index,
+            self.rows, self.cols, self._gutter_width(), self.opt_wrap,
+            self.opt_wrapcol, self.scroll, self._wrap_skip,
+        )
+
     def _wrap_cols(self):
-        available = max(1, self.cols - self._gutter_width())
-        return min(available, self.opt_wrapcol) if self.opt_wrapcol else available
+        return self._viewport_layout().wrap_cols
 
     def _motion_display_row(self, delta):
         """Move vertically while preserving a display column."""
@@ -1360,13 +1346,9 @@ class Editor:
 
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""
-        if not self.opt_wrap or self.cols == 0:
+        if self.cols == 0:
             return 1
-        content_cols = self._wrap_cols()
-        display_line = self._view_line(line_idx) if line_idx < len(self.buf.lines) else ""
-        # Include the one-past-EOL cursor cell. Exact-width lines therefore
-        # have an empty continuation row instead of placing EOL on a character.
-        return len(display_line) // content_cols + 1
+        return self._viewport_layout().line_rows(line_idx)
 
     def _end_screen_row(self, out, cells):
         """End a rendered row without erasing a full-width final cell."""
@@ -1382,38 +1364,6 @@ class Editor:
             return False
         stripped = line.lstrip()
         return stripped.startswith("```") or stripped.startswith("~~~")
-
-    def _render_line(self, line, buf_line, sel, out, gutter_width=0, max_rows=None, hscroll=0, start_row=0):
-        """Render a single buffer line (possibly wrapped). Returns number of screen rows used.
-        max_rows limits output to at most that many screen rows (for partial rendering)."""
-        gutter = self._gutter_str(buf_line, gutter_width)
-        gutter_pad = " " * gutter_width
-        display_line = self._view_line(buf_line)
-        content_cols = self.cols - gutter_width
-        if content_cols <= 0:
-            content_cols = 1
-        if not self.opt_wrap:
-            hscroll = max(0, hscroll)
-            visible = display_line[hscroll:hscroll + content_cols]
-            out.append(gutter)
-            self._render_visible(visible, buf_line, hscroll, sel, out)
-            self._end_screen_row(out, gutter_width + len(visible))
-            return 1
-        else:
-            # Wrap text plus its one-past-EOL cursor cell into display rows.
-            content_cols = self._wrap_cols()
-            rows_used = 0
-            total_rows = len(display_line) // content_cols + 1
-            for wrap_row in range(max(0, start_row), total_rows):
-                if max_rows is not None and rows_used >= max_rows:
-                    break
-                chunk_start = wrap_row * content_cols
-                chunk = display_line[chunk_start:chunk_start + content_cols]
-                out.append(gutter if wrap_row == 0 else gutter_pad)
-                self._render_visible(chunk, buf_line, chunk_start, sel, out)
-                self._end_screen_row(out, gutter_width + len(chunk))
-                rows_used += 1
-            return rows_used
 
     def _syntax_spans(self, line, y=None):
         """Return styled syntax spans for the current buffer's language."""
@@ -1552,39 +1502,21 @@ class Editor:
                     sel = (sy, sx, ey, ex)
             else:
                 self._yank_flash = None
-        gw = self._gutter_width()
-        content_cols = max(1, self.cols - gw)
-        wrap_cols = self._wrap_cols()
-
-        screen_rows_used = 0
-        cursor_screen_y = 0
+        layout = self._viewport_layout()
+        gw = layout.gutter_width
         cursor_display_x = self._cursor_display_col()
-        cursor_screen_x = cursor_display_x + gw
-        buf_line = self.scroll
-        window_hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - content_cols + 1)
-        first_wrap_skip = self._wrap_skip if self.opt_wrap else 0
+        window_hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
+        cursor_screen_y = cursor_screen_x = 0
+        cursor_position = layout.source_to_screen(self.cy, self.cx, window_hscroll)
+        if cursor_position:
+            cursor_screen_y, cursor_screen_x = cursor_position
 
-        while screen_rows_used < self.rows and buf_line < len(self.buf.lines):
-            line = self.buf.lines[buf_line]
-            start_row = first_wrap_skip if buf_line == self.scroll else 0
-            if buf_line == self.cy:
-                # Track cursor screen position
-                if self.opt_wrap:
-                    wrap_row = self._cursor_wrap_row(wrap_cols)
-                    cursor_screen_y = screen_rows_used + wrap_row - start_row
-                    cursor_screen_x = self._cursor_wrap_col(wrap_cols) + gw
-                else:
-                    cursor_screen_y = screen_rows_used
-                    cursor_screen_x = cursor_display_x - window_hscroll + gw
-
-            rows_available = self.rows - screen_rows_used
-            if self.opt_wrap:
-                used = self._render_line(line, buf_line, sel, out, gw, max_rows=rows_available, start_row=start_row)
-                screen_rows_used += used
-            else:
-                self._render_line(line, buf_line, sel, out, gw, hscroll=window_hscroll)
-                screen_rows_used += 1
-            buf_line += 1
+        visible_rows = layout.visible_rows(window_hscroll)
+        for row in visible_rows:
+            out.append(self._gutter_str(row.source_y, gw) if row.wrap_row == 0 else " " * gw)
+            self._render_visible(row.text, row.source_y, row.display_start, sel, out)
+            self._end_screen_row(out, gw + len(row.text))
+        screen_rows_used = len(visible_rows)
 
         # Fill remaining rows with tildes
         while screen_rows_used < self.rows:

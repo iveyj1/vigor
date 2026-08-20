@@ -19,9 +19,10 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/state.py` — buffer content and per-buffer state
 - `vigor/terminal.py` — raw terminal ownership and input decoding
 - `vigor/highlight.py` — source-coordinate syntax, search, and Markdown presentation helpers
+- `vigor/layout.py` — display columns, visible viewport rows, and bidirectional coordinate mapping
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — terse help buffer opened by `:help`
-- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 290 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 291 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -96,7 +97,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Terminal** — `vigor/terminal.py` manages raw mode via `termios`, reads keys one at a time with escape sequence decoding, and restores terminal state on exit via `atexit`.
 
-**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of: content rows (with optional line number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. Rendering is split into `_render_line` (handles wrap/truncate for a buffer line, prepends gutter) and `_render_visible` (applies line-local regex syntax spans and selection highlighting to a visible segment). `vigor.highlight` builds per-buffer Markdown display lines and source-to-display maps and returns source-coordinate search/syntax spans. Markdown presentation styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. Any mutation disables the projection before editing.
+**Rendering** — one full redraw per keystroke. The entire frame is built as a list of strings, joined, and written in a single `sys.stdout.write()` call. This eliminates flicker without requiring double-buffering. The frame consists of content rows (with optional line-number gutter, syntax/visual highlighting, and line wrapping), a reverse-video status bar, and a command/message bar. `vigor.layout.ViewportLayout` produces visible rows and maps source positions to/from screen cells; `_render_visible` applies source-coordinate spans to each visible segment. `vigor.highlight` builds per-buffer Markdown display lines and source-to-display maps and returns source-coordinate search/syntax spans. Markdown presentation styles headers/list markers and virtually pads valid pipe tables without modifying source or dirty state. Any mutation disables the projection before editing.
 
 **Line numbers** — `_gutter_width()` returns the gutter width (0 when disabled, otherwise a five-column number field plus one separator, expanding when the file exceeds 99,999 lines). `_gutter_str(buf_line, gutter_width)` right-aligns absolute numbers when `relativenumber` is off. With `relativenumber`, the cursor row shows its absolute number flush left while other rows show right-aligned relative distances. Content columns are reduced by the gutter width. In wrap mode, only the first wrapped row of a line shows the number; continuation rows get blank padding.
 
@@ -181,7 +182,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 290 test functions organized into 59 phase groups (selectors 1–60, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 291 test functions organized into 59 phase groups (selectors 1–60, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ### Workflow for AI Agents
