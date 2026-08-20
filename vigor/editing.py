@@ -415,6 +415,7 @@ class EditingMixin:
             len(self.buf.lines), self._view_line, self._view_col, self._view_index,
             self.rows, self.cols, self._gutter_width(), self.opt_wrap,
             self.opt_wrapcol, self.scroll, self._wrap_skip,
+            hidden_line=lambda y: self._is_markdown_fence_line(self.buf.lines[y]),
         )
 
     def _wrap_cols(self):
@@ -430,22 +431,31 @@ class EditingMixin:
             self._clamp_cursor()
             self.cx = self._view_index(self.cy, self._sticky_cx)
             return
-        cols = self._wrap_cols()
+        layout = self._viewport_layout()
+        cols = layout.wrap_cols
         if self._sticky_cx is None:
             self._sticky_cx = display_x % cols
         col, row = self._sticky_cx, display_x // cols
-        if delta > 0:
-            if row + 1 < self._line_screen_rows(self.cy):
+        current_rows = layout.line_rows(self.cy)
+        if current_rows == 0:
+            target_y = layout.next_visible(self.cy, delta)
+            if target_y is not None:
+                self.cy, self.cx = target_y, self._view_index(target_y, col)
+        elif delta > 0:
+            if row + 1 < current_rows:
                 self.cx = self._view_index(self.cy, (row + 1) * cols + col)
-            elif self.cy < len(self.buf.lines) - 1:
-                self.cy += 1
-                self.cx = self._view_index(self.cy, col)
+            else:
+                target_y = layout.next_visible(self.cy, 1)
+                if target_y is not None:
+                    self.cy, self.cx = target_y, self._view_index(target_y, col)
         elif row > 0:
             self.cx = self._view_index(self.cy, (row - 1) * cols + col)
-        elif self.cy > 0:
-            self.cy -= 1
-            target = (self._line_screen_rows(self.cy) - 1) * cols + col
-            self.cx = self._view_index(self.cy, target)
+        else:
+            target_y = layout.next_visible(self.cy, -1)
+            if target_y is not None:
+                self.cy = target_y
+                target = (layout.line_rows(target_y) - 1) * cols + col
+                self.cx = self._view_index(target_y, target)
         self._clamp_cursor()
 
     def _motion_j(self):

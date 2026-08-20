@@ -11,7 +11,6 @@ No implementation-ready item is currently specified.
 
 These are current pain points and likely development directions. Resolve the listed semantics before implementation.
 
-1. Collapse Markdown fence-marker lines from `:md` layout instead of rendering them as blank rows; preserve source navigation, search, editing, and cursor mapping.
 1. Enhance syntax highlighting; define target languages and whether multiline lexical state is required before choosing between the current line-local regex model and a stateful scanner.
 1. Autosave; define eligibility, delay, unnamed-buffer behavior, error reporting, atomic-write expectations, and interaction with explicit writes.
 
@@ -32,6 +31,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Collapse Markdown fence-marker rows from `:md` layout while preserving source line numbers, hidden-row search/edit positions, wrapping, scrolling, and mouse mapping.
 1. Add `mouse=visual` characterwise drag selection: click without drag positions, drag enters Visual, reverse drags normalize, and release leaves selection active without yanking.
 1. Add mouse cursor positioning for `mouse=cursor|visual`, sharing `ViewportLayout` mapping across wrapping, gutters, and prompt/editing modes; ignore status/message clicks.
 1. Add live `/` and `?` search preview without cursor movement; Esc clears it, invalid regexes are quiet, `hlsearch` controls persistence, and the cursor match has a distinct style.

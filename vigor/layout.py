@@ -70,7 +70,8 @@ class ViewportLayout:
     """
 
     def __init__(self, line_count, view_line, source_to_display, display_to_source,
-                 rows, cols, gutter_width, wrap, wrapcol, scroll, wrap_skip):
+                 rows, cols, gutter_width, wrap, wrapcol, scroll, wrap_skip,
+                 hidden_line=None):
         self.line_count = line_count
         self.view_line = view_line
         self.source_to_display = source_to_display
@@ -82,6 +83,7 @@ class ViewportLayout:
         self.wrapcol = wrapcol
         self.scroll = scroll
         self.wrap_skip = wrap_skip
+        self.hidden_line = hidden_line or (lambda _y: False)
 
     @property
     def content_cols(self):
@@ -93,19 +95,64 @@ class ViewportLayout:
         return min(available, self.wrapcol) if self.wrapcol else available
 
     def line_rows(self, source_y):
+        if self.hidden_line(source_y):
+            return 0
         if not self.wrap:
             return 1
         return len(self.view_line(source_y)) // self.wrap_cols + 1
 
+    def next_visible(self, source_y, direction):
+        """Return the next non-hidden source line strictly in one direction."""
+        y = source_y + direction
+        while 0 <= y < self.line_count:
+            if not self.hidden_line(y):
+                return y
+            y += direction
+        return None
+
+    def nearest_visible(self, source_y, direction=1):
+        """Return a visible line at/near source_y, preferring direction."""
+        if not self.line_count:
+            return None
+        y = max(0, min(source_y, self.line_count - 1))
+        if not self.hidden_line(y):
+            return y
+        found = self.next_visible(y, direction)
+        return found if found is not None else self.next_visible(y, -direction)
+
+    def origin(self):
+        """Return a normalized visible viewport origin and wrapped-row skip."""
+        y = self.nearest_visible(self.scroll, 1)
+        if y is None:
+            return None, 0
+        skip = self.wrap_skip if y == self.scroll and self.wrap else 0
+        return y, min(max(0, skip), self.line_rows(y) - 1)
+
+    def move_top(self, delta):
+        """Move the viewport origin by one displayed row."""
+        y, skip = self.origin()
+        if y is None:
+            return self.scroll, self.wrap_skip, False
+        if delta > 0:
+            if skip + 1 < self.line_rows(y):
+                return y, skip + 1, True
+            target = self.next_visible(y, 1)
+            return (target, 0, True) if target is not None else (y, skip, False)
+        if skip > 0:
+            return y, skip - 1, True
+        target = self.next_visible(y, -1)
+        if target is None:
+            return y, skip, False
+        return target, self.line_rows(target) - 1, True
+
     def visible_rows(self, hscroll=0):
-        """Return content rows from the current viewport origin."""
+        """Return content rows from the normalized viewport origin."""
         result = []
-        source_y = self.scroll
-        while len(result) < self.rows and source_y < self.line_count:
+        source_y, first_skip = self.origin()
+        while source_y is not None and len(result) < self.rows:
             line = self.view_line(source_y)
             if self.wrap:
-                start_row = self.wrap_skip if source_y == self.scroll else 0
-                for wrap_row in range(start_row, self.line_rows(source_y)):
+                for wrap_row in range(first_skip, self.line_rows(source_y)):
                     if len(result) >= self.rows:
                         break
                     start = wrap_row * self.wrap_cols
@@ -115,15 +162,46 @@ class ViewportLayout:
                 start = max(0, hscroll)
                 text = line[start:start + self.content_cols]
                 result.append(VisibleRow(len(result), source_y, 0, start, text))
-            source_y += 1
+            source_y = self.next_visible(source_y, 1)
+            first_skip = 0
         return result
+
+    def source_view_row(self, source_y, source_x):
+        """Return a source position's display row relative to the viewport."""
+        origin_y, skip = self.origin()
+        target_y = self.nearest_visible(source_y, 1)
+        if origin_y is None or target_y is None or target_y < origin_y:
+            return -1
+        row, y = -skip, origin_y
+        while y < target_y:
+            row += self.line_rows(y)
+            y = self.next_visible(y, 1)
+            if y is None:
+                return self.rows
+        display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
+        return row + (display_x // self.wrap_cols if self.wrap else 0)
+
+    def position_at_view_row(self, target, col):
+        """Map a viewport display row and desired column to a source position."""
+        y, skip = self.origin()
+        while y is not None:
+            available = self.line_rows(y) - skip
+            if target < available:
+                display_x = (skip + target) * self.wrap_cols + col if self.wrap else col
+                return y, self.display_to_source(y, display_x)
+            target -= available
+            y, skip = self.next_visible(y, 1), 0
+        return None
 
     def source_to_screen(self, source_y, source_x, hscroll=0):
         """Return zero-based content screen coordinates or None if not visible."""
-        display_x = self.source_to_display(source_y, source_x)
+        target_y = self.nearest_visible(source_y, 1)
+        if target_y is None:
+            return None
+        display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
         wanted_wrap = display_x // self.wrap_cols if self.wrap else 0
         for row in self.visible_rows(hscroll):
-            if row.source_y == source_y and row.wrap_row == wanted_wrap:
+            if row.source_y == target_y and row.wrap_row == wanted_wrap:
                 screen_x = display_x - row.display_start + self.gutter_width
                 return row.screen_row, screen_x
         return None

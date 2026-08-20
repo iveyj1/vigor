@@ -3991,6 +3991,96 @@ def test_mouse_visual_release_does_not_yank():
     print("  PASS: mouse Visual release does not yank")
 
 
+# ── Phase 65: collapsed Markdown fence rows ───────────────────────────────
+
+def test_markdown_fence_rows_collapse_without_blanks():
+    """Fence marker source rows occupy no Markdown display row."""
+    source = "before\n```python\ncode\n```\nafter\n"
+    path = write_named_temp(source, ".md")
+    screen, content, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
+    os.unlink(path)
+    plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", last_frame(screen))
+    assert code == 0 and content == source
+    assert "before\r\ncode\r\nafter" in plain
+    print("  PASS: Markdown fence rows collapse")
+
+
+def test_hidden_fence_search_keeps_source_position_for_edit():
+    """A search may land on a hidden marker; editing reveals and changes that source row."""
+    source = "before\n```python\ncode\n```\nafter\n"
+    path = write_named_temp(source, ".md")
+    _, content, code = run_vig(
+        b":set markdownfences\r:md\r/```\riX\x1b:wq\r", file_path=path,
+    )
+    os.unlink(path)
+    assert code == 0
+    assert content == "before\nX```python\ncode\n```\nafter\n"
+    print("  PASS: hidden fence search retains source position")
+
+
+def test_collapsed_fences_preserve_source_line_numbers():
+    """Consecutive display rows retain their original absolute source numbers."""
+    path = write_named_temp("before\n```\ncode\n```\nafter\n", ".md")
+    screen, _, code = run_vig(
+        b":set number\r:set markdownfences\r:md\r:q\r", file_path=path,
+    )
+    os.unlink(path)
+    plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", last_frame(screen))
+    assert code == 0
+    assert re.search(r"1\s+before\r\n\s*3\s+code\r\n\s*5\s+after", plain)
+    print("  PASS: collapsed fences preserve source line numbers")
+
+
+def test_mouse_click_maps_across_collapsed_fences():
+    """Mouse rows map to visible source lines after fence markers are omitted."""
+    path = write_named_temp("before\n```\ncode\n```\nafter\n", ".md")
+    _, content, code = run_vig(
+        b":set mouse=cursor\r:set markdownfences\r:md\r\x1b[<0;1;2MiX\x1b:wq\r",
+        file_path=path,
+    )
+    os.unlink(path)
+    assert code == 0 and content == "before\n```\nXcode\n```\nafter\n"
+    print("  PASS: mouse maps across collapsed fences")
+
+
+def test_mouse_wheel_counts_collapsed_display_rows():
+    """Wheel scrolling counts visible rows rather than hidden marker lines."""
+    source = "A\n```\nB\n```\nC\n```\nD\n```\nE\n"
+    path = write_named_temp(source, ".md")
+    screen, _, code = run_vig(
+        b":set mouse=scroll\r:set markdownfences\r:md\r\x1b[<65;1;1M:q\r",
+        file_path=path, rows=4, cols=20,
+    )
+    os.unlink(path)
+    frame = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", last_frame(screen))
+    assert code == 0 and frame.startswith("D\r\nE\r\n")
+    print("  PASS: wheel counts collapsed display rows")
+
+
+def test_wrapmove_skips_collapsed_fence_rows():
+    """Displayed-row movement crosses directly between visible wrapped lines."""
+    path = write_named_temp("abcdefghij\n```\nklmnopqrst\n", ".md")
+    _, content, code = run_vig(
+        b":set markdownfences\r:md\r:set wrap\r:set wrapmove\rjjjiX\x1b:wq\r",
+        file_path=path, cols=5, rows=8,
+    )
+    os.unlink(path)
+    assert code == 0 and content == "abcdefghij\n```\nXklmnopqrst\n"
+    print("  PASS: wrapmove skips collapsed fence rows")
+
+
+def test_all_hidden_markdown_rows_render_safely():
+    """A projection containing only hidden markers renders and exits safely."""
+    path = write_named_temp("```\n~~~\n", ".md")
+    screen, content, code = run_vig(
+        b":set markdownfences\r:md\r:q\r", file_path=path,
+    )
+    os.unlink(path)
+    assert code == 0 and content == "```\n~~~\n"
+    assert "```" not in last_frame(screen) and "~~~" not in last_frame(screen)
+    print("  PASS: all-hidden Markdown projection is safe")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4449,6 +4539,15 @@ def main():
             test_mouse_visual_drag_normalizes_reverse_selection,
             test_mouse_visual_click_without_drag_retains_mode,
             test_mouse_visual_release_does_not_yank,
+        ]),
+        ("65", "Phase 65 — collapsed Markdown fence rows", [
+            test_markdown_fence_rows_collapse_without_blanks,
+            test_hidden_fence_search_keeps_source_position_for_edit,
+            test_collapsed_fences_preserve_source_line_numbers,
+            test_mouse_click_maps_across_collapsed_fences,
+            test_mouse_wheel_counts_collapsed_display_rows,
+            test_wrapmove_skips_collapsed_fence_rows,
+            test_all_hidden_markdown_rows_render_safely,
         ]),
     ]
 
