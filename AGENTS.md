@@ -202,3 +202,5 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 **Track progress visibly.** Use a todo list for multi-step work. Mark items in-progress before starting, completed immediately after finishing. This gives the user visibility into what's happening and prevents backtracking.
 
 **Test before declaring done.** Run the full test suite after any change, not just the tests for the current phase. Regressions in earlier phases are bugs.
+
+**Phase status summary** At the end of a phase, report work done, whether a commit was made, uncompleted work from that phase, next steps. If a user-facing feature, give brief instructions for a demo of the change.
