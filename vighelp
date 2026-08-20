@@ -56,6 +56,8 @@ OPTIONS
 :set markdownfences  hide :md fence lines      :set nomarkdownfences show fence lines
 :set autodetect      detect syntax/Markdown    :set noautodetect    new buffers plain
 :set saveversions=N  keep 0..100 manual-write prior versions
+:set autosave         idle-save named buffers    :set noautosave      disable (default)
+:set autosavedelay=N  idle milliseconds (default 1000)
 :set makeprg=CMD     build command for :make
 scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 

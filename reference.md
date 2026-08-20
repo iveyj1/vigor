@@ -150,6 +150,8 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit matched ``` or ~~~ opening/closing marker rows |
 | `:set autodetect` / `noautodetect` | enable or disable syntax and automatic Markdown recognition for subsequently opened buffers (default on) |
 | `:set saveversions=<N>` | retain 0–100 prior disk versions on explicit writes (`0` disables; default `0`) |
+| `:set autosave` / `noautosave` | toggle idle autosave for dirty named buffers (default off) |
+| `:set autosavedelay=<N>` | idle milliseconds after the last mutation before autosave (default 1000) |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
@@ -157,6 +159,8 @@ Line numbers use a five-column field that expands for files over 99,999 lines, f
 With `autodetect` enabled, opening `.md` or `.markdown` automatically enters Markdown presentation; reload preserves automatically detected or forced Markdown presentation. Changing `autodetect` affects only buffers opened afterward. `:ft auto` reruns detection for the current buffer, while explicit `:ft`, `:md`, and `:nomd` remain available when automatic detection is disabled.
 
 Markdown presentation styles ATX headers, list markers, and valid pipe tables. Tables containing a separator row are virtually padded to align columns; source text and the dirty flag are unchanged. Fenced code uses Bash, C, C++, or Python highlighting when the information string is `bash`/`sh`/`shell`, `c`, `cpp`/`c++`/`cc`/`cxx`, or `python`/`py`. Unknown and unlabeled fences remain unstyled code rather than receiving Markdown prose styles. Closing markers must use the opening marker character and at least its length. With `markdownfences`, matched fence-marker source rows occupy no display row, while line numbers, search, scrolling, wrapping, and mouse mapping retain source coordinates. The status bar shows `[MD]`. Navigation, search, and yank continue to use source positions and text. The first modifying action returns the whole buffer to literal source display before editing.
+
+Autosave uses main-loop deadlines rather than a thread. It writes every due dirty named buffer, including unfocused buffers; unnamed buffers are silently skipped. Explicit writes clear pending deadlines. Success updates the undo save point and clears dirty state. Failure leaves the buffer dirty, reports once in the message bar, and retries only after another mutation. Missing parent directories are errors, and autosaves never rotate `saveversions` backups.
 
 With nonzero `saveversions`, an explicit write that changes an existing target first preserves its raw prior contents and metadata beside it as `.vigor-bak.<basename>.1`; older generations rotate upward to N. New and unchanged targets are skipped, backups do not version themselves, and a backup failure blocks the write. There is no restore command; versions can be opened or copied directly. Add `.vigor-bak.*` to project ignore files as needed.
 

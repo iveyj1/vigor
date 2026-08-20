@@ -90,6 +90,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.opt_makeprg = "make"  # :set makeprg=<shell command>
         self.opt_autodetect = True  # detect syntax and Markdown for newly opened buffers
         self.opt_saveversions = 0  # prior disk versions retained on explicit writes
+        self.opt_autosave = False
+        self.opt_autosavedelay = 1000  # idle milliseconds before autosave
         self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
@@ -412,8 +414,41 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._undo_save_depth = bs._undo_save_depth
         self._undo_branched = bs._undo_branched
 
+    def _autosave_dirty_changed(self, bs, dirty):
+        """Schedule or clear autosave when a buffer's dirty state is assigned."""
+        if dirty and self.opt_autosave and bs.buf.path:
+            bs.autosave_deadline = time.monotonic() + self.opt_autosavedelay / 1000
+        else:
+            bs.autosave_deadline = None
+
+    def _reschedule_autosaves(self):
+        for bs in self.buffers:
+            self._autosave_dirty_changed(bs, bs.buf.dirty)
+
+    def _autosave_state(self, bs):
+        """Write one due buffer without version rotation or directory prompts."""
+        bs.autosave_deadline = None
+        if not (self.opt_autosave and bs.buf.dirty and bs.buf.path):
+            return
+        try:
+            bs.buf.save()
+            depth = len(bs._undo_stack)
+            bs._undo_save_depth, bs._undo_branched = depth, False
+            if bs is self.buffers[self.buf_idx]:
+                self._undo_save_depth, self._undo_branched = depth, False
+            self.msg = f'"{bs.buf.path}" autosaved'
+        except OSError as e:
+            bs.autosave_deadline = None
+            self.msg = f"Can't autosave \"{bs.buf.path}\": {e.strerror or str(e)}"
+
+    def _run_due_autosaves(self, now):
+        for bs in self.buffers:
+            if bs.autosave_deadline is not None and bs.autosave_deadline <= now:
+                self._autosave_state(bs)
+
     def _initialize_buffer_detection(self, bs):
         """Capture current detection policy and prepare automatic Markdown view."""
+        bs.buf.dirty_callback = lambda dirty, state=bs: self._autosave_dirty_changed(state, dirty)
         if bs.autodetect is not None:
             return
         bs.autodetect = self.opt_autodetect
@@ -632,19 +667,26 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         try:
             while self.running:
                 self.render()
+                deadlines = []
+                if self._splash and self._splash_until is not None:
+                    deadlines.append(self._splash_until)
+                if self._yank_flash:
+                    deadlines.append(self._yank_flash[0])
+                deadlines.extend(bs.autosave_deadline for bs in self.buffers
+                                 if bs.autosave_deadline is not None)
+                if deadlines:
+                    timeout = max(0.0, min(deadlines) - time.monotonic())
+                    ready, _, _ = select.select([self.term.fd], [], [], timeout)
+                    if not ready:
+                        now = time.monotonic()
+                        if self._splash_until is not None and self._splash_until <= now:
+                            self._splash = False
+                        if self._yank_flash and self._yank_flash[0] <= now:
+                            self._yank_flash = None
+                        self._run_due_autosaves(now)
+                        continue
                 if self._splash:
-                    timeout = None if self._splash_until is None else max(0.0, self._splash_until - time.monotonic())
-                    ready, _, _ = select.select([self.term.fd], [], [], timeout)
-                    if not ready:
-                        self._splash = False
-                        continue
                     self._splash = False
-                elif self._yank_flash:
-                    timeout = max(0.0, self._yank_flash[0] - time.monotonic())
-                    ready, _, _ = select.select([self.term.fd], [], [], timeout)
-                    if not ready:
-                        self._yank_flash = None
-                        continue
                 key = self.term.read_key()
                 if not key:
                     continue

@@ -4478,6 +4478,104 @@ def test_saveversions_validates_and_loads_from_config():
     print("  PASS: saveversions validates and loads from config")
 
 
+# ── Phase 72: autosave deadlines ───────────────────────────────────────────
+
+def test_autosave_writes_named_buffer_after_idle_delay():
+    """A dirty named buffer saves after the configured mutation-idle deadline."""
+    path = write_temp("alpha\n")
+    screen, content, code = run_vig(
+        b":set autosavedelay=30\r:set autosave\riX", file_path=path, timeout=0.5,
+    )
+    os.unlink(path)
+    assert code == -99 and content == "Xalpha\n"
+    assert f'"{path}" autosaved' in screen
+    print("  PASS: autosave writes named buffer after idle delay")
+
+
+def test_autosave_is_disabled_by_default():
+    """Without :set autosave, idle dirty buffers remain only in memory."""
+    path = write_temp("alpha\n")
+    _, content, code = run_vig(b"iX", file_path=path, timeout=0.3)
+    os.unlink(path)
+    assert code == -99 and content == "alpha\n"
+    print("  PASS: autosave is disabled by default")
+
+
+def test_autosave_handles_multiple_open_buffers():
+    """Deadlines remain attached to dirty buffers across buffer switches."""
+    p1, p2 = write_temp("one\n"), write_temp("two\n")
+    keys = b":set autosavedelay=80\r:set autosave\riA\x1b:n\riB"
+    screen, _, code = run_vig(keys, file_paths=[p1, p2], timeout=0.7)
+    one, two = open(p1).read(), open(p2).read()
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code == -99 and one == "Aone\n" and two == "Btwo\n"
+    assert "autosaved" in screen
+    print("  PASS: autosave handles multiple open buffers")
+
+
+def test_autosave_does_not_rotate_manual_versions():
+    """Autosave bypasses saveversions while a later explicit change still rotates it."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        screen, content, code = run_vig(
+            b":set saveversions=2\r:set autosavedelay=30\r:set autosave\riX",
+            file_path=path, timeout=0.5,
+        )
+        names = os.listdir(d)
+    assert code == -99 and content == "Xone\n" and "autosaved" in screen
+    assert not any(name.startswith(".vigor-bak.") for name in names)
+    print("  PASS: autosave does not rotate manual versions")
+
+
+def test_explicit_write_clears_pending_autosave():
+    """A manual write satisfies and cancels a later pending autosave deadline."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        screen, content, code = run_vig(
+            b":set saveversions=1\r:set autosavedelay=200\r:set autosave\r"
+            b":%s/one/two/\r:w\r",
+            file_path=path, timeout=0.5,
+        )
+        backup = open(os.path.join(d, ".vigor-bak.note.txt.1")).read()
+    assert code == -99 and content == "two\n" and backup == "one\n"
+    assert f'"{path}" autosaved' not in screen
+    print("  PASS: explicit write clears pending autosave")
+
+
+def test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit():
+    """A failed autosave reports once and does not spin until another mutation."""
+    with tempfile.TemporaryDirectory() as root:
+        directory = os.path.join(root, "gone")
+        os.mkdir(directory)
+        path = os.path.join(directory, "note.txt")
+        open(path, "w").write("one\n")
+        keys = (f":set autosavedelay=30\r:set autosave\r"
+                f":!rm -rf {directory}\riX").encode()
+        screen, _, code = run_vig(keys, file_path=path, timeout=0.5)
+    assert code == -99 and "Can't autosave" in screen
+    assert screen.count("Can't autosave") == 1 and "[+]" in last_frame(screen)
+    print("  PASS: autosave error leaves dirty buffer without spinning")
+
+
+def test_autosave_options_validate_and_load_from_config():
+    """Autosave and its nonnegative millisecond delay use startup configuration."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        config = os.path.join(d, "config")
+        open(path, "w").write("one\n")
+        open(config, "w").write("set autosave\nset autosavedelay=30\n")
+        screen, content, code = run_vig(
+            b"iX", file_path=path, env={"VIG_CONFIG": config}, timeout=0.5,
+        )
+        bad, _, bad_code = run_vig(b":set autosavedelay=-1\r:q\r", file_path=path)
+    assert code == -99 and content == "Xone\n" and "autosaved" in screen
+    assert bad_code == 0 and "autosavedelay must be >= 0" in bad
+    print("  PASS: autosave options validate and load from config")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4985,6 +5083,15 @@ def main():
             test_saveversions_failure_blocks_write,
             test_backup_files_do_not_version_themselves,
             test_saveversions_validates_and_loads_from_config,
+        ]),
+        ("72", "Phase 72 — autosave deadlines", [
+            test_autosave_writes_named_buffer_after_idle_delay,
+            test_autosave_is_disabled_by_default,
+            test_autosave_handles_multiple_open_buffers,
+            test_autosave_does_not_rotate_manual_versions,
+            test_explicit_write_clears_pending_autosave,
+            test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit,
+            test_autosave_options_validate_and_load_from_config,
         ]),
     ]
 

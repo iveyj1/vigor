@@ -769,6 +769,25 @@ class CommandMixin:
                 return
             self.opt_yankflash = val
             self.msg = f"yankflash={val}"
+        elif opt == "autosave":
+            self.opt_autosave = True
+            self._reschedule_autosaves()
+            self.msg = "autosave on"
+        elif opt == "noautosave":
+            self.opt_autosave = False
+            self._reschedule_autosaves()
+            self.msg = "autosave off"
+        elif opt.startswith("autosavedelay="):
+            try:
+                val = int(opt[len("autosavedelay="):])
+                if val < 0:
+                    raise ValueError
+            except ValueError:
+                self.msg = "autosavedelay must be >= 0"
+                return
+            self.opt_autosavedelay = val
+            self._reschedule_autosaves()
+            self.msg = f"autosavedelay={val}"
         elif opt.startswith("saveversions="):
             try:
                 val = int(opt[len("saveversions="):])

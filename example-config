@@ -14,5 +14,7 @@ set hlsearch
 set nomarkdownfences
 set autodetect
 set saveversions=0
+set noautosave
+set autosavedelay=1000
 set autoindent
 

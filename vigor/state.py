@@ -14,11 +14,12 @@ class Mode(Enum):
 
 
 class Buffer:
-    __slots__ = ("lines", "path", "dirty")
+    __slots__ = ("lines", "path", "_dirty", "dirty_callback")
 
     def __init__(self, path=None):
         self.path = path
-        self.dirty = False
+        self._dirty = False
+        self.dirty_callback = None
         if path and os.path.exists(path):
             with open(path, "r") as f:
                 self.lines = f.read().splitlines()
@@ -26,6 +27,16 @@ class Buffer:
                 self.lines = [""]
         else:
             self.lines = [""]
+
+    @property
+    def dirty(self):
+        return self._dirty
+
+    @dirty.setter
+    def dirty(self, value):
+        self._dirty = value
+        if self.dirty_callback:
+            self.dirty_callback(value)
 
     def serialized(self):
         return "".join(line + "\n" for line in self.lines)
@@ -48,7 +59,7 @@ class BufferState:
         "buf", "cx", "cy", "scroll", "wrap_skip",
         "md_view", "md_lines", "md_maps", "md_languages", "filetype_override", "autodetect",
         "_undo_stack", "_redo_stack",
-        "_undo_save_depth", "_undo_branched",
+        "_undo_save_depth", "_undo_branched", "autosave_deadline",
     )
 
     def __init__(self, path=None):
@@ -67,3 +78,4 @@ class BufferState:
         self._redo_stack = []
         self._undo_save_depth = 0
         self._undo_branched = False
+        self.autosave_deadline = None
