@@ -3656,9 +3656,9 @@ def write_named_temp(content, suffix):
     return path
 
 def test_markdownfences_hides_backtick_and_tilde_fences():
-    """:set markdownfences renders markdown fence marker lines blank."""
+    """:set markdownfences hides fence markers only while :md view is active."""
     path = write_named_temp("before\n```python\ncode\n```\n~~~\nmore\n~~~\nafter\n", ".md")
-    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
     os.unlink(path)
     frame = last_frame(screen)
     assert code == 0
@@ -3666,10 +3666,20 @@ def test_markdownfences_hides_backtick_and_tilde_fences():
     assert "```" not in frame and "~~~" not in frame, f"Fence markers should be hidden: {frame[:1000]}"
     print("  PASS: markdownfences hides backtick and tilde fences")
 
+def test_markdownfences_requires_markdown_view():
+    """markdownfences does not affect literal source view."""
+    path = write_named_temp("before\n```\ncode\n", ".md")
+    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "```" in frame, f"Fence should remain visible outside :md: {frame[:800]}"
+    print("  PASS: markdownfences requires Markdown view")
+
 def test_markdownfences_only_markdown_files():
     """markdownfences applies only to markdown filenames."""
     path = write_named_temp("before\n```\ncode\n", ".txt")
-    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
     os.unlink(path)
     frame = last_frame(screen)
     assert code == 0
@@ -4104,6 +4114,7 @@ def main():
         ]),
         ("60", "Phase 60 — markdown fence hiding", [
             test_markdownfences_hides_backtick_and_tilde_fences,
+            test_markdownfences_requires_markdown_view,
             test_markdownfences_only_markdown_files,
         ]),
     ]

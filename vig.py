@@ -1645,7 +1645,7 @@ class Editor:
         out.append("\r\n")
 
     def _is_markdown_fence_line(self, line):
-        if not self.opt_markdownfences or not self.buf.path:
+        if not (self.md_view and self.opt_markdownfences) or not self.buf.path:
             return False
         lower = self.buf.path.lower()
         if not (lower.endswith(".md") or lower.endswith(".markdown")):

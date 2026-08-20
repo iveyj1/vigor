@@ -51,13 +51,13 @@ OPTIONS
 :set delcopy         deletes update register   :set nodelcopy       preserve register
 :set rghidden        rg includes filenames     :set norghidden      default rg filenames
 :set hlsearch        highlight search matches  :set nohlsearch      hide search matches
-:set markdownfences  hide md fence lines       :set nomarkdownfences show md fence lines
+:set markdownfences  hide :md fence lines      :set nomarkdownfences show fence lines
 :set makeprg=CMD     build command for :make
 scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
 
 .py .c .h .sh .bash  automatic string/comment highlighting
 :md aligns Markdown tables virtually; editing restores literal source
-markdownfences hides ``` and ~~~ marker lines in Markdown files
+markdownfences hides ``` and ~~~ marker lines in :md Markdown view
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping

@@ -9,12 +9,12 @@
 
 vigor is a compact, single-file, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party packages.
 
-The project goal is a practical, small editor that remains easy to inspect, run, and modify as one file. It is no longer a tiny minimal prototype; it intentionally includes common vi-style editing features while avoiding plugin systems, macros, multiple source modules, and external runtime dependencies. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers.
+The project goal is a practical, small editor that remains easy to inspect, run, and modify as one file. It is no longer a tiny minimal prototype; it intentionally includes common vi-style editing features while avoiding plugin systems, macros, multiple source modules, and external runtime dependencies. It includes line-local regex highlighting for comments and strings in Python, C, and Bash files. Optional Markdown fence hiding renders ```/~~~ fence marker lines blank in Markdown buffers while `:md` view is active.
 
 **Files**
 
 - `vig.py` — the entire editor (~3,200 lines)
-- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 289 test functions)
+- `test_vig.py` — PTY-based smoke tests (plain asserts, no framework, 290 test functions)
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `AGENTS.md` — this document
 - `reference.md` — command reference
@@ -170,7 +170,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 289 test functions organized into 60 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 290 test functions organized into 60 phase groups, covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ## Workflow for AI Agents
