@@ -4081,6 +4081,63 @@ def test_all_hidden_markdown_rows_render_safely():
     print("  PASS: all-hidden Markdown projection is safe")
 
 
+# ── Phase 66: enhanced language highlighting ──────────────────────────────
+
+def _syntax_tokens(path, line):
+    from vigor.highlight import syntax_spans
+    return {line[start:end]: color for start, end, color in syntax_spans(path, line)}
+
+
+def test_named_syntax_color_maps_are_complete():
+    """Semantic syntax entities resolve through an easily editable named palette."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    expected = {"comment", "string", "number", "keyword", "type", "constant",
+                "definition", "function", "decorator", "preprocessor", "variable"}
+    assert expected <= SYNTAX_COLOR_NAMES.keys()
+    assert all(name in NAMED_COLORS for name in SYNTAX_COLOR_NAMES.values())
+    print("  PASS: named syntax color maps are complete")
+
+
+def test_python_highlights_language_entities():
+    """Python recognizes decorators, definitions, keywords, constants, and numbers."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    colors = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+    decorator = _syntax_tokens("demo.py", "@pkg.route")
+    tokens = _syntax_tokens("demo.py", "async def greet(value=0x2A): return True")
+    assert decorator["@pkg.route"] == colors["decorator"]
+    assert tokens["async"] == colors["keyword"] and tokens["def"] == colors["keyword"]
+    assert tokens["greet"] == colors["definition"] and tokens["0x2A"] == colors["number"]
+    assert tokens["True"] == colors["constant"]
+    print("  PASS: Python language entities highlighted")
+
+
+def test_c_and_cpp_highlight_language_entities():
+    """C-family extensions recognize directives, types, definitions, and calls."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    colors = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+    directive = _syntax_tokens("demo.c", "#define LIMIT 0x10")
+    c_tokens = _syntax_tokens("demo.c", 'struct Item { uint32_t n; printf("x"); }')
+    cpp_tokens = _syntax_tokens("demo.hpp", "namespace demo { class Widget { constexpr bool run(); }; }")
+    assert directive["#define"] == colors["preprocessor"] and directive["0x10"] == colors["number"]
+    assert c_tokens["struct"] == colors["keyword"] and c_tokens["Item"] == colors["definition"]
+    assert c_tokens["uint32_t"] == colors["type"] and c_tokens["printf"] == colors["function"]
+    assert cpp_tokens["demo"] == colors["definition"] and cpp_tokens["Widget"] == colors["definition"]
+    assert cpp_tokens["constexpr"] == colors["keyword"] and cpp_tokens["bool"] == colors["type"]
+    assert cpp_tokens["run"] == colors["function"]
+    print("  PASS: C and C++ language entities highlighted")
+
+
+def test_bash_highlights_language_entities():
+    """Bash recognizes functions, builtins, variables, numbers, and comments."""
+    from vigor.highlight import NAMED_COLORS, SYNTAX_COLOR_NAMES
+    colors = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+    tokens = _syntax_tokens("demo.bash", "build() { local n=12; printf $HOME; # note")
+    assert tokens["build"] == colors["definition"] and tokens["local"] == colors["function"]
+    assert tokens["12"] == colors["number"] and tokens["printf"] == colors["function"]
+    assert tokens["$HOME"] == colors["variable"] and tokens["# note"] == colors["comment"]
+    print("  PASS: Bash language entities highlighted")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4548,6 +4605,12 @@ def main():
             test_mouse_wheel_counts_collapsed_display_rows,
             test_wrapmove_skips_collapsed_fence_rows,
             test_all_hidden_markdown_rows_render_safely,
+        ]),
+        ("66", "Phase 66 — enhanced language highlighting", [
+            test_named_syntax_color_maps_are_complete,
+            test_python_highlights_language_entities,
+            test_c_and_cpp_highlight_language_entities,
+            test_bash_highlights_language_entities,
         ]),
     ]
 

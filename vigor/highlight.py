@@ -4,21 +4,99 @@ import os
 import re
 
 
-SYNTAX_PATTERNS = {
-    ".py": re.compile(r"(?P<string>(?:[rRuUbBfF]{0,2})(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'))|(?P<comment>#.*)"),
-    ".c": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>//.*|/\*.*?\*/)"),
-    ".h": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>//.*|/\*.*?\*/)"),
-    ".sh": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
-    ".bash": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
+# Named ANSI colors and semantic maps are intentionally plain dictionaries so
+# the palette can be changed without touching lexer or rendering code.
+NAMED_COLORS = {
+    "green": "\x1b[32m", "yellow": "\x1b[33m", "blue": "\x1b[34m",
+    "magenta": "\x1b[35m", "cyan": "\x1b[36m", "bright_blue": "\x1b[94m",
+    "bright_magenta": "\x1b[95m", "bold_cyan": "\x1b[1;36m",
+    "bold_yellow": "\x1b[1;33m", "dim_cyan": "\x1b[2;36m",
+    "search": "\x1b[43;30m", "current_search": "\x1b[45;97m",
 }
-SYNTAX_COLORS = {"string": "\x1b[33m", "comment": "\x1b[32m"}
-MD_HEADER = "\x1b[1;36m"
-MD_MARKER = "\x1b[1;33m"
-MD_TABLE = "\x1b[36m"
-MD_TABLE_RULE = "\x1b[2;36m"
-SEARCH_COLOR = "\x1b[43;30m"
-CURRENT_SEARCH_COLOR = "\x1b[45;97m"
+SYNTAX_COLOR_NAMES = {
+    "comment": "green", "string": "yellow", "number": "magenta",
+    "keyword": "bright_blue", "type": "cyan", "constant": "magenta",
+    "definition": "bold_cyan", "function": "cyan", "decorator": "bright_magenta",
+    "preprocessor": "bright_magenta", "variable": "bright_magenta",
+}
+MARKDOWN_COLOR_NAMES = {
+    "header": "bold_cyan", "marker": "bold_yellow", "table": "cyan",
+    "table_rule": "dim_cyan",
+}
+SYNTAX_COLORS = {kind: NAMED_COLORS[name] for kind, name in SYNTAX_COLOR_NAMES.items()}
+MD_HEADER = NAMED_COLORS[MARKDOWN_COLOR_NAMES["header"]]
+MD_MARKER = NAMED_COLORS[MARKDOWN_COLOR_NAMES["marker"]]
+MD_TABLE = NAMED_COLORS[MARKDOWN_COLOR_NAMES["table"]]
+MD_TABLE_RULE = NAMED_COLORS[MARKDOWN_COLOR_NAMES["table_rule"]]
+SEARCH_COLOR = NAMED_COLORS["search"]
+CURRENT_SEARCH_COLOR = NAMED_COLORS["current_search"]
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+def _words(items):
+    return r"\b(?:" + "|".join(items.split()) + r")\b"
+
+
+def _lexer(rules):
+    return re.compile("|".join(f"(?P<{name}>{pattern})" for name, pattern in rules))
+
+
+IDENT = r"[A-Za-z_]\w*"
+NUMBER = r"\b(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|0[oO][0-7]+|(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)\b"
+C_NUMBER = r"\b(?:0[xX][0-9A-Fa-f]+|0[bB][01]+|(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)[uUlLfF]*\b"
+PY_STRING = r"(?:[rRuUbBfF]{0,2})(?:\"\"\".*?\"\"\"|'''.*?'''|\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')"
+C_STRING = r"(?:u8|[uUL])?\"(?:\\.|[^\"\\])*\"|(?:u8|[uUL])?'(?:\\.|[^'\\])*'"
+SH_STRING = r"\$?'(?:[^']*)'|\$?\"(?:\\.|[^\"\\])*\""
+
+PYTHON_RULES = (
+    ("string", PY_STRING), ("comment", r"#.*"),
+    ("decorator", r"@" + IDENT + r"(?:\." + IDENT + r")*"),
+    ("definition", r"(?<=def )" + IDENT + r"|(?<=class )" + IDENT),
+    ("constant", _words("True False None NotImplemented Ellipsis")),
+    ("keyword", _words("and as assert async await break case class continue def del elif else except finally for from global if import in is lambda match nonlocal not or pass raise return try while with yield")),
+    ("number", NUMBER),
+    ("function", IDENT + r"(?=\s*\()"),
+)
+C_KEYWORDS = "alignas alignof auto break case const continue default do else enum extern for goto if inline register restrict return sizeof static struct switch typedef union volatile while _Alignas _Alignof _Atomic _Bool _Complex _Generic _Imaginary _Noreturn _Static_assert _Thread_local"
+CPP_KEYWORDS = C_KEYWORDS + " and and_eq asm bitand bitor catch class compl concept consteval constexpr constinit const_cast co_await co_return co_yield decltype delete dynamic_cast explicit export false friend mutable namespace new noexcept not not_eq nullptr operator or or_eq private protected public reinterpret_cast requires static_assert static_cast template this thread_local throw true try typeid typename using virtual wchar_t xor xor_eq"
+C_TYPES = "bool char double float int long short signed unsigned void size_t ptrdiff_t FILE int8_t int16_t int32_t int64_t uint8_t uint16_t uint32_t uint64_t"
+C_BASE_RULES = (
+    ("comment", r"//.*|/\*.*?(?:\*/|$)"), ("string", C_STRING),
+    ("preprocessor", r"^\s*#\s*" + IDENT), ("constant", _words("NULL true false nullptr")),
+    ("number", C_NUMBER),
+)
+C_RULES = C_BASE_RULES + (
+    ("definition", r"(?<=struct )" + IDENT + r"|(?<=union )" + IDENT + r"|(?<=enum )" + IDENT),
+    ("keyword", _words(C_KEYWORDS)), ("type", _words(C_TYPES)),
+    ("function", IDENT + r"(?=\s*\()"),
+)
+CPP_RULES = C_BASE_RULES + (
+    ("definition", r"(?<=class )" + IDENT + r"|(?<=struct )" + IDENT + r"|(?<=namespace )" + IDENT),
+    ("keyword", _words(CPP_KEYWORDS)), ("type", _words(C_TYPES + " string nullptr_t")),
+    ("function", IDENT + r"(?=\s*\()"),
+)
+BASH_RULES = (
+    ("string", SH_STRING), ("comment", r"(?<!\S)#.*"),
+    ("variable", r"\$(?:\{[^}\n]+\}|[A-Za-z_]\w*|\d+|[?#@*!$-])"),
+    ("definition", IDENT + r"(?=\s*\(\s*\))"),
+    ("keyword", _words("if then elif else fi for while until do done case esac in function select time coproc")),
+    ("function", _words("alias bg bind break builtin caller cd command compgen complete continue declare dirs disown echo enable eval exec exit export fc fg getopts hash help history jobs kill let local logout mapfile popd printf pushd pwd read readarray readonly return set shift shopt source suspend test times trap type typeset ulimit umask unalias unset wait")),
+    ("number", NUMBER),
+)
+LANGUAGE_LEXERS = {
+    "python": _lexer(PYTHON_RULES), "c": _lexer(C_RULES),
+    "cpp": _lexer(CPP_RULES), "bash": _lexer(BASH_RULES),
+}
+EXTENSION_LANGUAGES = {
+    ".py": "python", ".c": "c", ".h": "c", ".cc": "cpp", ".cpp": "cpp",
+    ".cxx": "cpp", ".hh": "cpp", ".hpp": "cpp", ".hxx": "cpp",
+    ".sh": "bash", ".bash": "bash",
+}
+LANGUAGE_ALIASES = {
+    "python": "python", "py": "python", "bash": "bash", "sh": "bash",
+    "shell": "bash", "c": "c", "cpp": "cpp", "c++": "cpp", "cc": "cpp",
+    "cxx": "cpp",
+}
 
 
 def expand_with_map(line, padding=None):
@@ -112,12 +190,17 @@ def markdown_spans(lines, line, y):
                  if ch == "|" and (i == 0 or line[i - 1] != "\\"))
 
 
-def syntax_spans(path, line):
+def language_for_path(path):
+    """Return the supported language name selected by a file extension."""
+    return EXTENSION_LANGUAGES.get(os.path.splitext(path or "")[1].lower())
+
+
+def syntax_spans(path, line, language=None):
     """Return line-local syntax spans in source coordinates."""
-    pattern = SYNTAX_PATTERNS.get(os.path.splitext(path or "")[1].lower())
-    if not pattern:
+    lexer = LANGUAGE_LEXERS.get(language or language_for_path(path))
+    if not lexer:
         return ()
-    return tuple((m.start(), m.end(), SYNTAX_COLORS[m.lastgroup]) for m in pattern.finditer(line))
+    return tuple((m.start(), m.end(), SYNTAX_COLORS[m.lastgroup]) for m in lexer.finditer(line))
 
 
 def literal_ignorecase(pattern):
