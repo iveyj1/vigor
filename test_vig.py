@@ -3641,7 +3641,7 @@ def test_word_search_and_hlsearch_use_smart_case():
     screen, _, code = run_vig(b":set hlsearch\r*iX\x1bu:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    assert "\x1b[43;30mFoo\x1b[m" in screen and "\x1b[43;30mFOO\x1b[m" in screen
+    assert "\x1b[45;97mFoo\x1b[m" in screen and "\x1b[43;30mFOO\x1b[m" in screen
     print("  PASS: word search and hlsearch use smart case")
 
 
@@ -3824,6 +3824,52 @@ def test_mouse_reporting_restores_across_rgf_handoff():
     assert screen.count("\x1b[?1000h") >= 2, "Expected mouse reporting after fzf returns"
     assert "\x1b[?1000l" in screen, "Expected mouse reporting disabled for handoff"
     print("  PASS: mouse reporting restores across rgf handoff")
+
+
+# ── Phase 62: live search highlighting ────────────────────────────────────
+
+def test_search_prompt_previews_visible_matches_without_moving():
+    """Typing a search previews matches while leaving the cursor in place."""
+    path = write_temp("alpha beta alpha\nAlpha\n")
+    screen, content, code = run_vig(b"/alpha\x1biX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content.startswith("Xalpha")
+    assert "\x1b[45;97malpha\x1b[m" in screen, "Expected current live match styling"
+    assert "\x1b[43;30malpha\x1b[m" in screen, "Expected other live matches highlighted"
+    print("  PASS: search prompt previews matches without moving")
+
+
+def test_search_prompt_preview_uses_smart_case():
+    """Live preview uses the same literal smart-case rule as accepted searches."""
+    path = write_temp("alpha\nAlpha\n")
+    screen, _, code = run_vig(b"/Alpha\x1b:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "\x1b[43;30mAlpha\x1b[m" in screen
+    assert "\x1b[43;30malpha\x1b[m" not in screen
+    print("  PASS: search preview uses smart case")
+
+
+def test_search_preview_clears_on_escape_and_tolerates_invalid_regex():
+    """Esc clears preview; incomplete regular expressions do not show errors."""
+    path = write_temp("alpha [ beta\n")
+    screen, _, code = run_vig(b"/[\x1b:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "Invalid regex" not in screen
+    assert "\x1b[43;30m" not in last_frame(screen) and "\x1b[45;97m" not in last_frame(screen)
+    print("  PASS: invalid search preview clears quietly")
+
+
+def test_hlsearch_distinguishes_current_match():
+    """Persistent hlsearch gives the cursor match a distinct style."""
+    path = write_temp("alpha beta alpha\n")
+    screen, _, code = run_vig(b":set hlsearch\r/alpha\r:q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "\x1b[43;30malpha\x1b[m" in frame
+    assert "\x1b[45;97malpha\x1b[m" in frame
+    print("  PASS: hlsearch distinguishes current match")
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
@@ -4266,6 +4312,12 @@ def main():
             test_mouse_wheel_scrolls_three_display_rows,
             test_mouse_wheel_preserves_active_modes,
             test_mouse_reporting_restores_across_rgf_handoff,
+        ]),
+        ("62", "Phase 62 — live search highlighting", [
+            test_search_prompt_previews_visible_matches_without_moving,
+            test_search_prompt_preview_uses_smart_case,
+            test_search_preview_clears_on_escape_and_tolerates_invalid_regex,
+            test_hlsearch_distinguishes_current_match,
         ]),
     ]
 

@@ -22,7 +22,7 @@ p P                 paste after / before
 u / Ctrl-R          undo / redo
 v V                 visual character / line selection
 
-/pattern ?pattern   search forward / backward; literal lowercase ignores case
+/pattern ?pattern   search forward / backward; typing previews visible matches
 * # / g* g#         word search; whole / partial
 n N                 repeat search / reverse
 :command            enter command prompt

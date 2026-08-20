@@ -2,6 +2,7 @@
 
 import re
 
+from .highlight import literal_ignorecase
 from .state import Mode
 
 
@@ -708,9 +709,7 @@ class ModeMixin:
             self._reset_history_nav()
             if pattern:
                 self.search_pattern = pattern
-                meta = ".^$*+?{}[]\\|()"
-                self.search_ignorecase = (not any(ch.isupper() for ch in pattern)
-                                          and not any(ch in meta for ch in pattern))
+                self.search_ignorecase = literal_ignorecase(pattern)
                 self._add_history(self.search_history, pattern)
             if self.search_pattern:
                 self._search_next(self.search_dir)

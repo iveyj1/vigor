@@ -6,7 +6,10 @@ import sys
 import time
 
 from . import BUILD_ID, VERSION
-from .highlight import SEARCH_COLOR, markdown_spans, search_spans, syntax_spans
+from .highlight import (
+    CURRENT_SEARCH_COLOR, SEARCH_COLOR, literal_ignorecase, markdown_spans,
+    search_spans, syntax_spans,
+)
 from .state import Mode
 
 
@@ -191,13 +194,18 @@ class RenderMixin:
         return syntax_spans(self.buf.path, line)
 
     def _search_spans(self, line):
-        """Return active search highlight spans for a buffer line."""
-        if not (self.opt_hlsearch and self.search_pattern):
-            return ()
+        """Return persistent or live-preview search spans for a buffer line."""
         try:
-            return search_spans(line, self._compile_search())
+            if self.mode == Mode.SEARCH:
+                if not self.cmd:
+                    return ()
+                flags = re.IGNORECASE if literal_ignorecase(self.cmd) else 0
+                return search_spans(line, re.compile(self.cmd, flags))
+            if self.opt_hlsearch and self.search_pattern:
+                return search_spans(line, self._compile_search())
         except re.error:
-            return ()
+            pass
+        return ()
 
     def _render_visible(self, visible, buf_line, col_offset, sel, out):
         """Render a segment with line-local syntax and optional reverse video."""
@@ -209,6 +217,8 @@ class RenderMixin:
                       for sx, ex, color in self._syntax_spans(line, buf_line))
         search_spans = tuple((self._view_col(buf_line, sx), self._view_col(buf_line, ex))
                              for sx, ex in self._search_spans(line))
+        cursor_col = self._view_col(buf_line, self.cx) if buf_line == self.cy else -1
+        current_search = next(((sx, ex) for sx, ex in search_spans if sx <= cursor_col < ex), None)
         bounds = {start, end}
         for sx, ex, _ in spans:
             if sx < end and ex > start:
@@ -231,11 +241,12 @@ class RenderMixin:
                 active = next(spans, None)
             color = active[2] if active and active[0] <= left < active[1] else ""
             searched = any(sx <= left < ex for sx, ex in search_spans)
+            current = current_search is not None and current_search[0] <= left < current_search[1]
             selected = select_start is not None and select_start <= left < select_end
             if color:
                 out.append(color)
             if searched:
-                out.append(SEARCH_COLOR)
+                out.append(CURRENT_SEARCH_COLOR if current else SEARCH_COLOR)
             if selected:
                 out.append("\x1b[7m")
             out.append(visible[left - start:right - start])

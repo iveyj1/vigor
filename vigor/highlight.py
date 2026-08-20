@@ -17,6 +17,7 @@ MD_MARKER = "\x1b[1;33m"
 MD_TABLE = "\x1b[36m"
 MD_TABLE_RULE = "\x1b[2;36m"
 SEARCH_COLOR = "\x1b[43;30m"
+CURRENT_SEARCH_COLOR = "\x1b[45;97m"
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 
@@ -117,6 +118,12 @@ def syntax_spans(path, line):
     if not pattern:
         return ()
     return tuple((m.start(), m.end(), SYNTAX_COLORS[m.lastgroup]) for m in pattern.finditer(line))
+
+
+def literal_ignorecase(pattern):
+    """Return whether a literal search pattern uses lowercase smart-case."""
+    meta = ".^$*+?{}[]\\|()"
+    return not any(ch.isupper() for ch in pattern) and not any(ch in meta for ch in pattern)
 
 
 def search_spans(line, pattern):
