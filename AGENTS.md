@@ -39,7 +39,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 
 Requirements may arrive as numbered development phases. Review all supplied phases before implementation and ask any necessary questions together. Add requested features to the requirements.
 
-Do not commit or check in changes unless the user explicitly resumes check-ins. Keep completed work in a working, testable state regardless of commit policy.
+Commit at the end of each completed development phase. Do not leave partial or failing work in a phase commit.
 
 ### General Guidance
 
@@ -205,4 +205,4 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Test before declaring done.** Run the full test suite after any change, not just the tests for the current phase. Regressions in earlier phases are bugs.
 
-**Phase status summary** At the end of a phase, report work done, whether a commit was made, uncompleted work from that phase, next steps. If a user-facing feature, give brief instructions for a demo of the change.
+**Phase status summary.** At the end of a phase, report work done, whether a commit was made, uncompleted work from that phase, and next steps. For a user-facing feature, give brief demo instructions.
