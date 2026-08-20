@@ -1,6 +1,16 @@
 """Buffer content and per-buffer editor state."""
 
 import os
+from enum import Enum
+
+
+class Mode(Enum):
+    NORMAL = "NORMAL"
+    INSERT = "INSERT"
+    COMMAND = "COMMAND"
+    VISUAL = "VISUAL"
+    VISUAL_LINE = "VISUAL LINE"
+    SEARCH = "SEARCH"
 
 
 class Buffer:
