@@ -7,12 +7,6 @@
 
 No implementation-ready item is currently specified.
 
-### Anticipated Changes
-
-These are current pain points and likely development directions. Resolve the listed semantics before implementation.
-
-1. Autosave; define eligibility, delay, unnamed-buffer behavior, error reporting, atomic-write expectations, and interaction with explicit writes.
-
 ### On Hold
 1. Remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
 1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.
@@ -25,11 +19,12 @@ These are current pain points and likely development directions. Resolve the lis
 1. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 1. marks
 1. configurable keymaps
-1. autosave
 1. filtering on partially typed command entry for : command history
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Add main-loop deadline autosave for dirty named buffers with configurable idle delay, per-buffer scheduling across switches, explicit-write cancellation, one-shot error reporting, and no manual-version rotation.
+1. Add `saveversions=N` retained prior-disk versions for changed explicit writes, using ignored adjacent `.vigor-bak.<basename>.N` files; block writes when promised preservation fails.
 1. Add global `autodetect` / `noautodetect` policy for newly opened buffers, automatic `.md`/`.markdown` presentation, startup config support, and explicit current-buffer redetection through `:ft auto`.
 1. Add per-buffer `:filetype` / `:ft` reporting and overrides for auto, text, Bash, C, C++, Python, and Markdown, with persistence across switches and reloads.
 1. Detect direct, `env`, and `env -S` Bash/sh shebangs for highlighting named extensionless files while keeping recognized extensions authoritative.

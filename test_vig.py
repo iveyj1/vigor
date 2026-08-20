@@ -4366,6 +4366,216 @@ def test_explicit_commands_override_disabled_detection():
     print("  PASS: explicit commands override disabled detection")
 
 
+# ── Phase 71: retained manual-save versions ────────────────────────────────
+
+def test_saveversions_rotates_prior_disk_contents():
+    """Explicit writes retain N adjacent prior versions, newest at generation one."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        keys = (b":set saveversions=2\r:%s/one/two/\r:w\r"
+                b":%s/two/three/\r:w\r:%s/three/four/\r:wq\r")
+        _, content, code = run_vig(keys, file_path=path)
+        newest = open(os.path.join(d, ".vigor-bak.note.txt.1")).read()
+        older = open(os.path.join(d, ".vigor-bak.note.txt.2")).read()
+        names = os.listdir(d)
+    assert code == 0 and content == "four\n"
+    assert newest == "three\n" and older == "two\n"
+    assert ".vigor-bak.note.txt.3" not in names
+    print("  PASS: saveversions rotates prior disk contents")
+
+
+def test_saveversions_skips_unchanged_and_new_targets():
+    """Unchanged explicit writes and first writes of new files create no versions."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        new_path = os.path.join(d, "new.txt")
+        open(path, "w").write("one\n")
+        _, _, code = run_vig(
+            b":set saveversions=2\r:%s/one/two/\r:w\r:w\r:q\r", file_path=path,
+        )
+        _, new_content, new_code = run_vig(
+            b":set saveversions=2\rihello\x1b:wq\r", file_path=new_path,
+        )
+        names = os.listdir(d)
+    assert code == new_code == 0 and new_content == "hello\n"
+    assert ".vigor-bak.note.txt.1" in names and ".vigor-bak.note.txt.2" not in names
+    assert ".vigor-bak.new.txt.1" not in names
+    print("  PASS: saveversions skips unchanged and new targets")
+
+
+def test_saveversions_preserves_existing_save_as_target():
+    """Writing to another existing path retains that target's prior bytes."""
+    with tempfile.TemporaryDirectory() as d:
+        source = os.path.join(d, "source.txt")
+        target = os.path.join(d, "target.txt")
+        open(source, "w").write("source\n")
+        open(target, "w").write("target\n")
+        _, _, code = run_vig(
+            f":set saveversions=1\r:w {target}\r:q\r", file_path=source,
+        )
+        written = open(target).read()
+        backup = open(os.path.join(d, ".vigor-bak.target.txt.1")).read()
+    assert code == 0 and written == "source\n" and backup == "target\n"
+    print("  PASS: saveversions preserves save-as target")
+
+
+def test_saveversions_reduction_removes_excess_generations():
+    """Reducing retention removes generations above the new limit on the next write."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        keys = (b":set saveversions=3\r:%s/one/two/\r:w\r:%s/two/three/\r:w\r"
+                b":set saveversions=1\r:%s/three/four/\r:wq\r")
+        _, _, code = run_vig(keys, file_path=path)
+        names = os.listdir(d)
+    assert code == 0 and ".vigor-bak.note.txt.1" in names
+    assert ".vigor-bak.note.txt.2" not in names and ".vigor-bak.note.txt.3" not in names
+    print("  PASS: saveversions reduction removes excess generations")
+
+
+def test_saveversions_failure_blocks_write():
+    """A failed promised backup leaves the original target untouched and dirty."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        os.mkdir(os.path.join(d, ".vigor-bak.note.txt.1"))
+        screen, content, code = run_vig(
+            b":set saveversions=1\r:%s/one/two/\r:w\r:q!\r", file_path=path,
+        )
+    assert code == 0 and content == "one\n"
+    assert "Can't preserve prior version" in screen
+    print("  PASS: saveversions failure blocks write")
+
+
+def test_backup_files_do_not_version_themselves():
+    """Opening a generated-name backup cannot create recursive backup chains."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, ".vigor-bak.note.txt.1")
+        open(path, "w").write("one\n")
+        _, content, code = run_vig(
+            b":set saveversions=3\r:%s/one/two/\r:wq\r", file_path=path,
+        )
+        names = os.listdir(d)
+    assert code == 0 and content == "two\n" and names == [".vigor-bak.note.txt.1"]
+    print("  PASS: backup files do not version themselves")
+
+
+def test_saveversions_validates_and_loads_from_config():
+    """Retention validates 0..100 and uses the normal startup-config path."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        config = os.path.join(d, "config")
+        open(path, "w").write("one\n")
+        open(config, "w").write("set saveversions=1\n")
+        screen, _, code = run_vig(
+            b":%s/one/two/\r:wq\r", file_path=path, env={"VIG_CONFIG": config},
+        )
+        bad, _, bad_code = run_vig(b":set saveversions=101\r:q\r", file_path=path)
+        exists = os.path.exists(os.path.join(d, ".vigor-bak.note.txt.1"))
+    assert code == bad_code == 0 and exists
+    assert "saveversions must be 0..100" in bad
+    print("  PASS: saveversions validates and loads from config")
+
+
+# ── Phase 72: autosave deadlines ───────────────────────────────────────────
+
+def test_autosave_writes_named_buffer_after_idle_delay():
+    """A dirty named buffer saves after the configured mutation-idle deadline."""
+    path = write_temp("alpha\n")
+    screen, content, code = run_vig(
+        b":set autosavedelay=30\r:set autosave\riX", file_path=path, timeout=0.5,
+    )
+    os.unlink(path)
+    assert code == -99 and content == "Xalpha\n"
+    assert f'"{path}" autosaved' in screen
+    print("  PASS: autosave writes named buffer after idle delay")
+
+
+def test_autosave_is_disabled_by_default():
+    """Without :set autosave, idle dirty buffers remain only in memory."""
+    path = write_temp("alpha\n")
+    _, content, code = run_vig(b"iX", file_path=path, timeout=0.3)
+    os.unlink(path)
+    assert code == -99 and content == "alpha\n"
+    print("  PASS: autosave is disabled by default")
+
+
+def test_autosave_handles_multiple_open_buffers():
+    """Deadlines remain attached to dirty buffers across buffer switches."""
+    p1, p2 = write_temp("one\n"), write_temp("two\n")
+    keys = b":set autosavedelay=80\r:set autosave\riA\x1b:n\riB"
+    screen, _, code = run_vig(keys, file_paths=[p1, p2], timeout=0.7)
+    one, two = open(p1).read(), open(p2).read()
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code == -99 and one == "Aone\n" and two == "Btwo\n"
+    assert "autosaved" in screen
+    print("  PASS: autosave handles multiple open buffers")
+
+
+def test_autosave_does_not_rotate_manual_versions():
+    """Autosave bypasses saveversions while a later explicit change still rotates it."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        screen, content, code = run_vig(
+            b":set saveversions=2\r:set autosavedelay=30\r:set autosave\riX",
+            file_path=path, timeout=0.5,
+        )
+        names = os.listdir(d)
+    assert code == -99 and content == "Xone\n" and "autosaved" in screen
+    assert not any(name.startswith(".vigor-bak.") for name in names)
+    print("  PASS: autosave does not rotate manual versions")
+
+
+def test_explicit_write_clears_pending_autosave():
+    """A manual write satisfies and cancels a later pending autosave deadline."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        screen, content, code = run_vig(
+            b":set saveversions=1\r:set autosavedelay=200\r:set autosave\r"
+            b":%s/one/two/\r:w\r",
+            file_path=path, timeout=0.5,
+        )
+        backup = open(os.path.join(d, ".vigor-bak.note.txt.1")).read()
+    assert code == -99 and content == "two\n" and backup == "one\n"
+    assert f'"{path}" autosaved' not in screen
+    print("  PASS: explicit write clears pending autosave")
+
+
+def test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit():
+    """A failed autosave reports once and does not spin until another mutation."""
+    with tempfile.TemporaryDirectory() as root:
+        directory = os.path.join(root, "gone")
+        os.mkdir(directory)
+        path = os.path.join(directory, "note.txt")
+        open(path, "w").write("one\n")
+        keys = (f":set autosavedelay=30\r:set autosave\r"
+                f":!rm -rf {directory}\riX").encode()
+        screen, _, code = run_vig(keys, file_path=path, timeout=0.5)
+    assert code == -99 and "Can't autosave" in screen
+    assert screen.count("Can't autosave") == 1 and "[+]" in last_frame(screen)
+    print("  PASS: autosave error leaves dirty buffer without spinning")
+
+
+def test_autosave_options_validate_and_load_from_config():
+    """Autosave and its nonnegative millisecond delay use startup configuration."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        config = os.path.join(d, "config")
+        open(path, "w").write("one\n")
+        open(config, "w").write("set autosave\nset autosavedelay=30\n")
+        screen, content, code = run_vig(
+            b"iX", file_path=path, env={"VIG_CONFIG": config}, timeout=0.5,
+        )
+        bad, _, bad_code = run_vig(b":set autosavedelay=-1\r:q\r", file_path=path)
+    assert code == -99 and content == "Xone\n" and "autosaved" in screen
+    assert bad_code == 0 and "autosavedelay must be >= 0" in bad
+    print("  PASS: autosave options validate and load from config")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4864,6 +5074,24 @@ def main():
             test_autodetect_option_affects_only_new_buffers,
             test_noautodetect_config_disables_initial_recognition,
             test_explicit_commands_override_disabled_detection,
+        ]),
+        ("71", "Phase 71 — retained manual-save versions", [
+            test_saveversions_rotates_prior_disk_contents,
+            test_saveversions_skips_unchanged_and_new_targets,
+            test_saveversions_preserves_existing_save_as_target,
+            test_saveversions_reduction_removes_excess_generations,
+            test_saveversions_failure_blocks_write,
+            test_backup_files_do_not_version_themselves,
+            test_saveversions_validates_and_loads_from_config,
+        ]),
+        ("72", "Phase 72 — autosave deadlines", [
+            test_autosave_writes_named_buffer_after_idle_delay,
+            test_autosave_is_disabled_by_default,
+            test_autosave_handles_multiple_open_buffers,
+            test_autosave_does_not_rotate_manual_versions,
+            test_explicit_write_clears_pending_autosave,
+            test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit,
+            test_autosave_options_validate_and_load_from_config,
         ]),
     ]
 
