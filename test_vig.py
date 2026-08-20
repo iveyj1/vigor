@@ -3872,6 +3872,125 @@ def test_hlsearch_distinguishes_current_match():
     print("  PASS: hlsearch distinguishes current match")
 
 
+# ── Phase 63: mouse cursor positioning ────────────────────────────────────
+
+def test_mouse_click_positions_cursor():
+    """A left click maps its screen cell to a source position."""
+    path = write_temp("abcde\nfghij\n")
+    _, content, code = run_vig(
+        b":set mouse=cursor\r\x1b[<0;4;2MiX\x1b:wq\r", file_path=path,
+    )
+    os.unlink(path)
+    assert code == 0 and content == "abcde\nfghXij\n"
+    print("  PASS: mouse click positions cursor")
+
+
+def test_mouse_click_retains_insert_command_and_search_modes():
+    """Cursor clicks reposition the buffer without closing the active mode or prompt."""
+    source = "one\ntwo\nthree\n"
+
+    path = write_temp(source)
+    _, content, insert_code = run_vig(
+        b":set mouse=cursor\ri\x1b[<0;2;2MX\x1b:wq\r", file_path=path,
+    )
+    os.unlink(path)
+    assert insert_code == 0 and content == "one\ntXwo\nthree\n"
+
+    path = write_temp(source)
+    _, _, command_code = run_vig(
+        b":set mouse=cursor\r:\x1b[<0;2;2Mq\r", file_path=path,
+    )
+    os.unlink(path)
+    assert command_code == 0
+
+    path = write_temp(source)
+    _, content, search_code = run_vig(
+        b":set mouse=cursor\r/\x1b[<0;2;2Mthree\riX\x1b:wq\r", file_path=path,
+    )
+    os.unlink(path)
+    assert search_code == 0 and content.endswith("Xthree\n")
+    print("  PASS: mouse click retains active modes")
+
+
+def test_mouse_click_uses_wrapped_and_gutter_layout():
+    """Click mapping shares wrap and line-number gutter coordinates with rendering."""
+    wrapped = write_temp("abcdefghijkl\n")
+    _, wrapped_content, code1 = run_vig(
+        b":set mouse=cursor\r:set wrap\r\x1b[<0;2;2MiX\x1b:wq\r",
+        file_path=wrapped, cols=10, rows=6,
+    )
+    os.unlink(wrapped)
+    assert code1 == 0 and wrapped_content == "abcdefghijkXl\n"
+
+    numbered = write_temp("abc\nfghij\n")
+    _, numbered_content, code2 = run_vig(
+        b":set mouse=cursor\r:set number\r\x1b[<0;8;2MiX\x1b:wq\r",
+        file_path=numbered, cols=20,
+    )
+    os.unlink(numbered)
+    assert code2 == 0 and numbered_content == "abc\nfXghij\n"
+    print("  PASS: mouse click uses wrapped and gutter layout")
+
+
+def test_mouse_click_ignores_status_and_message_rows():
+    """Clicks outside content do not move the buffer cursor."""
+    path = write_temp("abc\ndef\n")
+    _, content, code = run_vig(
+        b":set mouse=cursor\r\x1b[<0;3;5MiX\x1b:wq\r",
+        file_path=path, rows=6, cols=20,
+    )
+    os.unlink(path)
+    assert code == 0 and content == "Xabc\ndef\n"
+    print("  PASS: mouse click ignores status and message rows")
+
+
+# ── Phase 64: mouse Visual selection ──────────────────────────────────────
+
+def test_mouse_drag_creates_visual_selection():
+    """Left press and drag create a characterwise Visual selection."""
+    path = write_temp("abcde\nfghij\n")
+    keys = (b":set clipboard=off\r:set mouse=visual\r"
+            b"\x1b[<0;2;1M\x1b[<32;4;2M\x1b[<0;4;2md:wq\r")
+    screen, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "aj\n"
+    assert "VISUAL" in screen
+    print("  PASS: mouse drag creates Visual selection")
+
+
+def test_mouse_visual_drag_normalizes_reverse_selection():
+    """Dragging backward produces the same normalized Visual range."""
+    path = write_temp("abcde\nfghij\n")
+    keys = (b":set clipboard=off\r:set mouse=visual\r"
+            b"\x1b[<0;4;2M\x1b[<32;2;1M\x1b[<0;2;1md:wq\r")
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "aj\n"
+    print("  PASS: reverse mouse drag normalizes selection")
+
+
+def test_mouse_visual_click_without_drag_retains_mode():
+    """A press/release without motion remains cursor positioning, not selection."""
+    path = write_temp("one\ntwo\n")
+    keys = (b":set mouse=visual\ri"
+            b"\x1b[<0;2;2M\x1b[<0;2;2mX\x1b:wq\r")
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "one\ntXwo\n"
+    print("  PASS: mouse click without drag retains mode")
+
+
+def test_mouse_visual_release_does_not_yank():
+    """Releasing a mouse selection leaves it active without replacing the register."""
+    path = write_temp("abcde\nfghij\n")
+    keys = (b":set clipboard=off\ryy:set mouse=visual\r"
+            b"\x1b[<0;2;1M\x1b[<32;4;2M\x1b[<0;4;2m\x03P:wq\r")
+    _, content, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abcde\nabcde\nfghij\n"
+    print("  PASS: mouse Visual release does not yank")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4318,6 +4437,18 @@ def main():
             test_search_prompt_preview_uses_smart_case,
             test_search_preview_clears_on_escape_and_tolerates_invalid_regex,
             test_hlsearch_distinguishes_current_match,
+        ]),
+        ("63", "Phase 63 — mouse cursor positioning", [
+            test_mouse_click_positions_cursor,
+            test_mouse_click_retains_insert_command_and_search_modes,
+            test_mouse_click_uses_wrapped_and_gutter_layout,
+            test_mouse_click_ignores_status_and_message_rows,
+        ]),
+        ("64", "Phase 64 — mouse Visual selection", [
+            test_mouse_drag_creates_visual_selection,
+            test_mouse_visual_drag_normalizes_reverse_selection,
+            test_mouse_visual_click_without_drag_retains_mode,
+            test_mouse_visual_release_does_not_yank,
         ]),
     ]
 

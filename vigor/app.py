@@ -105,6 +105,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._pending_replace = 0    # count for normal-mode r{char}
         self._pending_ctrl_c = False # Ctrl-C prefix for quit-all shortcuts
         self._pending_mkdir_write = None  # (path, close_after) waiting for y/n
+        self._mouse_anchor = None  # source position saved on a possible Visual drag
+        self._mouse_dragged = False
         self._yank_flash = None     # (expires, sy, sx, ey, ex, linewise)
         self.quickfix_state = None  # BufferState holding last quickfix results
         self.quickfix_cwd = os.getcwd()
@@ -327,6 +329,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._pending_replace = 0
         self._pending_ctrl_c = False
         self._pending_mkdir_write = None
+        self._mouse_anchor = None
+        self._mouse_dragged = False
 
     # ── Buffer management ──────────────────────────────────────────────
 
@@ -560,6 +564,56 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     # ── Main loop ──────────────────────────────────────────────────────
 
+    def _mouse_position(self, x, y):
+        """Map a content-area mouse cell to a source position."""
+        if y < 0 or y >= self.rows:
+            return None
+        layout = self._viewport_layout()
+        hscroll = 0 if self.opt_wrap else max(
+            0, self._cursor_display_col() - layout.content_cols + 1,
+        )
+        return layout.screen_to_source(y, x, hscroll)
+
+    def _handle_mouse(self, event):
+        """Handle wheel, click-to-position, and characterwise Visual drag."""
+        _, button, action, x, y, _modifiers = event
+        if button == "wheel":
+            self._scroll_view(-1 if action == "up" else 1, 3)
+            return
+        if self.opt_mouse not in ("cursor", "visual") or button != "left":
+            return
+        position = self._mouse_position(x, y)
+        if not position:
+            if action == "release":
+                self._mouse_anchor = None
+                self._mouse_dragged = False
+            return
+        if action == "press":
+            self.cy, self.cx = position
+            self._sticky_cx = None
+            if self.opt_mouse == "visual":
+                self._mouse_anchor = position
+                self._mouse_dragged = False
+        elif action == "drag" and self.opt_mouse == "visual" and self._mouse_anchor:
+            if not self._mouse_dragged:
+                if self.mode == Mode.INSERT:
+                    self._save_dot()
+                elif self.mode in (Mode.COMMAND, Mode.SEARCH):
+                    self.cmd = ""
+                    self.cmd_cx = 0
+                    self._reset_history_nav()
+                    self._clear_completion()
+                self.vy, self.vx = self._mouse_anchor
+                self.mode = Mode.VISUAL
+                self._mouse_dragged = True
+            self.cy, self.cx = position
+        elif action == "release" and self._mouse_anchor:
+            if self._mouse_dragged:
+                self.cy, self.cx = position
+            self._mouse_anchor = None
+            self._mouse_dragged = False
+        self._clamp_cursor()
+
     def run(self):
         self.term.enter_raw()
         signal.signal(signal.SIGWINCH, lambda *_: self._handle_resize())
@@ -586,9 +640,9 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     if key[0] == "PASTE":
                         self.last_key = "PASTE"
                         self.handle_paste(key[1])
-                    elif key[0] == "MOUSE" and key[1] == "wheel":
+                    elif key[0] == "MOUSE":
                         self.last_key = key
-                        self._scroll_view(-1 if key[2] == "up" else 1, 3)
+                        self._handle_mouse(key)
                     continue
                 self.last_key = key
                 if key == "CTRL_Z":
