@@ -74,7 +74,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 
 ### Syntax Highlighting
 
-Recognized Python (`.py`), C (`.c`, `.h`), C++ (`.cc`, `.cpp`, `.cxx`, `.hh`, `.hpp`, `.hxx`), and Bash (`.sh`, `.bash`) files receive automatic line-local highlighting. Recognized entities include comments, strings, numbers, keywords, constants, types, definitions, function names, decorators, preprocessor directives, and shell variables where appropriate. Multiline strings, block comments spanning lines, raw strings, and heredocs are intentionally not tracked.
+Recognized Python (`.py`), C (`.c`, `.h`), C++ (`.cc`, `.cpp`, `.cxx`, `.hh`, `.hpp`, `.hxx`), and Bash (`.sh`, `.bash`) files receive automatic line-local highlighting. A named file without an extension also uses Bash highlighting when its first line selects exact `bash` or `sh` through a direct path, `env`, or `env -S`; recognized extensions remain authoritative. Recognized entities include comments, strings, numbers, keywords, constants, types, definitions, function names, decorators, preprocessor directives, and shell variables where appropriate. Multiline strings, block comments spanning lines, raw strings, and heredocs are intentionally not tracked.
 
 The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKDOWN_COLOR_NAMES` maps near the top of `vigor/highlight.py` can be edited independently.
 

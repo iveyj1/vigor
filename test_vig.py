@@ -4192,6 +4192,43 @@ def test_markdown_fence_matching_respects_marker_kind_and_length():
     print("  PASS: Markdown fence matching respects marker and length")
 
 
+# ── Phase 68: extensionless shell shebang highlighting ────────────────────
+
+def test_extensionless_shell_shebang_detection():
+    """Direct, env, and env -S Bash/sh shebangs select shell highlighting."""
+    from vigor.highlight import language_for_path
+    assert language_for_path("script", "#!/bin/bash") == "bash"
+    assert language_for_path("script", "#!/usr/bin/sh -e") == "bash"
+    assert language_for_path("script", "#!/usr/bin/env bash") == "bash"
+    assert language_for_path("script", "#!/usr/bin/env -S sh -eu") == "bash"
+    print("  PASS: extensionless shell shebang detection")
+
+
+def test_extension_and_unsupported_shebang_precedence():
+    """Extensions remain authoritative and unrelated interpreters are ignored."""
+    from vigor.highlight import language_for_path
+    assert language_for_path("script.py", "#!/bin/bash") == "python"
+    assert language_for_path("script.txt", "#!/bin/bash") is None
+    assert language_for_path("script", "#!/usr/bin/env python3") is None
+    assert language_for_path("script", "#!/bin/zsh") is None
+    assert language_for_path(None, "#!/bin/bash") is None
+    print("  PASS: extension and unsupported shebang precedence")
+
+
+def test_extensionless_shebang_enables_shell_rendering():
+    """An extensionless Bash script receives normal Bash entity colors."""
+    fd, path = tempfile.mkstemp(prefix="vig-shebang-")
+    source = "#!/usr/bin/env bash\nif test $HOME; then echo ok; fi\n"
+    with os.fdopen(fd, "w") as f:
+        f.write(source)
+    screen, content, code = run_vig(b":q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0 and content == source
+    assert "\x1b[94mif\x1b[m" in frame and "\x1b[95m$HOME\x1b[m" in frame
+    print("  PASS: extensionless shebang enables shell rendering")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4671,6 +4708,11 @@ def main():
             test_markdown_fence_language_aliases,
             test_unknown_fence_suppresses_markdown_prose_styles,
             test_markdown_fence_matching_respects_marker_kind_and_length,
+        ]),
+        ("68", "Phase 68 — extensionless shell shebang highlighting", [
+            test_extensionless_shell_shebang_detection,
+            test_extension_and_unsupported_shebang_precedence,
+            test_extensionless_shebang_enables_shell_rendering,
         ]),
     ]
 

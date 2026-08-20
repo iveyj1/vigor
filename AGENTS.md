@@ -9,7 +9,7 @@
 
 vigor is a compact, module-oriented, vi-style terminal text editor written in Python. It uses raw ANSI escape codes for terminal interaction — no curses library and no third-party Python packages.
 
-The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, unnecessary abstraction, and required external runtime tools. It includes line-local regex highlighting for comments, strings, numbers, keywords, types, constants, definitions, and related entities in Python, C, C++, and Bash files. Optional Markdown fence hiding removes ```/~~~ marker rows from Markdown layout while `:md` view is active, without changing source text; supported fence information strings select embedded Bash, C, C++, or Python highlighting.
+The project goal is a practical editor that remains inspectable despite a feature set that has grown well beyond the original minimal prototype. It intentionally includes common vi-style editing features while avoiding plugin systems, macros, unnecessary abstraction, and required external runtime tools. It includes line-local regex highlighting for comments, strings, numbers, keywords, types, constants, definitions, and related entities in Python, C, C++, and Bash files; extensionless files with exact Bash/sh shebangs use Bash highlighting. Optional Markdown fence hiding removes ```/~~~ marker rows from Markdown layout while `:md` view is active, without changing source text; supported fence information strings select embedded Bash, C, C++, or Python highlighting.
 
 **Files**
 
@@ -24,7 +24,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/modes.py` — Normal, Insert, Visual, and Search input dispatch
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — terse help buffer opened by `:help`
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 325 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 328 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -188,7 +188,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 325 test functions organized into 66 phase groups (selectors 1–67, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 328 test functions organized into 67 phase groups (selectors 1–68, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ### Workflow for AI Agents

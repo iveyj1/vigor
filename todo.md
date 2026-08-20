@@ -30,6 +30,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Detect direct, `env`, and `env -S` Bash/sh shebangs for highlighting named extensionless files while keeping recognized extensions authoritative.
 1. Highlight supported Bash, C, C++, and Python Markdown fences according to their information strings while keeping unknown fences separate from Markdown prose styling.
 1. Expand line-local Bash, C, C++, and Python highlighting with keywords, numbers, types, constants, definitions, functions, variables, decorators, and preprocessors; keep named ANSI colors separate from semantic color maps.
 1. Collapse Markdown fence-marker rows from `:md` layout while preserving source line numbers, hidden-row search/edit positions, wrapping, scrolling, and mouse mapping.
