@@ -3698,7 +3698,7 @@ def write_named_temp(content, suffix):
 def test_markdownfences_hides_backtick_and_tilde_fences():
     """:set markdownfences hides fence markers only while :md view is active."""
     path = write_named_temp("before\n```python\ncode\n```\n~~~\nmore\n~~~\nafter\n", ".md")
-    screen, _, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
     os.unlink(path)
     frame = last_frame(screen)
     assert code == 0
@@ -3709,7 +3709,7 @@ def test_markdownfences_hides_backtick_and_tilde_fences():
 def test_markdownfences_requires_markdown_view():
     """markdownfences does not affect literal source view."""
     path = write_named_temp("before\n```\ncode\n", ".md")
-    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":set markdownfences\r:nomd\r:q\r", file_path=path)
     os.unlink(path)
     frame = last_frame(screen)
     assert code == 0
@@ -3997,7 +3997,7 @@ def test_markdown_fence_rows_collapse_without_blanks():
     """Fence marker source rows occupy no Markdown display row."""
     source = "before\n```python\ncode\n```\nafter\n"
     path = write_named_temp(source, ".md")
-    screen, content, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
+    screen, content, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
     os.unlink(path)
     plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", last_frame(screen))
     assert code == 0 and content == source
@@ -4010,7 +4010,7 @@ def test_hidden_fence_search_keeps_source_position_for_edit():
     source = "before\n```python\ncode\n```\nafter\n"
     path = write_named_temp(source, ".md")
     _, content, code = run_vig(
-        b":set markdownfences\r:md\r/```\riX\x1b:wq\r", file_path=path,
+        b":set markdownfences\r/```\riX\x1b:wq\r", file_path=path,
     )
     os.unlink(path)
     assert code == 0
@@ -4022,7 +4022,7 @@ def test_collapsed_fences_preserve_source_line_numbers():
     """Consecutive display rows retain their original absolute source numbers."""
     path = write_named_temp("before\n```\ncode\n```\nafter\n", ".md")
     screen, _, code = run_vig(
-        b":set number\r:set markdownfences\r:md\r:q\r", file_path=path,
+        b":set number\r:set markdownfences\r:q\r", file_path=path,
     )
     os.unlink(path)
     plain = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", last_frame(screen))
@@ -4035,7 +4035,7 @@ def test_mouse_click_maps_across_collapsed_fences():
     """Mouse rows map to visible source lines after fence markers are omitted."""
     path = write_named_temp("before\n```\ncode\n```\nafter\n", ".md")
     _, content, code = run_vig(
-        b":set mouse=cursor\r:set markdownfences\r:md\r\x1b[<0;1;2MiX\x1b:wq\r",
+        b":set mouse=cursor\r:set markdownfences\r\x1b[<0;1;2MiX\x1b:wq\r",
         file_path=path,
     )
     os.unlink(path)
@@ -4048,7 +4048,7 @@ def test_mouse_wheel_counts_collapsed_display_rows():
     source = "A\n```\nB\n```\nC\n```\nD\n```\nE\n"
     path = write_named_temp(source, ".md")
     screen, _, code = run_vig(
-        b":set mouse=scroll\r:set markdownfences\r:md\r\x1b[<65;1;1M:q\r",
+        b":set mouse=scroll\r:set markdownfences\r\x1b[<65;1;1M:q\r",
         file_path=path, rows=4, cols=20,
     )
     os.unlink(path)
@@ -4061,7 +4061,7 @@ def test_wrapmove_skips_collapsed_fence_rows():
     """Displayed-row movement crosses directly between visible wrapped lines."""
     path = write_named_temp("abcdefghij\n```\nklmnopqrst\n", ".md")
     _, content, code = run_vig(
-        b":set markdownfences\r:md\r:set wrap\r:set wrapmove\rjjjiX\x1b:wq\r",
+        b":set markdownfences\r:set wrap\r:set wrapmove\rjjjiX\x1b:wq\r",
         file_path=path, cols=5, rows=8,
     )
     os.unlink(path)
@@ -4073,7 +4073,7 @@ def test_all_hidden_markdown_rows_render_safely():
     """A projection containing only hidden markers renders and exits safely."""
     path = write_named_temp("```\n```\n~~~\n~~~\n", ".md")
     screen, content, code = run_vig(
-        b":set markdownfences\r:md\r:q\r", file_path=path,
+        b":set markdownfences\r:q\r", file_path=path,
     )
     os.unlink(path)
     assert code == 0 and content == "```\n```\n~~~\n~~~\n"
@@ -4148,7 +4148,7 @@ def test_markdown_fences_highlight_supported_languages():
               "```cpp\nconstexpr bool run();\n```\n")
     path = write_named_temp(source, ".md")
     screen, content, code = run_vig(
-        b":set markdownfences\r:md\r:q\r", file_path=path, rows=20,
+        b":set markdownfences\r:q\r", file_path=path, rows=20,
     )
     os.unlink(path)
     frame = last_frame(screen)
@@ -4173,7 +4173,7 @@ def test_unknown_fence_suppresses_markdown_prose_styles():
     """Unknown fenced code remains literal and is not styled as Markdown prose."""
     source = "# title\n```text\n# code, not a heading\ndef plain():\n```\n"
     path = write_named_temp(source, ".md")
-    screen, _, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":set markdownfences\r:q\r", file_path=path)
     os.unlink(path)
     frame = last_frame(screen)
     assert code == 0 and "\x1b[1;36m# title\x1b[m" in frame
@@ -4227,6 +4227,143 @@ def test_extensionless_shebang_enables_shell_rendering():
     assert code == 0 and content == source
     assert "\x1b[94mif\x1b[m" in frame and "\x1b[95m$HOME\x1b[m" in frame
     print("  PASS: extensionless shebang enables shell rendering")
+
+
+# ── Phase 69: per-buffer file types ────────────────────────────────────────
+
+def test_filetype_command_forces_language():
+    """:ft forces syntax highlighting independently of the filename."""
+    path = write_named_temp("def greet():\n    return True\n", ".txt")
+    screen, _, code = run_vig(b":ft python\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "\x1b[94mdef\x1b[m" in screen
+    assert "\x1b[1;36mgreet\x1b[m" in screen
+    print("  PASS: filetype command forces language")
+
+
+def test_filetype_text_disables_syntax():
+    """:ft text suppresses otherwise automatic syntax highlighting."""
+    path = write_named_temp("def greet():\n", ".py")
+    screen, _, code = run_vig(b":ft text\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "\x1b[94mdef\x1b[m" not in last_frame(screen)
+    print("  PASS: filetype text disables syntax")
+
+
+def test_filetype_auto_redetects_and_reports():
+    """:ft auto clears an override and bare :ft reports effective type and source."""
+    path = write_named_temp("def greet():\n", ".py")
+    screen, _, code = run_vig(b":ft text\r:ft auto\r:ft\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "filetype=python (auto)" in screen
+    assert "\x1b[94mdef\x1b[m" in screen
+    print("  PASS: filetype auto redetects and reports")
+
+
+def test_filetype_markdown_controls_presentation():
+    """Markdown and text overrides enable and disable presentation respectively."""
+    path = write_named_temp("# heading\n```\ncode\n```\n", ".txt")
+    screen, _, code = run_vig(b":set markdownfences\r:ft markdown\r:ft\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "filetype=markdown (forced)" in screen
+    assert "\x1b[1;36m# heading\x1b[m" in screen and "[MD]" in screen
+    assert "```" not in last_frame(screen)
+
+    path = write_named_temp("# heading\n", ".md")
+    screen, _, code = run_vig(b":md\r:ft text\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "[MD]" not in last_frame(screen)
+    print("  PASS: filetype Markdown controls presentation")
+
+
+def test_filetype_override_persists_per_buffer_and_reload():
+    """Overrides survive reload and remain isolated across buffer switches."""
+    with tempfile.TemporaryDirectory() as d:
+        shell_path = os.path.join(d, "commands.txt")
+        py_path = os.path.join(d, "code.py")
+        open(shell_path, "w").write("if test $HOME; then echo ok; fi\n")
+        open(py_path, "w").write("def greet():\n")
+        keys = f":ft bash\r:e!\r:e {py_path}\r:p\r:ft\r:q!\r:q\r"
+        screen, _, code = run_vig(keys, file_path=shell_path)
+    assert code == 0 and "filetype=bash (forced)" in screen
+    assert "\x1b[94mif\x1b[m" in screen and "\x1b[95m$HOME\x1b[m" in screen
+    print("  PASS: filetype override persists per buffer and reload")
+
+
+def test_filetype_rejects_unknown_value():
+    """Unknown file-type names report an error without changing detection."""
+    path = write_named_temp("def greet():\n", ".py")
+    screen, _, code = run_vig(b":ft ruby\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and "Unknown file type: ruby" in screen
+    assert "\x1b[94mdef\x1b[m" in screen
+    print("  PASS: filetype rejects unknown value")
+
+
+# ── Phase 70: automatic syntax and Markdown detection ─────────────────────
+
+def test_markdown_files_open_in_markdown_view():
+    """Markdown extensions automatically enable presentation on initial open."""
+    path = write_named_temp("# heading\n", ".md")
+    screen, content, code = run_vig(b":e!\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "# heading\n"
+    assert "[MD]" in screen and "\x1b[1;36m# heading\x1b[m" in screen
+    print("  PASS: Markdown files open in Markdown view")
+
+
+def test_autodetect_option_affects_only_new_buffers():
+    """Changing autodetect preserves open buffers and controls later opens."""
+    with tempfile.TemporaryDirectory() as d:
+        first = os.path.join(d, "first.py")
+        second = os.path.join(d, "second.py")
+        markdown = os.path.join(d, "notes.md")
+        open(first, "w").write("def first():\n")
+        open(second, "w").write("def second():\n")
+        open(markdown, "w").write("# Notes\n")
+        keys = (f":set noautodetect\r:ft\r:e {second}\r:ft\r"
+                f":set autodetect\r:ft\r:e {markdown}\r:ft\r:q!\r:q!\r:q\r")
+        screen, _, code = run_vig(keys, file_path=first)
+    assert code == 0 and "filetype=python (auto)" in screen
+    assert screen.count("filetype=text (disabled)") >= 2
+    assert "filetype=markdown (auto)" in screen and "[MD]" in screen
+    print("  PASS: autodetect affects only new buffers")
+
+
+def test_noautodetect_config_disables_initial_recognition():
+    """Config can disable syntax and automatic Markdown presentation at startup."""
+    with tempfile.TemporaryDirectory() as d:
+        config = os.path.join(d, "config")
+        py_path = os.path.join(d, "code.py")
+        md_path = os.path.join(d, "notes.md")
+        open(config, "w").write("set noautodetect\n")
+        open(py_path, "w").write("def greet():\n")
+        open(md_path, "w").write("# Heading\n")
+        env = {"VIG_CONFIG": config}
+        py_screen, _, py_code = run_vig(b":ft\r:q\r", file_path=py_path, env=env)
+        md_screen, _, md_code = run_vig(b":ft\r:q\r", file_path=md_path, env=env)
+    assert py_code == md_code == 0
+    assert "filetype=text (disabled)" in py_screen and "\x1b[94mdef\x1b[m" not in py_screen
+    assert "filetype=text (disabled)" in md_screen and "[MD]" not in md_screen
+    print("  PASS: noautodetect config disables initial recognition")
+
+
+def test_explicit_commands_override_disabled_detection():
+    """Explicit :ft auto and :md still work for buffers opened with detection off."""
+    with tempfile.TemporaryDirectory() as d:
+        config = os.path.join(d, "config")
+        py_path = os.path.join(d, "code.py")
+        md_path = os.path.join(d, "notes.md")
+        open(config, "w").write("set noautodetect\n")
+        open(py_path, "w").write("def greet():\n")
+        open(md_path, "w").write("# Heading\n")
+        env = {"VIG_CONFIG": config}
+        py_screen, _, py_code = run_vig(b":ft auto\r:ft\r:q\r", file_path=py_path, env=env)
+        md_screen, _, md_code = run_vig(b":md\r:q\r", file_path=md_path, env=env)
+    assert py_code == md_code == 0
+    assert "filetype=python (auto)" in py_screen and "\x1b[94mdef\x1b[m" in py_screen
+    assert "[MD]" in md_screen and "\x1b[1;36m# Heading\x1b[m" in md_screen
+    print("  PASS: explicit commands override disabled detection")
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
@@ -4713,6 +4850,20 @@ def main():
             test_extensionless_shell_shebang_detection,
             test_extension_and_unsupported_shebang_precedence,
             test_extensionless_shebang_enables_shell_rendering,
+        ]),
+        ("69", "Phase 69 — per-buffer file types", [
+            test_filetype_command_forces_language,
+            test_filetype_text_disables_syntax,
+            test_filetype_auto_redetects_and_reports,
+            test_filetype_markdown_controls_presentation,
+            test_filetype_override_persists_per_buffer_and_reload,
+            test_filetype_rejects_unknown_value,
+        ]),
+        ("70", "Phase 70 — automatic syntax and Markdown detection", [
+            test_markdown_files_open_in_markdown_view,
+            test_autodetect_option_affects_only_new_buffers,
+            test_noautodetect_config_disables_initial_recognition,
+            test_explicit_commands_override_disabled_detection,
         ]),
     ]
 

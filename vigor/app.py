@@ -9,6 +9,7 @@ import time
 
 from .commands import CommandMixin
 from .editing import EditingMixin
+from .highlight import build_markdown_view, filetype_for_path
 from .layout import RenderMixin
 from .modes import ModeMixin
 from .state import BufferState, Mode
@@ -39,6 +40,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.md_lines = bs.md_lines
         self.md_maps = bs.md_maps
         self.md_languages = bs.md_languages
+        self.filetype_override = bs.filetype_override
+        self.buffer_autodetect = bs.autodetect
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
@@ -85,6 +88,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.opt_rghidden = False  # :set rghidden/norghidden
         self.opt_hlsearch = False  # :set hlsearch/nohlsearch
         self.opt_makeprg = "make"  # :set makeprg=<shell command>
+        self.opt_autodetect = True  # detect syntax and Markdown for newly opened buffers
         self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
@@ -113,6 +117,9 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.quickfix_cwd = os.getcwd()
         self.last_key = ""  # last decoded key read from terminal
         self._load_config()
+        for state in self.buffers:
+            self._initialize_buffer_detection(state)
+        self._load_buf_state(0)
         self.term = Terminal(self.opt_mouse)
         self._update_size()
         self._startup_completion = startup_dir is not None
@@ -243,6 +250,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._redo_stack.clear()
         self._undo_save_depth = 0
         self._undo_branched = False
+        if self._effective_filetype() == "markdown":
+            self._set_markdown_view(True)
         self.msg = f'"{self.buf.path}" reloaded' if self.buf.path else "[No Name] reloaded"
         self.mode = Mode.NORMAL
 
@@ -343,6 +352,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         bs.wrap_skip = self._wrap_skip
         bs.md_view, bs.md_lines, bs.md_maps = self.md_view, self.md_lines, self.md_maps
         bs.md_languages = self.md_languages
+        bs.filetype_override = self.filetype_override
+        bs.autodetect = self.buffer_autodetect
         bs._undo_stack = self._undo_stack
         bs._redo_stack = self._redo_stack
         bs._undo_save_depth = self._undo_save_depth
@@ -357,13 +368,25 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._wrap_skip = bs.wrap_skip
         self.md_view, self.md_lines, self.md_maps = bs.md_view, bs.md_lines, bs.md_maps
         self.md_languages = bs.md_languages
+        self.filetype_override = bs.filetype_override
+        self.buffer_autodetect = bs.autodetect
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
         self._undo_branched = bs._undo_branched
 
+    def _initialize_buffer_detection(self, bs):
+        """Capture current detection policy and prepare automatic Markdown view."""
+        if bs.autodetect is not None:
+            return
+        bs.autodetect = self.opt_autodetect
+        if bs.autodetect and filetype_for_path(bs.buf.path, bs.buf.lines[0]) == "markdown":
+            bs.md_view = True
+            bs.md_lines, bs.md_maps, bs.md_languages = build_markdown_view(bs.buf.lines)
+
     def _add_buffer(self, bs):
         """Add and switch to bs, replacing an untouched initial buffer."""
+        self._initialize_buffer_detection(bs)
         if (len(self.buffers) == 1 and self.buf.path is None
                 and self.buf.lines == [""] and not self.buf.dirty):
             self.buffers[0] = bs
