@@ -12,6 +12,10 @@ import time
 from enum import Enum
 
 from . import BUILD_ID, VERSION
+from .highlight import (
+    ANSI_ESCAPE, SEARCH_COLOR, build_markdown_view, markdown_spans,
+    search_spans, syntax_spans,
+)
 from .state import BufferState
 from .terminal import Terminal
 
@@ -24,21 +28,6 @@ class Mode(Enum):
     VISUAL = "VISUAL"
     VISUAL_LINE = "VISUAL LINE"
     SEARCH = "SEARCH"
-
-SYNTAX_PATTERNS = {
-    ".py": re.compile(r"(?P<string>(?:[rRuUbBfF]{0,2})(?:\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*'))|(?P<comment>#.*)"),
-    ".c": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>//.*|/\*.*?\*/)"),
-    ".h": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>//.*|/\*.*?\*/)"),
-    ".sh": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
-    ".bash": re.compile(r"(?P<string>\"(?:\\.|[^\"\\])*\"|'(?:\\.|[^'\\])*')|(?P<comment>(?<!\S)#.*)"),
-}
-SYNTAX_COLORS = {"string": "\x1b[33m", "comment": "\x1b[32m"}
-MD_HEADER = "\x1b[1;36m"
-MD_MARKER = "\x1b[1;33m"
-MD_TABLE = "\x1b[36m"
-MD_TABLE_RULE = "\x1b[2;36m"
-SEARCH_COLOR = "\x1b[43;30m"
-ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 
 SPLASH = (
     " _    ___                 ",
@@ -916,77 +905,10 @@ class Editor:
                 return i + 1
         return len(line)
 
-    @staticmethod
-    def _expand_with_map(line, padding=None):
-        """Return tab-expanded text and source-index to display-column mapping."""
-        padding = padding or {}
-        out, mapping, col = [], [], 0
-        for i, ch in enumerate(line):
-            pad = padding.get(i, 0)
-            if pad:
-                out.append(" " * pad)
-                col += pad
-            mapping.append(col)
-            width = 4 - col % 4 if ch == "\t" else 1
-            out.append(" " * width if ch == "\t" else ch)
-            col += width
-        pad = padding.get(len(line), 0)
-        if pad:
-            out.append(" " * pad)
-            col += pad
-        mapping.append(col)
-        return "".join(out), mapping
-
-    @staticmethod
-    def _markdown_cells(line):
-        """Return Markdown table cell ranges, or None for a non-table row."""
-        pipes = [i for i, ch in enumerate(line) if ch == "|" and (i == 0 or line[i - 1] != "\\")]
-        if not pipes:
-            return None
-        leading = not line[:pipes[0]].strip()
-        trailing = not line[pipes[-1] + 1:].strip()
-        starts = ([] if leading else [0]) + [p + 1 for p in pipes if not (trailing and p == pipes[-1])]
-        ends = (pipes[1:] if leading else pipes[:]) + ([] if trailing else [len(line)])
-        cells = list(zip(starts, ends))
-        return cells if len(cells) >= 2 else None
-
-    @staticmethod
-    def _markdown_rule(line, cells):
-        return all(re.fullmatch(r":?-{3,}:?", line[a:b].strip()) for a, b in cells)
-
-    def _build_markdown_view(self):
-        """Build non-destructive Markdown display lines and source mappings."""
-        projected = [self._expand_with_map(line) for line in self.buf.lines]
-        parsed = [self._markdown_cells(line) for line in self.buf.lines]
-        used = set()
-        for rule_y, cells in enumerate(parsed):
-            if not cells or not self._markdown_rule(self.buf.lines[rule_y], cells) or rule_y in used:
-                continue
-            count, start, end = len(cells), rule_y, rule_y
-            while start > 0 and parsed[start - 1] and len(parsed[start - 1]) == count:
-                start -= 1
-            while end + 1 < len(parsed) and parsed[end + 1] and len(parsed[end + 1]) == count:
-                end += 1
-            if start == end:
-                continue
-            widths = [0] * count
-            for y in range(start, end + 1):
-                for i, (a, b) in enumerate(parsed[y]):
-                    widths[i] = max(widths[i], len(self.buf.lines[y][a:b].expandtabs(4)))
-            for y in range(start, end + 1):
-                padding = {}
-                for i, (a, b) in enumerate(parsed[y]):
-                    width = len(self.buf.lines[y][a:b].expandtabs(4))
-                    padding[b] = max(padding.get(b, 0), widths[i] - width)
-                projected[y] = self._expand_with_map(self.buf.lines[y], padding)
-                used.add(y)
-        self.md_lines = [item[0] for item in projected]
-        self.md_maps = [item[1] for item in projected]
-
     def _set_markdown_view(self, enabled):
         self.md_view = enabled
         if enabled:
-            self._build_markdown_view()
+            self.md_lines, self.md_maps = build_markdown_view(self.buf.lines)
         else:
             self.md_lines = self.md_maps = None
         self._wrap_skip = 0
@@ -1493,49 +1415,20 @@ class Editor:
                 rows_used += 1
             return rows_used
 
-    def _markdown_spans(self, line, y):
-        """Return restrained header, list, and table styles for Markdown view."""
-        if re.match(r"^ {0,3}#{1,6}(?:\s|$)", line):
-            return ((0, len(line), MD_HEADER),)
-        marker = re.match(r"^\s*(?:[-+*]|\d+[.)])(?=\s)", line)
-        if marker:
-            return ((marker.start(), marker.end(), MD_MARKER),)
-        cells = self._markdown_cells(line)
-        if not cells:
-            return ()
-        count, top, bottom = len(cells), y, y
-        while top > 0 and self._markdown_cells(self.buf.lines[top - 1]) and len(self._markdown_cells(self.buf.lines[top - 1])) == count:
-            top -= 1
-        while bottom + 1 < len(self.buf.lines) and self._markdown_cells(self.buf.lines[bottom + 1]) and len(self._markdown_cells(self.buf.lines[bottom + 1])) == count:
-            bottom += 1
-        valid = any(self._markdown_rule(self.buf.lines[i], self._markdown_cells(self.buf.lines[i]))
-                    for i in range(top, bottom + 1))
-        if not valid:
-            return ()
-        if self._markdown_rule(line, cells):
-            return ((0, len(line), MD_TABLE_RULE),)
-        return tuple((i, i + 1, MD_TABLE) for i, ch in enumerate(line)
-                     if ch == "|" and (i == 0 or line[i - 1] != "\\"))
-
     def _syntax_spans(self, line, y=None):
         """Return styled syntax spans for the current buffer's language."""
         if self.md_view:
-            return self._markdown_spans(line, y)
-        ext = os.path.splitext(self.buf.path or "")[1].lower()
-        pattern = SYNTAX_PATTERNS.get(ext)
-        if not pattern:
-            return ()
-        return tuple((m.start(), m.end(), SYNTAX_COLORS[m.lastgroup]) for m in pattern.finditer(line))
+            return markdown_spans(self.buf.lines, line, y)
+        return syntax_spans(self.buf.path, line)
 
     def _search_spans(self, line):
         """Return active search highlight spans for a buffer line."""
         if not (self.opt_hlsearch and self.search_pattern):
             return ()
         try:
-            pat = self._compile_search()
+            return search_spans(line, self._compile_search())
         except re.error:
             return ()
-        return tuple((m.start(), m.end()) for m in pat.finditer(line) if m.start() != m.end())
 
     def _render_visible(self, visible, buf_line, col_offset, sel, out):
         """Render a segment with line-local syntax and optional reverse video."""
