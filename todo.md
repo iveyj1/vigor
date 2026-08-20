@@ -11,7 +11,6 @@ No implementation-ready item is currently specified.
 
 These are current pain points and likely development directions. Resolve the listed semantics before implementation.
 
-1. Highlight Bash, C, C++, and Python code inside Markdown fences according to the fence information string.
 1. Autosave; define eligibility, delay, unnamed-buffer behavior, error reporting, atomic-write expectations, and interaction with explicit writes.
 
 ### On Hold
@@ -31,6 +30,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Highlight supported Bash, C, C++, and Python Markdown fences according to their information strings while keeping unknown fences separate from Markdown prose styling.
 1. Expand line-local Bash, C, C++, and Python highlighting with keywords, numbers, types, constants, definitions, functions, variables, decorators, and preprocessors; keep named ANSI colors separate from semantic color maps.
 1. Collapse Markdown fence-marker rows from `:md` layout while preserving source line numbers, hidden-row search/edit positions, wrapping, scrolling, and mouse mapping.
 1. Add `mouse=visual` characterwise drag selection: click without drag positions, drag enters Visual, reverse drags normalize, and release leaves selection active without yanking.

@@ -7,7 +7,7 @@ import time
 
 from . import BUILD_ID, VERSION
 from .highlight import (
-    CURRENT_SEARCH_COLOR, SEARCH_COLOR, literal_ignorecase, markdown_spans,
+    CURRENT_SEARCH_COLOR, MD_FENCE, SEARCH_COLOR, literal_ignorecase, markdown_spans,
     search_spans, syntax_spans,
 )
 from .state import Mode
@@ -256,18 +256,20 @@ class RenderMixin:
             out.append("\x1b[K")
         out.append("\r\n")
 
-    def _is_markdown_fence_line(self, line):
-        if not (self.md_view and self.opt_markdownfences) or not self.buf.path:
+    def _is_markdown_fence_line(self, y):
+        if not (self.md_view and self.opt_markdownfences and self.md_languages):
             return False
-        lower = self.buf.path.lower()
-        if not (lower.endswith(".md") or lower.endswith(".markdown")):
-            return False
-        stripped = line.lstrip()
-        return stripped.startswith("```") or stripped.startswith("~~~")
+        lower = (self.buf.path or "").lower()
+        return (lower.endswith(".md") or lower.endswith(".markdown")) and self.md_languages[y] is MD_FENCE
 
     def _syntax_spans(self, line, y=None):
         """Return styled syntax spans for the current buffer's language."""
         if self.md_view:
+            language = self.md_languages[y]
+            if language is MD_FENCE:
+                return ()
+            if language is not None:
+                return syntax_spans(None, line, language)
             return markdown_spans(self.buf.lines, line, y)
         return syntax_spans(self.buf.path, line)
 

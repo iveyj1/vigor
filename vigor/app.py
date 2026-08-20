@@ -38,6 +38,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.md_view = bs.md_view
         self.md_lines = bs.md_lines
         self.md_maps = bs.md_maps
+        self.md_languages = bs.md_languages
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth
@@ -236,7 +237,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 self.mode = Mode.NORMAL
                 return
         self.buf.dirty = False
-        self.md_view, self.md_lines, self.md_maps = False, None, None
+        self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         self.cx = self.cy = self.scroll = self._wrap_skip = 0
         self._undo_stack.clear()
         self._redo_stack.clear()
@@ -341,6 +342,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         bs.cx, bs.cy, bs.scroll = self.cx, self.cy, self.scroll
         bs.wrap_skip = self._wrap_skip
         bs.md_view, bs.md_lines, bs.md_maps = self.md_view, self.md_lines, self.md_maps
+        bs.md_languages = self.md_languages
         bs._undo_stack = self._undo_stack
         bs._redo_stack = self._redo_stack
         bs._undo_save_depth = self._undo_save_depth
@@ -354,6 +356,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.cx, self.cy, self.scroll = bs.cx, bs.cy, bs.scroll
         self._wrap_skip = bs.wrap_skip
         self.md_view, self.md_lines, self.md_maps = bs.md_view, bs.md_lines, bs.md_maps
+        self.md_languages = bs.md_languages
         self._undo_stack = bs._undo_stack
         self._redo_stack = bs._redo_stack
         self._undo_save_depth = bs._undo_save_depth

@@ -97,6 +97,8 @@ LANGUAGE_ALIASES = {
     "shell": "bash", "c": "c", "cpp": "cpp", "c++": "cpp", "cc": "cpp",
     "cxx": "cpp",
 }
+MD_FENCE = object()
+MD_FENCE_RE = re.compile(r"^ {0,3}(`{3,}|~{3,})(.*)$")
 
 
 def expand_with_map(line, padding=None):
@@ -137,8 +139,28 @@ def markdown_rule(line, cells):
     return all(re.fullmatch(r":?-{3,}:?", line[a:b].strip()) for a, b in cells)
 
 
+def markdown_fence_languages(lines):
+    """Map Markdown rows to a fenced-code language, marker sentinel, or prose."""
+    result, active, marker, minimum = [None] * len(lines), None, None, 0
+    for y, line in enumerate(lines):
+        match = MD_FENCE_RE.match(line)
+        if active is not None and match and match.group(1)[0] == marker:
+            run, tail = match.groups()
+            if len(run) >= minimum and not tail.strip():
+                result[y], active, marker = MD_FENCE, None, None
+                continue
+        if active is None and match:
+            run, tail = match.groups()
+            info = tail.strip().split(maxsplit=1)[0].lower() if tail.strip() else ""
+            active = LANGUAGE_ALIASES.get(info, "")
+            marker, minimum, result[y] = run[0], len(run), MD_FENCE
+        elif active is not None:
+            result[y] = active
+    return result
+
+
 def build_markdown_view(lines):
-    """Return non-destructive Markdown display lines and source mappings."""
+    """Return non-destructive Markdown display lines, mappings, and fence metadata."""
     projected = [expand_with_map(line) for line in lines]
     parsed = [markdown_cells(line) for line in lines]
     used = set()
@@ -163,7 +185,8 @@ def build_markdown_view(lines):
                 padding[b] = max(padding.get(b, 0), widths[i] - width)
             projected[y] = expand_with_map(lines[y], padding)
             used.add(y)
-    return [item[0] for item in projected], [item[1] for item in projected]
+    return ([item[0] for item in projected], [item[1] for item in projected],
+            markdown_fence_languages(lines))
 
 
 def markdown_spans(lines, line, y):

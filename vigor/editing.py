@@ -95,7 +95,7 @@ class EditingMixin:
 
     def _snapshot(self):
         """Save current state for undo. Call before any mutation."""
-        self.md_view, self.md_lines, self.md_maps = False, None, None
+        self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         current_depth = len(self._undo_stack)
         self._undo_stack.append((self.buf.lines[:], self.cx, self.cy))
         # If clearing redo discards the save point, mark branched
@@ -111,7 +111,7 @@ class EditingMixin:
 
     def _undo(self):
         """Restore previous state from undo stack."""
-        self.md_view, self.md_lines, self.md_maps = False, None, None
+        self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         if not self._undo_stack:
             self.msg = "Already at oldest change"
             return
@@ -123,7 +123,7 @@ class EditingMixin:
 
     def _redo(self):
         """Restore next state from redo stack."""
-        self.md_view, self.md_lines, self.md_maps = False, None, None
+        self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         if not self._redo_stack:
             self.msg = "Already at newest change"
             return
@@ -382,14 +382,14 @@ class EditingMixin:
     def _set_markdown_view(self, enabled):
         self.md_view = enabled
         if enabled:
-            self.md_lines, self.md_maps = build_markdown_view(self.buf.lines)
+            self.md_lines, self.md_maps, self.md_languages = build_markdown_view(self.buf.lines)
         else:
-            self.md_lines = self.md_maps = None
+            self.md_lines = self.md_maps = self.md_languages = None
         self._wrap_skip = 0
         self._ensure_scroll()
 
     def _view_line(self, y):
-        if self._is_markdown_fence_line(self.buf.lines[y]):
+        if self._is_markdown_fence_line(y):
             return ""
         return self.md_lines[y] if self.md_view else self.buf.lines[y].expandtabs(4)
 
@@ -415,7 +415,7 @@ class EditingMixin:
             len(self.buf.lines), self._view_line, self._view_col, self._view_index,
             self.rows, self.cols, self._gutter_width(), self.opt_wrap,
             self.opt_wrapcol, self.scroll, self._wrap_skip,
-            hidden_line=lambda y: self._is_markdown_fence_line(self.buf.lines[y]),
+            hidden_line=self._is_markdown_fence_line,
         )
 
     def _wrap_cols(self):

@@ -4071,12 +4071,12 @@ def test_wrapmove_skips_collapsed_fence_rows():
 
 def test_all_hidden_markdown_rows_render_safely():
     """A projection containing only hidden markers renders and exits safely."""
-    path = write_named_temp("```\n~~~\n", ".md")
+    path = write_named_temp("```\n```\n~~~\n~~~\n", ".md")
     screen, content, code = run_vig(
         b":set markdownfences\r:md\r:q\r", file_path=path,
     )
     os.unlink(path)
-    assert code == 0 and content == "```\n~~~\n"
+    assert code == 0 and content == "```\n```\n~~~\n~~~\n"
     assert "```" not in last_frame(screen) and "~~~" not in last_frame(screen)
     print("  PASS: all-hidden Markdown projection is safe")
 
@@ -4136,6 +4136,60 @@ def test_bash_highlights_language_entities():
     assert tokens["12"] == colors["number"] and tokens["printf"] == colors["function"]
     assert tokens["$HOME"] == colors["variable"] and tokens["# note"] == colors["comment"]
     print("  PASS: Bash language entities highlighted")
+
+
+# ── Phase 67: Markdown fenced-code highlighting ────────────────────────────
+
+def test_markdown_fences_highlight_supported_languages():
+    """Supported fence information strings select their language lexers."""
+    source = ("```python\ndef greet(value=42):\n    return True\n```\n"
+              "```bash\nif test $HOME; then printf \"ok\"; fi\n```\n"
+              "```c\n#define LIMIT 10\n```\n"
+              "```cpp\nconstexpr bool run();\n```\n")
+    path = write_named_temp(source, ".md")
+    screen, content, code = run_vig(
+        b":set markdownfences\r:md\r:q\r", file_path=path, rows=20,
+    )
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0 and content == source
+    assert "\x1b[94mdef\x1b[m" in frame and "\x1b[1;36mgreet\x1b[m" in frame
+    assert "\x1b[95m$HOME\x1b[m" in frame and "\x1b[95m#define\x1b[m" in frame
+    assert "\x1b[94mconstexpr\x1b[m" in frame and "\x1b[36mbool\x1b[m" in frame
+    print("  PASS: Markdown fences highlight supported languages")
+
+
+def test_markdown_fence_language_aliases():
+    """Documented short fence names map to the four supported lexers."""
+    from vigor.highlight import MD_FENCE, markdown_fence_languages
+    lines = ["```py", "x", "```", "```sh", "x", "```", "```c++", "x", "```"]
+    languages = markdown_fence_languages(lines)
+    assert languages[0] is MD_FENCE and languages[2] is MD_FENCE
+    assert languages[1] == "python" and languages[4] == "bash" and languages[7] == "cpp"
+    print("  PASS: Markdown fence language aliases")
+
+
+def test_unknown_fence_suppresses_markdown_prose_styles():
+    """Unknown fenced code remains literal and is not styled as Markdown prose."""
+    source = "# title\n```text\n# code, not a heading\ndef plain():\n```\n"
+    path = write_named_temp(source, ".md")
+    screen, _, code = run_vig(b":set markdownfences\r:md\r:q\r", file_path=path)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0 and "\x1b[1;36m# title\x1b[m" in frame
+    assert "\x1b[1;36m# code, not a heading\x1b[m" not in frame
+    assert "\x1b[94mdef\x1b[m" not in frame
+    print("  PASS: unknown fences suppress Markdown prose styles")
+
+
+def test_markdown_fence_matching_respects_marker_kind_and_length():
+    """Only a same-kind, sufficiently long marker closes a fenced block."""
+    from vigor.highlight import MD_FENCE, markdown_fence_languages
+    lines = ["~~~~python", "```", "def value():", "~~~", "~~~~"]
+    languages = markdown_fence_languages(lines)
+    assert languages[0] is MD_FENCE and languages[4] is MD_FENCE
+    assert languages[1:4] == ["python", "python", "python"]
+    print("  PASS: Markdown fence matching respects marker and length")
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
@@ -4611,6 +4665,12 @@ def main():
             test_python_highlights_language_entities,
             test_c_and_cpp_highlight_language_entities,
             test_bash_highlights_language_entities,
+        ]),
+        ("67", "Phase 67 — Markdown fenced-code highlighting", [
+            test_markdown_fences_highlight_supported_languages,
+            test_markdown_fence_language_aliases,
+            test_unknown_fence_suppresses_markdown_prose_styles,
+            test_markdown_fence_matching_respects_marker_kind_and_length,
         ]),
     ]
 
