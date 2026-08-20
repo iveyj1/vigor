@@ -3726,6 +3726,106 @@ def test_markdownfences_only_markdown_files():
     assert "```" in frame, f"Non-markdown fence should remain visible: {frame[:800]}"
     print("  PASS: markdownfences only affects markdown files")
 
+
+# ── Phase 61: mouse wheel scrolling ───────────────────────────────────────
+
+def test_sgr_mouse_decoder():
+    """SGR wheel and button reports decode to zero-based structured events."""
+    from vigor.terminal import Terminal
+    assert Terminal._decode_mouse(b"<64;3;4M") == ("MOUSE", "wheel", "up", 2, 3, 0)
+    assert Terminal._decode_mouse(b"<65;9;2M") == ("MOUSE", "wheel", "down", 8, 1, 0)
+    assert Terminal._decode_mouse(b"<4;2;3M") == ("MOUSE", "left", "press", 1, 2, 4)
+    assert Terminal._decode_mouse(b"broken") == ""
+    print("  PASS: SGR mouse decoder")
+
+
+def test_mouse_options_and_terminal_lifecycle():
+    """Mouse modes validate and reporting is disabled when terminal ownership ends."""
+    path = write_temp("mouse\n")
+    screen, _, code = run_vig(
+        b":set mouse=scroll\r:set mouse=cursor\r:set mouse=visual\r:set mouse=bad\r:q\r",
+        file_path=path,
+    )
+    os.unlink(path)
+    assert code == 0
+    assert "mouse must be off, scroll, cursor, or visual" in screen
+    assert "\x1b[?1000h" in screen and "\x1b[?1002h" in screen and "\x1b[?1006h" in screen
+    assert "\x1b[?1000l" in screen and "\x1b[?1002l" in screen and "\x1b[?1006l" in screen
+    print("  PASS: mouse options and terminal lifecycle")
+
+
+def test_mouse_wheel_scrolls_three_display_rows():
+    """One wheel report scrolls three display rows and keeps the cursor visible."""
+    path = write_temp("\n".join(f"ROW{i:02}" for i in range(1, 16)) + "\n")
+    screen, _, code = run_vig(
+        b":set mouse=scroll\r\x1b[<65;1;1M:q\r", file_path=path, rows=4, cols=30,
+    )
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0
+    assert "ROW04" in frame and "ROW01" not in frame, frame[-500:]
+    print("  PASS: mouse wheel scrolls three display rows")
+
+
+def test_mouse_wheel_preserves_active_modes():
+    """Wheel scrolling is global and does not cancel Insert, Command, Search, or Visual."""
+    content = "\n".join(f"ROW{i:02}" for i in range(1, 16)) + "\n"
+
+    path = write_temp(content)
+    _, edited, code = run_vig(
+        b":set mouse=scroll\ri\x1b[<65;1;1MX\x1b:wq\r", file_path=path, rows=4, cols=30,
+    )
+    os.unlink(path)
+    assert code == 0 and "XROW04" in edited
+
+    path = write_temp(content)
+    _, _, command_code = run_vig(
+        b":set mouse=scroll\r:\x1b[<65;1;1Mq\r", file_path=path, rows=4, cols=30,
+    )
+    os.unlink(path)
+    assert command_code == 0
+
+    path = write_temp(content)
+    _, _, search_code = run_vig(
+        b":set mouse=scroll\r/\x1b[<65;1;1MROW10\r:q\r", file_path=path, rows=4, cols=30,
+    )
+    os.unlink(path)
+    assert search_code == 0
+
+    path = write_temp(content)
+    _, visual_edit, visual_code = run_vig(
+        b":set clipboard=off\r:set mouse=scroll\rv\x1b[<65;1;1Md:wq\r",
+        file_path=path, rows=4, cols=30,
+    )
+    os.unlink(path)
+    assert visual_code == 0 and visual_edit.startswith("OW04\nROW05")
+    print("  PASS: mouse wheel preserves active modes")
+
+
+def test_mouse_reporting_restores_across_rgf_handoff():
+    """Temporary fzf terminal handoff disables and then restores mouse reporting."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "a.txt")
+        bindir = os.path.join(d, "bin")
+        os.mkdir(bindir)
+        open(path, "w").write("needle\n")
+        for name, body in (
+            ("rg", "#!/bin/sh\nexit 0\n"),
+            ("fzf", f"#!/bin/sh\nprintf '{path}:1:1:needle\\n'\n"),
+        ):
+            tool = os.path.join(bindir, name)
+            open(tool, "w").write(body)
+            os.chmod(tool, 0o755)
+        env = {"PATH": bindir + os.pathsep + os.environ["PATH"]}
+        screen, _, code = run_vig(
+            f":set mouse=scroll\r:rgf {d}\r:q!\r:q\r", file_path=path, env=env,
+        )
+    assert code == 0
+    assert screen.count("\x1b[?1000h") >= 2, "Expected mouse reporting after fzf returns"
+    assert "\x1b[?1000l" in screen, "Expected mouse reporting disabled for handoff"
+    print("  PASS: mouse reporting restores across rgf handoff")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -4159,6 +4259,13 @@ def main():
             test_markdownfences_hides_backtick_and_tilde_fences,
             test_markdownfences_requires_markdown_view,
             test_markdownfences_only_markdown_files,
+        ]),
+        ("61", "Phase 61 — mouse wheel scrolling", [
+            test_sgr_mouse_decoder,
+            test_mouse_options_and_terminal_lifecycle,
+            test_mouse_wheel_scrolls_three_display_rows,
+            test_mouse_wheel_preserves_active_modes,
+            test_mouse_reporting_restores_across_rgf_handoff,
         ]),
     ]
 

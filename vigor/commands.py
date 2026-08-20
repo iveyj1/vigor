@@ -729,6 +729,16 @@ class CommandMixin:
                 return
             self.opt_clipboard = val
             self.msg = f"clipboard={val}"
+        elif opt.startswith("mouse="):
+            val = opt[len("mouse="):]
+            if val not in ("off", "scroll", "cursor", "visual"):
+                self.msg = "mouse must be off, scroll, cursor, or visual"
+                return
+            self.opt_mouse = val
+            term = getattr(self, "term", None)
+            if term:
+                term.set_mouse(val)
+            self.msg = f"mouse={val}"
         elif opt.startswith("yankflash="):
             try:
                 val = int(opt[len("yankflash="):])

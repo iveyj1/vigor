@@ -11,7 +11,6 @@ No implementation-ready item is currently specified.
 
 These are current pain points and likely development directions. Resolve the listed semantics before implementation.
 
-1. Mouse wheel scrolling; use the staged SGR design in `proposals/mouse-support.md`.
 1. Improve visible search-hit highlighting beyond the existing optional `hlsearch` behavior; define colors, current-match treatment, and default behavior.
 1. Collapse Markdown fence-marker lines from `:md` layout instead of rendering them as blank rows; preserve source navigation, search, editing, and cursor mapping.
 1. Enhance syntax highlighting; define target languages and whether multiline lexical state is required before choosing between the current line-local regex model and a stateful scanner.
@@ -36,6 +35,7 @@ These are current pain points and likely development directions. Resolve the lis
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Add Phase 1 SGR mouse support with `mouse=off|scroll|cursor|visual`; wheel events scroll three display rows in every mode, and reporting restores across terminal handoffs.
 1. Add `:set wrapcol=N`; nonzero values cap wrap width in display columns and `0` follows terminal content width.
 1. Make `Y` behave as `y$`, and use case-insensitive matching for lowercase literal and lowercase word searches while keeping capitalized or regex searches case-sensitive.
 1. Replace the inherited Nvim/Vim tutor with an exercise-driven tutorial limited to vigor's implemented behavior and deliberate divergences.

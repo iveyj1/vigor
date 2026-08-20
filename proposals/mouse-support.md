@@ -2,7 +2,7 @@
 
 ### Status
 
-Proposal only. No implementation has been started.
+Phase 1 wheel scrolling is implemented on `feature/mouse-scroll`. Cursor positioning and Visual drag selection remain proposed.
 
 ### Summary
 
@@ -246,7 +246,7 @@ Terminal-native Shift-drag behavior should be documented rather than asserted in
 
 ### Recommended Delivery
 
-**Phase 1 — wheel scrolling**
+**Phase 1 — wheel scrolling — implemented**
 
 - Add `mouse=off|scroll` parsing.
 - Add SGR mouse enable/restore handling.
@@ -270,13 +270,13 @@ Terminal-native Shift-drag behavior should be documented rather than asserted in
 
 This split lands useful wheel support with a compact first change and isolates the substantially more complex coordinate mapping and selection behavior.
 
-### Decisions Required Before Implementation
+### Confirmed Decisions
 
-- Confirm `mouse=off|scroll|cursor|visual` names and default `off`.
-- Confirm three display rows per wheel event.
-- Confirm wheel scrolling remains active in Insert, Command, Search, and Visual modes.
-- Define whether cursor clicks retain Insert mode and how content clicks behave while Command/Search prompts are active.
-- Confirm a click without drag only positions the cursor.
-- Confirm mouse release after dragging leaves Visual mode active without yanking.
-- Confirm Shift-drag is the documented terminal-native selection escape hatch.
-- Confirm status/message clicks are ignored.
+- `mouse=off|scroll|cursor|visual`, default `off`.
+- Three display rows per wheel event.
+- Wheel scrolling remains active in Insert, Command, Search, and Visual modes.
+- Cursor clicks retain the current editing or prompt mode; Command/Search content clicks reposition the underlying buffer cursor without closing the prompt.
+- A click without drag only positions the cursor.
+- Mouse release after dragging leaves Visual mode active without yanking.
+- Shift-drag is the documented terminal-native selection escape hatch.
+- Status/message clicks are ignored.
