@@ -2898,7 +2898,7 @@ def test_search_history_shared_by_slash_and_question():
 def test_help_opens_vighelp_buffer():
     """:help opens the executable-directory help buffer."""
     path = write_temp("source\n")
-    screen, _, code = run_vig(b":help\r/markdownfences\r:q\r:q\r", file_path=path)
+    screen, _, code = run_vig(b":help\r/:set wrap\r/markdownfences\r:q\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert "VIGOR HELP" in screen and "KEY / COMMAND" in screen
@@ -4576,6 +4576,45 @@ def test_autosave_options_validate_and_load_from_config():
     print("  PASS: autosave options validate and load from config")
 
 
+# ── Phase 73: config and in-editor help audit ──────────────────────────────
+
+def test_example_config_lists_all_runtime_defaults():
+    """The example contains each supported startup option exactly once at its default."""
+    expected = [
+        "set nowrap", "set wrapcol=0", "set nowrapmove", "set nonumber",
+        "set norelativenumber", "set autoindent", "set comment=#",
+        "set scrolloff=0", "set clipboard=auto", "set mouse=off",
+        "set yankflash=300", "set delcopy", "set norghidden",
+        "set nohlsearch", "set nomarkdownfences", "set autodetect",
+        "set saveversions=0", "set noautosave", "set autosavedelay=1000",
+        "set makeprg=make",
+    ]
+    path = os.path.join(os.path.dirname(VIG), "example-config")
+    lines = [line.strip() for line in open(path) if line.strip() and not line.startswith("#")]
+    target = write_temp("plain\n")
+    _, _, code = run_vig(b":q\r", file_path=target, env={"VIG_CONFIG": path})
+    os.unlink(target)
+    assert lines == expected and code == 0
+    print("  PASS: example config lists all runtime defaults")
+
+
+def test_vighelp_covers_commands_and_config_options():
+    """In-editor help names every ex-command family and configurable option."""
+    path = os.path.join(os.path.dirname(VIG), "vighelp")
+    help_text = open(path).read()
+    commands = (":w", ":q", ":qa", ":e", ":new", ":n", ":p", ":ls", ":k",
+                ":help", ":md", ":nomd", ":ft", ":cd", ":cdb", ":pwd",
+                ":read", ":!command", ":[range]!command", ":[range]s/",
+                ":make", ":qf", ":rg", ":rgf")
+    options = ("wrap", "wrapcol", "wrapmove", "number", "relativenumber",
+               "autoindent", "comment", "scrolloff", "clipboard", "mouse",
+               "yankflash", "delcopy", "rghidden", "hlsearch", "markdownfences",
+               "autodetect", "saveversions", "autosave", "autosavedelay", "makeprg")
+    assert all(command in help_text for command in commands)
+    assert all(f":set {option}" in help_text for option in options)
+    print("  PASS: vighelp covers commands and config options")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5092,6 +5131,10 @@ def main():
             test_explicit_write_clears_pending_autosave,
             test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit,
             test_autosave_options_validate_and_load_from_config,
+        ]),
+        ("73", "Phase 73 — config and in-editor help audit", [
+            test_example_config_lists_all_runtime_defaults,
+            test_vighelp_covers_commands_and_config_options,
         ]),
     ]
 

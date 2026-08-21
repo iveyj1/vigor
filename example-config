@@ -1,20 +1,21 @@
-set number
-set relativenumber
+# Every supported startup option at its runtime default.
 set nowrap
 set wrapcol=0
-set scrolloff=5
-# clipboard=osc52|auto|off
-set clipboard=osc52
+set nowrapmove
+set nonumber
+set norelativenumber
+set autoindent
+set comment=#
+set scrolloff=0
+set clipboard=auto
 set mouse=off
 set yankflash=300
 set delcopy
-set wrapmove
 set norghidden
-set hlsearch
+set nohlsearch
 set nomarkdownfences
 set autodetect
 set saveversions=0
 set noautosave
 set autosavedelay=1000
-set autoindent
-
+set makeprg=make

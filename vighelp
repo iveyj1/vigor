@@ -1,12 +1,13 @@
 VIGOR HELP
 
 Run `vig tutor` for an exercise-driven introduction.
+See `reference.md` for detailed semantics and deliberate vi divergences.
 
 KEY / COMMAND       ACTION
 
-h j k l             move left/down/up/right
+h j k l / arrows    move left/down/up/right; counts repeat motions
 w b e / W B E       word / WORD motions
-0 ^ $               line start, first text, line end
+0 ^ $ / Home End    line start, first text, line end
 gg / G              first / last line; counts select line
 f t F T ; ,         find character; repeat / reverse
 %                   match bracket
@@ -15,56 +16,78 @@ Ctrl-E / Ctrl-Y     scroll viewport down / up
 
 i a I A             insert at cursor/after/start/end
 o O                 open line below / above
-x X                 delete at cursor / before cursor
-d y c + motion      delete, yank, change
+r{char} / s         replace / substitute character
+x X / Delete BS     delete at cursor / before cursor
+d y c + motion      delete, yank, change; yd deletes and copies
+dd yy cc            linewise delete, yank, change
 D Y C               delete/yank/change to line end
 p P                 paste after / before
+J                   join with next line
+>> / <<             indent / dedent four spaces
+gcc                 toggle line comment
+~ / g~ / gU / gu    toggle / toggle / upper / lower case
+.                   repeat last change
 u / Ctrl-R          undo / redo
-v V                 visual character / line selection
+v V                 visual character / line; d y c x and gc operate
 
-/pattern ?pattern   search forward / backward; typing previews visible matches
+/pattern ?pattern   search forward / backward; typing previews matches
 * # / g* g#         word search; whole / partial
 n N                 repeat search / reverse
-:command            enter command prompt
-:w :q :wq           write, quit, write and quit
-:e path             open file in a new buffer
+
+:command            enter command prompt; arrows edit/history, Tab completes
+:w [path]           write current buffer
+:q / :q! / :wq      quit / force quit / write and quit
+:qa / :qa!          quit all / force quit all
+:e path / :e!       open new buffer / reload current buffer
+:new                create an empty buffer
+:n / :p             next / previous buffer
+:ls                 list buffers
+:k / :k!            delete buffer / force delete buffer
 :help               open this help buffer
-:md / :markdown     toggle Markdown presentation
+:md / :markdown     toggle Markdown presentation; .md opens in it automatically
 :nomd               show literal Markdown source
 :ft [TYPE]          report/force auto,text,bash,c,cpp,python,markdown
-:cd path / :cdb     change cwd / cd to buffer dir
+:cd path / :cdb     change cwd / cd to buffer directory
 :pwd                show working directory
+:read file          insert file below cursor
+:read !command      insert command output below cursor
+:!command           run shell command; show one-line output
+:[range]!command    replace lines with command output
+:[range]!!command   open command output in a new buffer
+:[range]s/pat/repl/g substitute; range may be %, N, or N,M
 :make [args]        run makeprg into quickfix
-:qf !command        diagnostic command into quickfix
-:rg pattern [path]  ripgrep results in quickfix
+:qf !command        run diagnostic command into quickfix
+:rg pattern [path]  ripgrep results into quickfix
 :rgf [path]         fzf live ripgrep; Enter adds filtered rows
 
-OPTIONS
+OPTIONS (shown with available forms; defaults are in example-config)
 
-:set wrap            wrap long lines           :set nowrap          truncate long lines
-:set wrapcol=N       wrap width; 0 uses terminal
-:set wrapmove        j/k move display rows     :set nowrapmove      j/k move text lines
-:set number          show line numbers         :set nonumber        hide line numbers
-:set relativenumber  show relative numbers     :set norelativenumber hide relative numbers
-:set autoindent      copy indent on new lines  :set noautoindent    disable autoindent
-:set comment=X       comment prefix             :set scrolloff=N     cursor screen margin
-:set clipboard=MODE  osc52, auto, or off       :set yankflash=N     yank highlight ms
-:set mouse=MODE      off, scroll, cursor, visual; wheel/click/drag
-:set delcopy         deletes update register   :set nodelcopy       preserve register
-:set rghidden        rg includes filenames     :set norghidden      default rg filenames
-:set hlsearch        highlight search matches  :set nohlsearch      hide search matches
-:set markdownfences  hide :md fence lines      :set nomarkdownfences show fence lines
-:set autodetect      detect syntax/Markdown    :set noautodetect    new buffers plain
-:set saveversions=N  keep 0..100 manual-write prior versions
-:set autosave         idle-save named buffers    :set noautosave      disable (default)
-:set autosavedelay=N  idle milliseconds (default 1000)
-:set makeprg=CMD     build command for :make
-scripts/vig-diagnostics [--cwd DIR] CMD... normalizes diagnostics
+:set wrap / :set nowrap
+:set wrapcol=N
+:set wrapmove / :set nowrapmove
+:set number / :set nonumber
+:set relativenumber / :set norelativenumber
+:set autoindent / :set noautoindent
+:set comment=X
+:set scrolloff=N
+:set clipboard=osc52|auto|off
+:set mouse=off|scroll|cursor|visual
+:set yankflash=N
+:set delcopy / :set nodelcopy
+:set rghidden / :set norghidden
+:set hlsearch / :set nohlsearch
+:set markdownfences / :set nomarkdownfences
+:set autodetect / :set noautodetect
+:set saveversions=N       retain 0..100 explicit-write prior versions
+:set autosave / :set noautosave
+:set autosavedelay=N      idle milliseconds
+:set makeprg=COMMAND
 
-.py .c/.h C++ .sh   line-local language highlighting
-extensionless bash/sh shebangs select shell highlighting
-:md aligns Markdown tables virtually; editing restores literal source
-Markdown fences: python/py, bash/sh/shell, c, cpp/c++/cc/cxx syntax
+Mouse visual mode combines wheel scrolling, click positioning, and drag selection.
+.py, C/C++ extensions, and .sh/.bash use line-local language highlighting.
+Extensionless bash/sh shebangs select shell highlighting.
+Markdown fences support python/py, bash/sh/shell, c, and cpp/c++/cc/cxx.
+Manual versions are adjacent `.vigor-bak.<name>.N` files; autosave does not rotate them.
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping
@@ -74,7 +97,7 @@ Markdown fences: python/py, bash/sh/shell, c, cpp/c++/cc/cxx syntax
 <space>n / N        next / previous buffer
 
 Esc                 return to Normal / cancel prompt
+Ctrl-C              cancel pending state and return to Normal
 Ctrl-C Ctrl-C       quit all buffers
 Ctrl-C q            force quit all buffers
-
-See reference.md for the complete command reference.
+Ctrl-Z              suspend and return to the shell

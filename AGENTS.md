@@ -23,8 +23,9 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/commands.py` — prompts, ex commands, completion, quickfix, and subprocesses
 - `vigor/modes.py` — Normal, Insert, Visual, and Search input dispatch
 - `vigor/__main__.py` — `python3 -m vigor` entry point
-- `vighelp` — terse help buffer opened by `:help`
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 352 test functions)
+- `vighelp` — concise in-editor command and option help opened by `:help`
+- `example-config` — every supported startup option shown at its runtime default
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 354 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -50,6 +51,8 @@ Commit at the end of each completed development phase. Do not leave partial or f
 **Stdlib only.** Runtime code uses Python stdlib modules only: currently `sys`, `os`, `re`, `base64`, `termios`, `tty`, `atexit`, `signal`, `shutil`, `select`, `shlex`, `time`, `enum`, and local `subprocess` imports for shell/clipboard commands. No pip packages. No curses. Tests add PTY/tempfile/terminal-control helpers.
 
 **ANSI, not curses.** All terminal control uses escape sequences written to stdout. This gives us complete control over what bytes hit the terminal and keeps the rendering logic transparent.
+
+**Config and help maintenance.** Whenever a config option is added, removed, renamed, or its default changes, update `example-config` so it lists every supported option at its runtime default. Update `vighelp`, `reference.md`, and the option lists in this file in the same phase.
 
 
 ### Requirements
@@ -194,7 +197,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 352 test functions organized into 71 phase groups (selectors 1–72, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 354 test functions organized into 72 phase groups (selectors 1–73, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ### Workflow for AI Agents

@@ -23,6 +23,7 @@ No implementation-ready item is currently specified.
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Audit `example-config` against every runtime default, expand `vighelp` across all ex-command and option families, and add regression checks plus standing maintenance guidance.
 1. Add main-loop deadline autosave for dirty named buffers with configurable idle delay, per-buffer scheduling across switches, explicit-write cancellation, one-shot error reporting, and no manual-version rotation.
 1. Add `saveversions=N` retained prior-disk versions for changed explicit writes, using ignored adjacent `.vigor-bak.<basename>.N` files; block writes when promised preservation fails.
 1. Add global `autodetect` / `noautodetect` policy for newly opened buffers, automatic `.md`/`.markdown` presentation, startup config support, and explicit current-buffer redetection through `:ft auto`.
