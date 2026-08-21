@@ -2,7 +2,7 @@
 
 vig is a compact, vi-style terminal editor. Runtime code lives in the `vigor` package, uses Python stdlib only, and talks to the terminal with raw ANSI escape codes rather than curses.
 
-The splash footer identifies the source as `v0.1.0 · development`; `scripts/install` stamps installed copies with the Git commit and commit date.
+The splash footer identifies the source as `v0.1.0 · development`; `scripts/install` stamps installed copies with the Git commit and commit date. The launcher explicitly prioritizes its adjacent package without changing cwd, so running an installed `vig` from inside a source checkout still uses the stamped installed runtime.
 
 Run `vig tutor` for an exercise-driven introduction. On invocation, file arguments open as buffers. The first existing directory argument opens an `:edit` filename-completion menu without the splash; later directory arguments are ignored. Esc cancels the directory item while retaining any file buffers.
 

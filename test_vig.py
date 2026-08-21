@@ -8,6 +8,7 @@ import time
 import signal
 import tempfile
 import select
+import shutil
 import re
 
 VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig")
@@ -133,7 +134,8 @@ def _collect_child(master, pid, output, deadline, exit_code=None):
     return -99
 
 
-def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80, env=None, cwd=None):
+def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80,
+            env=None, cwd=None, launcher=VIG):
     """Launch vigor in a PTY, send keys, and return screen, file, exit code."""
     if isinstance(keys, str):
         keys = keys.encode()
@@ -169,7 +171,7 @@ def run_vig(keys, file_path=None, file_paths=None, timeout=3.0, rows=24, cols=80
             os.environ["VIG_NO_CONFIG"] = "1"
         else:
             os.environ.update(env)
-        os.execvp(VIG, [VIG] + all_paths)
+        os.execvp(launcher, [launcher] + all_paths)
         os._exit(1)
 
     os.close(slave)
@@ -4615,6 +4617,37 @@ def test_vighelp_covers_commands_and_config_options():
     print("  PASS: vighelp covers commands and config options")
 
 
+# ── Phase 74: installed launcher package priority ──────────────────────────
+
+def test_launcher_prefers_adjacent_installed_package():
+    """A competing vigor package in cwd cannot shadow the launcher's package."""
+    with tempfile.TemporaryDirectory() as d:
+        installed = os.path.join(d, "installed")
+        competing = os.path.join(d, "competing")
+        os.mkdir(installed)
+        os.mkdir(competing)
+        launcher = os.path.join(installed, "vig")
+        shutil.copy2(VIG, launcher)
+        shutil.copytree(os.path.join(os.path.dirname(VIG), "vigor"),
+                        os.path.join(installed, "vigor"))
+        init_path = os.path.join(installed, "vigor", "__init__.py")
+        text = open(init_path).read().replace('BUILD_ID = "development"',
+                                              'BUILD_ID = "installed-test"')
+        open(init_path, "w").write(text)
+        shadow = os.path.join(competing, "vigor")
+        os.mkdir(shadow)
+        open(os.path.join(shadow, "__init__.py"), "w").write("")
+        open(os.path.join(shadow, "__main__.py"), "w").write("print('shadow-package')\n")
+        target = os.path.join(d, "note.txt")
+        open(target, "w").write("note\n")
+        screen, _, code = run_vig(
+            b":q\r", file_path=target, cwd=competing, launcher=launcher,
+        )
+    assert code == 0 and "installed-test" in screen
+    assert "shadow-package" not in screen
+    print("  PASS: launcher prefers adjacent installed package")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5135,6 +5168,9 @@ def main():
         ("73", "Phase 73 — config and in-editor help audit", [
             test_example_config_lists_all_runtime_defaults,
             test_vighelp_covers_commands_and_config_options,
+        ]),
+        ("74", "Phase 74 — installed launcher package priority", [
+            test_launcher_prefers_adjacent_installed_package,
         ]),
     ]
 
