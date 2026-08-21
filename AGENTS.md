@@ -13,7 +13,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 
 **Files**
 
-- `vig` — source-tree and installed launcher for `python3 -m vigor`
+- `vig` — source-tree and installed launcher that prioritizes its adjacent `vigor` package
 - `vigor/app.py` — editor state composition, buffer orchestration, viewport control, and event loop
 - `vigor/state.py` — buffer content and per-buffer state
 - `vigor/terminal.py` — raw terminal ownership and input decoding
@@ -25,7 +25,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — concise in-editor command and option help opened by `:help`
 - `example-config` — every supported startup option shown at its runtime default
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 354 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 355 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -46,7 +46,7 @@ Commit at the end of each completed development phase. Do not leave partial or f
 
 **Keep it compact.** Every feature and every line of code must justify its existence. Compact now means proportionate to the implemented feature set, not adherence to the original prototype's size.
 
-**Module-oriented runtime.** Runtime code lives in the `vigor` package according to `proposals/module-architecture.md`. Keep dependency direction explicit, avoid circular imports, and prefer cohesive modules over either one monolith or many tiny files. The `vig` launcher invokes `python3 -m vigor`.
+**Module-oriented runtime.** Runtime code lives in the `vigor` package according to `proposals/module-architecture.md`. Keep dependency direction explicit, avoid circular imports, and prefer cohesive modules over either one monolith or many tiny files. The `vig` launcher executes its adjacent `vigor` package as `__main__` while preserving the invocation cwd and placing that package ahead of cwd on `sys.path`.
 
 **Stdlib only.** Runtime code uses Python stdlib modules only: currently `sys`, `os`, `re`, `base64`, `termios`, `tty`, `atexit`, `signal`, `shutil`, `select`, `shlex`, `time`, `enum`, and local `subprocess` imports for shell/clipboard commands. No pip packages. No curses. Tests add PTY/tempfile/terminal-control helpers.
 
@@ -187,7 +187,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 ### Testing
 
-**Harness** — each test forks a child process connected via `pty.openpty()`. The child execs the `vig` launcher, which runs `python3 -m vigor`. The parent sends logical keys via `os.write()` and accumulates screen output from `os.read()` in a `bytearray`. No test framework — plain `assert`.
+**Harness** — each test forks a child process connected via `pty.openpty()`. The child execs the `vig` launcher, which runs the adjacent `vigor` package as `__main__`. The parent sends logical keys via `os.write()` and accumulates screen output from `os.read()` in a `bytearray`. No test framework — plain `assert`.
 
 **PTY sizing** — the harness sets the PTY window size to 24×80 via `TIOCSWINSZ` before forking. Resize tests change the size and send `SIGWINCH` to the child.
 
@@ -197,7 +197,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 354 test functions organized into 72 phase groups (selectors 1–73, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 355 test functions organized into 73 phase groups (selectors 1–74, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 
 ### Workflow for AI Agents

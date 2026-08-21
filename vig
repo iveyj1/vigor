@@ -2,5 +2,8 @@
 set -euo pipefail
 
 root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-export PYTHONPATH="$root${PYTHONPATH:+:$PYTHONPATH}"
-exec python3 -m vigor "$@"
+exec python3 -c '
+import runpy, sys
+sys.path.insert(0, sys.argv.pop(1))
+runpy.run_module("vigor", run_name="__main__")
+' "$root" "$@"
