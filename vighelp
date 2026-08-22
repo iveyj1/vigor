@@ -60,6 +60,16 @@ n N                 repeat search / reverse
 :rg pattern [path]  ripgrep results into quickfix
 :rgf [path]         fzf live ripgrep; Enter adds filtered rows
 
+REGEX TIPS
+
+Search and substitute patterns use Python regular expressions.
+. matches any character; ^ and $ anchor a line; [] defines a character class.
+*, +, ?, and {m,n} repeat; \d, \w, and \s match common character classes.
+Groups use (...); replacements can reuse them with \1 or \g<1>.
+Lowercase literal searches ignore case; uppercase or regex patterns are case-sensitive.
+Substitute accepts any punctuation delimiter: :%s|/old/path|/new/path|g
+A selected substitute delimiter cannot be backslash-escaped; choose another delimiter.
+
 OPTIONS (shown with available forms; defaults are in example-config)
 
 :set wrap / :set nowrap
