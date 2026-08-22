@@ -7,6 +7,7 @@ trap 'echo "Interrupted" >&2; exit 130' INT
 instdir="${VIG_INSTALL_DIR:-$HOME/.config/scripts}"
 mkdir -p "$instdir"
 build_id="$(git log -1 --format='%h %cs' 2>/dev/null || printf development)"
+echo "installing build id $build_id"
 if [[ "$build_id" != development ]] && ! git diff --quiet HEAD -- vigor; then
     build_id="$build_id dirty"
 fi
