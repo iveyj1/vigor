@@ -4648,6 +4648,17 @@ def test_launcher_prefers_adjacent_installed_package():
     print("  PASS: launcher prefers adjacent installed package")
 
 
+# ── Phase 75: regex help tips ──────────────────────────────────────────────
+
+def test_vighelp_includes_regex_tips():
+    """In-editor help briefly covers regex syntax and substitute delimiters."""
+    help_text = open(os.path.join(os.path.dirname(VIG), "vighelp")).read()
+    assert "REGEX TIPS" in help_text and "Python regular expressions" in help_text
+    assert "\\g<1>" in help_text and ":%s|/old/path|/new/path|g" in help_text
+    assert "cannot be backslash-escaped" in help_text
+    print("  PASS: vighelp includes regex tips")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5171,6 +5182,9 @@ def main():
         ]),
         ("74", "Phase 74 — installed launcher package priority", [
             test_launcher_prefers_adjacent_installed_package,
+        ]),
+        ("75", "Phase 75 — regex help tips", [
+            test_vighelp_includes_regex_tips,
         ]),
     ]
 
