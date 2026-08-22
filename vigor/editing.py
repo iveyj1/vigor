@@ -548,9 +548,10 @@ class EditingMixin:
         for _ in range(n):
             idx = line.find(ch, pos + 1)
             if idx == -1:
-                return
+                return False
             pos = idx
         self.cx = pos
+        return True
 
     def _motion_F(self, ch, n=1):
         """Move to nth occurrence of ch to the left on current line."""
@@ -559,9 +560,10 @@ class EditingMixin:
         for _ in range(n):
             idx = line.rfind(ch, 0, pos)
             if idx == -1:
-                return
+                return False
             pos = idx
         self.cx = pos
+        return True
 
     def _motion_t(self, ch, n=1):
         """Move to just before nth occurrence of ch to the right."""
@@ -570,9 +572,10 @@ class EditingMixin:
         for _ in range(n):
             idx = line.find(ch, pos + 1)
             if idx == -1:
-                return
+                return False
             pos = idx
         self.cx = pos - 1 if pos > 0 else 0
+        return True
 
     def _motion_T(self, ch, n=1):
         """Move to just after nth occurrence of ch to the left."""
@@ -581,14 +584,15 @@ class EditingMixin:
         for _ in range(n):
             idx = line.rfind(ch, 0, pos)
             if idx == -1:
-                return
+                return False
             pos = idx
         self.cx = pos + 1
+        return True
 
     def _exec_find(self, cmd, ch, n=1):
-        """Execute a find-char motion and save for repeat."""
+        """Execute a find-char motion, returning whether it found the target."""
         self.last_find = (cmd, ch)
-        getattr(self, self._FIND_DISPATCH[cmd])(ch, n)
+        return getattr(self, self._FIND_DISPATCH[cmd])(ch, n)
 
     def _repeat_find(self, reverse=False, n=1):
         """Repeat last f/t/F/T. If reverse, swap direction."""
@@ -878,19 +882,29 @@ class EditingMixin:
         self.render()
 
     def _apply_motion(self, motion_key, n, extra_n=None):
-        """Execute a motion n times from current position.
-        Returns (new_cy, new_cx) without modifying cursor.
-        Also handles find-char motions stored in _pending_find_for_op."""
+        """Return an operator motion destination, or None when the motion fails."""
         saved_cy, saved_cx = self.cy, self.cx
         if self._pending_find_for_op:
             cmd, ch = self._pending_find_for_op
             self._pending_find_for_op = None
-            self._exec_find(cmd, ch, n)
+            if not self._exec_find(cmd, ch, n):
+                return None
+        elif motion_key in ("w", "W"):
+            for _ in range(n):
+                before = (self.cy, self.cx)
+                self.motion_w(big=motion_key == "W")
+                if (self.cy, self.cx) == before:
+                    if self.cy == len(self.buf.lines) - 1 and self.cx < len(self.buf.lines[self.cy]):
+                        self.cx = len(self.buf.lines[self.cy])
+                    break
         elif not self._exec_motion(motion_key, n, extra_n=extra_n):
             return None
+        self._clamp_cursor()
         result = (self.cy, self.cx)
         self.cy, self.cx = saved_cy, saved_cx
-        return result
+        failed_if_still = ("h", "LEFT", "l", "RIGHT", "j", "DOWN", "k", "UP",
+                           "w", "W", "b", "B", "CTRL_D", "CTRL_U")
+        return None if result == (saved_cy, saved_cx) and motion_key in failed_if_still else result
 
     def _is_linewise_motion(self, key):
         """j, k, G, gg, and doubled operators are linewise."""
@@ -947,7 +961,7 @@ class EditingMixin:
         linewise = self._is_linewise_motion(motion_key)
         target = self._apply_motion(motion_key, n, extra_n=extra_n)
         if target is None:
-            return
+            return False
         ty, tx = target
         sy, sx = self.cy, self.cx
         # Normalize range
@@ -962,6 +976,9 @@ class EditingMixin:
         if not linewise and sy != ty and motion_key in ("w", "W"):
             ty = sy
             tx = len(self.buf.lines[sy])
+
+        if op in ("d", "yd", "c", "g~", "gU", "gu"):
+            self._snapshot()
 
         if op == "d":
             self._delete_range(sy, sx, ty, tx, linewise, copy=self.opt_delcopy)
@@ -978,6 +995,7 @@ class EditingMixin:
             if linewise:
                 sy, sx, ty, tx = sy, 0, ty, len(self.buf.lines[ty])
             self._change_case_range(sy, sx, ty, tx, func)
+        return True
 
     def _paste_after(self):
         self.cy, self.cx, changed = paste(

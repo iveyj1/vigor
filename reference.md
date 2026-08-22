@@ -40,6 +40,8 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `J` | join current line with next |
 | Count prefix | `3dd`, `5j`, `2>>`, `2dw`, etc. |
 
+At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so `cw`, `dw`, and related operators consume the remainder. A motion that cannot move cancels its operator without editing or entering Insert mode.
+
 **Text objects** (used with `d`/`y`/`c` in operator-pending):
 | Object | Scope |
 |--------|-------|

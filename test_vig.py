@@ -2282,7 +2282,8 @@ def test_clipboard_auto_prefers_external_command():
         xclip = os.path.join(bindir, "xclip")
         open(xclip, "w").write("#!/bin/sh\n/bin/cat > \"$CLIP_OUT\"\n")
         os.chmod(xclip, 0o755)
-        env = {"VIG_NO_CONFIG": "1", "PATH": bindir, "CLIP_OUT": clip_out}
+        env = {"VIG_NO_CONFIG": "1", "PATH": bindir + os.pathsep + "/usr/bin:/bin",
+               "CLIP_OUT": clip_out}
         screen, _, code = run_vig(b"yy:q!\r", file_path=path, env=env)
         copied = open(clip_out).read() if os.path.exists(clip_out) else ""
     assert code == 0
@@ -4659,6 +4660,57 @@ def test_vighelp_includes_regex_tips():
     print("  PASS: vighelp includes regex tips")
 
 
+# ── Phase 76: operator motion boundaries ───────────────────────────────────
+
+def test_cw_at_eof_changes_rest_of_word():
+    """cw reaches one-past-EOL when no following word exists."""
+    p1 = write_temp("final\n")
+    _, c1, code1 = run_vig(b"2lcwX\x1b:wq\r", file_path=p1)
+    p2 = write_temp("one two\n")
+    _, c2, code2 = run_vig(b"2cwX\x1b:wq\r", file_path=p2)
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code1 == code2 == 0
+    assert c1 == "fiX\n", c1
+    assert c2 == "X\n", c2
+    print("  PASS: cw changes final word through EOF")
+
+
+def test_word_operators_share_eof_boundary():
+    """Delete, yank, and case operators all consume a final partial word."""
+    p1 = write_temp("final\n")
+    _, c1, code1 = run_vig(b"2ldw:wq\r", file_path=p1)
+    p2 = write_temp("final\n")
+    _, c2, code2 = run_vig(b"2lgUw:wq\r", file_path=p2)
+    p3 = write_temp("final\n")
+    _, c3, code3 = run_vig(b":set clipboard=off\r2lyw$p:wq\r", file_path=p3)
+    for path in (p1, p2, p3):
+        os.unlink(path)
+    assert code1 == code2 == code3 == 0
+    assert c1 == "fi\n", c1
+    assert c2 == "fiNAL\n", c2
+    assert c3 == "finalnal\n", c3
+    print("  PASS: word operators share EOF boundary")
+
+
+def test_failed_operator_motions_do_not_mutate_or_enter_insert():
+    """Failed find and boundary motions cancel their pending operators."""
+    cases = (("abc\n", b"cfzX\x1b:wq\r"),
+             ("abc\n", b"dfz:wq\r"),
+             ("abc\n", b"chX:wq\r"),
+             ("last\n", b"dj:wq\r"))
+    for original, keys in cases:
+        path = write_temp(original)
+        _, content, code = run_vig(keys, file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == original, (keys, content)
+    path = write_temp("abc\n")
+    _, content, code = run_vig(b"xudfz\x12:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "bc\n", content
+    print("  PASS: failed operator motions cancel cleanly")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5185,6 +5237,11 @@ def main():
         ]),
         ("75", "Phase 75 — regex help tips", [
             test_vighelp_includes_regex_tips,
+        ]),
+        ("76", "Phase 76 — operator motion boundaries", [
+            test_cw_at_eof_changes_rest_of_word,
+            test_word_operators_share_eof_boundary,
+            test_failed_operator_motions_do_not_mutate_or_enter_insert,
         ]),
     ]
 

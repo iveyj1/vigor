@@ -23,6 +23,7 @@ No implementation-ready item is currently specified.
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Fix operator motion boundaries: `cw`/`dw`/yank/case operations consume the final word through one-past-EOL, while failed motions cancel without edits, Insert entry, snapshots, or redo loss.
 1. Add concise Python-regex, smart-case, replacement-group, and alternate substitute-delimiter tips to `vighelp`, including the delimiter-escaping limitation.
 1. Make the launcher prioritize its adjacent installed package without changing cwd, preventing a source checkout in cwd from shadowing a stamped installation.
 1. Audit `example-config` against every runtime default, expand `vighelp` across all ex-command and option families, and add regression checks plus standing maintenance guidance.

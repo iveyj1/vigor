@@ -57,12 +57,13 @@ class ModeMixin:
                 self.pending_op = ""
                 self.pending_count = 0
                 self.pending_extra_n = None
-                if op in ("d", "yd", "c"):
-                    self._snapshot()
                 self._pending_find_for_op = (cmd, key)
-                self._exec_operator(op, cmd, find_n)
-                if op in ("d", "yd"):
+                applied = self._exec_operator(op, cmd, find_n)
+                if applied and op in ("d", "yd", "g~", "gU", "gu"):
                     self._save_dot()
+                elif not applied:
+                    self._recording = False
+                    self._recording_keys = []
             else:
                 self._exec_find(cmd, key, find_n)
             self._clamp_cursor()
@@ -269,11 +270,12 @@ class ModeMixin:
                     self._change_case_range(self.cy, 0, end, len(self.buf.lines[end]), self._case_func(op))
                     self._save_dot()
             else:
-                if op in ("d", "yd", "c", "g~", "gU", "gu"):
-                    self._snapshot()
-                self._exec_operator(op, key, op_n * n, extra_n=extra_n)
-                if op in ("d", "yd", "g~", "gU", "gu"):
+                applied = self._exec_operator(op, key, op_n * n, extra_n=extra_n)
+                if applied and op in ("d", "yd", "g~", "gU", "gu"):
                     self._save_dot()
+                elif not applied:
+                    self._recording = False
+                    self._recording_keys = []
                 # c enters insert — recording continues
             self._clamp_cursor()
             self._ensure_scroll()
