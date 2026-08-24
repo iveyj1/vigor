@@ -597,17 +597,28 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     def _ensure_scroll(self):
         """Adjust viewport only as far as needed to keep cursor visible."""
-        origin, skip = self._viewport_layout().origin()
+        layout = self._viewport_layout()
+        origin, skip = layout.origin()
         if origin is None:
             return
         self.scroll, self._wrap_skip = origin, skip
         margin = min(self.opt_scrolloff, max(0, (self.rows - 1) // 2))
         row = self._cursor_view_row()
+        if row < 0:
+            self.scroll = layout.nearest_visible(self.cy, 1)
+            self._wrap_skip = self._cursor_wrap_row(self._wrap_cols()) if self.opt_wrap else 0
+        elif row >= self.rows:
+            self.scroll = layout.nearest_visible(self.cy, 1)
+            self._wrap_skip = self._cursor_wrap_row(self._wrap_cols()) if self.opt_wrap else 0
+            for _ in range(self.rows - 1 - margin):
+                if not self._move_view_top(-1):
+                    break
+        row = self._cursor_view_row()
         while row < margin and self._move_view_top(-1):
-            row += 1
+            row = self._cursor_view_row()
         bottom = self.rows - 1 - margin
         while row > bottom and self._move_view_top(1):
-            row -= 1
+            row = self._cursor_view_row()
 
     # ── Main loop ──────────────────────────────────────────────────────
 

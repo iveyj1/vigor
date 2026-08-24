@@ -1376,6 +1376,19 @@ def test_gg_goes_to_first_line():
     assert "line1***" in content, f"gg did not reach first line: {content!r}"
     print("  PASS: gg goes to first line")
 
+
+def test_gg_scrolls_viewport_to_first_line():
+    """gg after a long jump makes the top of file visible again."""
+    path = write_temp("".join(f"line {i}\n" for i in range(1, 80)))
+    screen, _, code = run_vig(b"Ggg:q\r", file_path=path, timeout=6.0)
+    frame = last_frame(screen)
+    os.unlink(path)
+    assert code == 0
+    assert "line 1" in frame and "line 2" in frame, frame[-1000:]
+    assert "line 79" not in frame, frame[-1000:]
+    print("  PASS: gg scrolls viewport to first line")
+
+
 def test_count_G():
     """3G goes to line 3."""
     path = write_temp("line1\nline2\nline3\nline4\n")
@@ -4869,6 +4882,7 @@ def main():
         ("17", "Phase 17 — gg and G Motions", [
             test_G_goes_to_last_line,
             test_gg_goes_to_first_line,
+            test_gg_scrolls_viewport_to_first_line,
             test_count_G,
             test_zero_goes_to_column_zero,
             test_dgg_deletes_to_first,
