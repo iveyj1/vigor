@@ -977,7 +977,7 @@ class EditingMixin:
             ty = sy
             tx = len(self.buf.lines[sy])
 
-        if op in ("d", "yd", "c", "g~", "gU", "gu"):
+        if op in ("d", "yd", "c", ">", "<", "g~", "gU", "gu"):
             self._snapshot()
 
         if op == "d":
@@ -990,6 +990,8 @@ class EditingMixin:
         elif op == "c":
             self._delete_range(sy, sx, ty, tx, linewise)
             self._enter_insert()
+        elif op in (">", "<"):
+            (self._indent_lines if op == ">" else self._dedent_lines)(sy, ty - sy + 1)
         elif op in ("g~", "gU", "gu"):
             func = self._case_func(op)
             if linewise:

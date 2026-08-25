@@ -217,6 +217,7 @@ Move after entering Visual mode to extend the highlighted selection. Then use:
     y           yank selection
     c           change selection
     gc          toggle comments on selected logical lines
+    > / <       indent / dedent every selected logical line
 
 Exercise:
 
@@ -228,7 +229,8 @@ Exercise:
     select this but not this
 
 Visual Line mode selects whole logical lines. Press Esc to cancel either
-Visual mode.
+Visual mode. In Normal mode, gv restores the current buffer's last Visual
+selection, including whether it was characterwise or linewise.
 
 
 LESSON 8 — TEXT OBJECTS, INDENTATION, AND COMMENTS
@@ -251,6 +253,8 @@ Line commands:
 
     >>          indent by four spaces
     <<          remove up to four leading spaces
+    >{motion}   indent every logical line touched by a motion
+    <{motion}   dedent every logical line touched by a motion
     gcc         toggle the configured line comment
 
 Counts apply to all three. Set the comment prefix when needed:
