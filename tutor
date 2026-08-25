@@ -217,6 +217,7 @@ Move after entering Visual mode to extend the highlighted selection. Then use:
     y           yank selection
     c           change selection
     gc          toggle comments on selected logical lines
+    > / <       indent / dedent every selected logical line
 
 Exercise:
 
@@ -251,6 +252,8 @@ Line commands:
 
     >>          indent by four spaces
     <<          remove up to four leading spaces
+    >{motion}   indent every logical line touched by a motion
+    <{motion}   dedent every logical line touched by a motion
     gcc         toggle the configured line comment
 
 Counts apply to all three. Set the comment prefix when needed:

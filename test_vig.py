@@ -4711,6 +4711,45 @@ def test_failed_operator_motions_do_not_mutate_or_enter_insert():
     print("  PASS: failed operator motions cancel cleanly")
 
 
+# ── Phase 77: Visual and motion indentation ────────────────────────────────
+
+def test_visual_indent_and_dedent_touch_whole_lines():
+    """Visual character and line selections indent every touched logical line."""
+    p1 = write_temp("one\ntwo\nthree\n")
+    _, c1, code1 = run_vig(b"vj>:wq\r", file_path=p1)
+    p2 = write_temp("    one\n    two\nthree\n")
+    _, c2, code2 = run_vig(b"jVk<:wq\r", file_path=p2)
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code1 == code2 == 0
+    assert c1 == "    one\n    two\nthree\n", c1
+    assert c2 == "one\ntwo\nthree\n", c2
+    print("  PASS: Visual indent and dedent touch whole lines")
+
+
+def test_indent_operators_accept_forward_and_backward_motions():
+    """>/< motions apply linewise over their normalized logical-line span."""
+    p1 = write_temp("one\ntwo\nthree\n")
+    _, c1, code1 = run_vig(b">j:wq\r", file_path=p1)
+    p2 = write_temp("    one\n    two\n    three\n")
+    _, c2, code2 = run_vig(b"G<gg:wq\r", file_path=p2)
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code1 == code2 == 0
+    assert c1 == "    one\n    two\nthree\n", c1
+    assert c2 == "one\ntwo\nthree\n", c2
+    print("  PASS: indent operators accept motions")
+
+
+def test_indent_operator_accepts_text_objects_and_dot_repeat():
+    """>iw indents its touched line and dot repeat replays the operator."""
+    path = write_temp("one\ntwo\n")
+    _, content, code = run_vig(b">iw.:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "        one\ntwo\n", content
+    print("  PASS: indent operator accepts text objects and dot repeat")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5242,6 +5281,11 @@ def main():
             test_cw_at_eof_changes_rest_of_word,
             test_word_operators_share_eof_boundary,
             test_failed_operator_motions_do_not_mutate_or_enter_insert,
+        ]),
+        ("77", "Phase 77 — Visual and motion indentation", [
+            test_visual_indent_and_dedent_touch_whole_lines,
+            test_indent_operators_accept_forward_and_backward_motions,
+            test_indent_operator_accepts_text_objects_and_dot_repeat,
         ]),
     ]
 

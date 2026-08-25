@@ -7,10 +7,11 @@
 None
 
 ### Implement
-1. Remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
-1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
+None
 
 ### On Hold
+1. If not already done, remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
+1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
 1. Add \v search modifier
 1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
 1. Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
@@ -21,6 +22,7 @@ None
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Add `>` / `<` indentation to both Visual modes and complete the existing Normal operator forms for motions and text objects.
 1. Fix operator motion boundaries: `cw`/`dw`/yank/case operations consume the final word through one-past-EOL, while failed motions cancel without edits, Insert entry, snapshots, or redo loss.
 1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
 1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.

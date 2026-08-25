@@ -59,7 +59,7 @@ class ModeMixin:
                 self.pending_extra_n = None
                 self._pending_find_for_op = (cmd, key)
                 applied = self._exec_operator(op, cmd, find_n)
-                if applied and op in ("d", "yd", "g~", "gU", "gu"):
+                if applied and op in ("d", "yd", ">", "<", "g~", "gU", "gu"):
                     self._save_dot()
                 elif not applied:
                     self._recording = False
@@ -204,7 +204,7 @@ class ModeMixin:
                     rng = self._find_quote_object("'", around=around)
                 if rng:
                     sy, sx, ey, ex = rng
-                    if op in ("d", "yd", "c", "g~", "gU", "gu"):
+                    if op in ("d", "yd", "c", ">", "<", "g~", "gU", "gu"):
                         self._snapshot()
                     if op == "d":
                         self._delete_range(sy, sx, ey, ex, copy=self.opt_delcopy)
@@ -217,6 +217,9 @@ class ModeMixin:
                     elif op == "c":
                         self._delete_range(sy, sx, ey, ex)
                         self._enter_insert()
+                    elif op in (">", "<"):
+                        (self._indent_lines if op == ">" else self._dedent_lines)(sy, ey - sy + 1)
+                        self._save_dot()
                     else:
                         self._change_case_range(sy, sx, ey, ex, self._case_func(op))
                 else:
@@ -271,7 +274,7 @@ class ModeMixin:
                     self._save_dot()
             else:
                 applied = self._exec_operator(op, key, op_n * n, extra_n=extra_n)
-                if applied and op in ("d", "yd", "g~", "gU", "gu"):
+                if applied and op in ("d", "yd", ">", "<", "g~", "gU", "gu"):
                     self._save_dot()
                 elif not applied:
                     self._recording = False
@@ -616,6 +619,16 @@ class ModeMixin:
             self._snapshot()
             self._visual_delete()
             self._enter_insert()
+            return
+        if key in (">", "<"):
+            sel = self._selection_range()
+            if sel:
+                sy, _, ey, _ = sel
+                self._snapshot()
+                (self._indent_lines if key == ">" else self._dedent_lines)(sy, ey - sy + 1)
+            self.mode = Mode.NORMAL
+            self._clamp_cursor()
+            self._ensure_scroll()
             return
         # ; and , — repeat last find
         if key == ";":

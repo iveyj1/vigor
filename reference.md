@@ -30,6 +30,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 |-----|--------|
 | `d` `y` `c` + motion | delete / yank / change over motion |
 | `yd` + motion | delete and yank over motion (useful with `:set nodelcopy`) |
+| `>` `<` + motion or text object | indent / dedent every touched logical line by 4 spaces |
 | `dd` `yy` `cc` | linewise delete / yank / change |
 | `D` `C` | delete / change to end of line |
 | `Y` | yank from cursor to end of logical line |
@@ -73,6 +74,7 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `y` | yank selection |
 | `c` | change selection |
 | `gc` | toggle comment on selected lines |
+| `>` `<` | indent / dedent every selected logical line, then return to Normal mode |
 
 ### Syntax Highlighting
 
