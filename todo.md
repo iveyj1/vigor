@@ -4,18 +4,16 @@
 3) If minor changes to proposed functionality would result in significant code savings, bring that to light before implementation.
 
 ### Active
+None
 
-No implementation-ready item is currently specified.
+### Implement
+1. Remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
+1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
 
 ### On Hold
-1. Remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
-1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.
-1. Proposal: Optional `mouse=off|scroll|visual` SGR mouse support in two phases; see `proposals/mouse-support.md`. Wheel-only estimate 25–45 runtime lines; robust scrolling plus drag Visual selection estimate 90–140 lines.
-1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
 1. Add \v search modifier
 1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
 1. Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
-1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
 1. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
 1. marks
 1. configurable keymaps
@@ -24,6 +22,9 @@ No implementation-ready item is currently specified.
 
 ### Completed
 1. Fix operator motion boundaries: `cw`/`dw`/yank/case operations consume the final word through one-past-EOL, while failed motions cancel without edits, Insert entry, snapshots, or redo loss.
+1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)
+1. Proposal: Explicit `<space>p` / `<space>P` system-clipboard import using optional platform readers; see `proposals/system-clipboard-paste.md`. Estimated 35–50 runtime lines; OSC 52 readback is explicitly excluded.
+1. Proposal: Optional `mouse=off|scroll|visual` SGR mouse support in two phases; see `proposals/mouse-support.md`. Wheel-only estimate 25–45 runtime lines; robust scrolling plus drag Visual selection estimate 90–140 lines.
 1. Add concise Python-regex, smart-case, replacement-group, and alternate substitute-delimiter tips to `vighelp`, including the delimiter-escaping limitation.
 1. Make the launcher prioritize its adjacent installed package without changing cwd, preventing a source checkout in cwd from shadowing a stamped installation.
 1. Audit `example-config` against every runtime default, expand `vighelp` across all ex-command and option families, and add regression checks plus standing maintenance guidance.
