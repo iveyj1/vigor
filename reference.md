@@ -69,6 +69,7 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 |-----|--------|
 | `v` | enter character-wise visual |
 | `V` | enter line-wise visual |
+| `gv` | restore the current buffer's last Visual mode, anchor, and endpoint |
 | All motions | `h` `j` `k` `l` `w` `b` `e` `W` `B` `E` `0` `$` `^` `G` `gg` |
 | `d` `x` | delete selection |
 | `y` | yank selection |

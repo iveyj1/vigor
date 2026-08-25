@@ -229,7 +229,8 @@ Exercise:
     select this but not this
 
 Visual Line mode selects whole logical lines. Press Esc to cancel either
-Visual mode.
+Visual mode. In Normal mode, gv restores the current buffer's last Visual
+selection, including whether it was characterwise or linewise.
 
 
 LESSON 8 — TEXT OBJECTS, INDENTATION, AND COMMENTS

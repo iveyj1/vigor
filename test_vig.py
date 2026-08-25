@@ -4750,6 +4750,39 @@ def test_indent_operator_accepts_text_objects_and_dot_repeat():
     print("  PASS: indent operator accepts text objects and dot repeat")
 
 
+# ── Phase 78: reselect last Visual selection ───────────────────────────────
+
+def test_gv_reselects_characterwise_selection_after_escape():
+    """gv restores the last characterwise anchor and endpoint after Esc."""
+    path = write_temp("abcdef\n")
+    _, content, code = run_vig(b":set clipboard=off\rvll\x1bgvy$p:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abcdefabc\n", content
+    print("  PASS: gv restores characterwise selection")
+
+
+def test_gv_reselects_linewise_selection_after_operation():
+    """gv retains Visual Line mode and coordinates after an operation."""
+    path = write_temp("one\ntwo\nthree\n")
+    _, content, code = run_vig(b":set clipboard=off\rVj>gv<gvyGp:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "one\ntwo\nthree\none\ntwo\n", content
+    print("  PASS: gv restores linewise selection after operation")
+
+
+def test_gv_is_per_buffer_and_clamps_deleted_selection():
+    """Visual history is per-buffer and deleted endpoints clamp on restore."""
+    p1, p2 = write_temp("abcdef\n"), write_temp("other\n")
+    keys = b":set clipboard=off\rvlldgvy$p:w\r:n\rgv:p\rgvy:qa!\r"
+    screen, _, code = run_vig(keys, file_paths=[p1, p2], timeout=5.0)
+    one, two = open(p1).read(), open(p2).read()
+    os.unlink(p1)
+    os.unlink(p2)
+    assert code == 0 and one == "defdef\n" and two == "other\n"
+    assert "No previous Visual selection" in screen
+    print("  PASS: gv history is per-buffer and clamps deleted ranges")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5286,6 +5319,11 @@ def main():
             test_visual_indent_and_dedent_touch_whole_lines,
             test_indent_operators_accept_forward_and_backward_motions,
             test_indent_operator_accepts_text_objects_and_dot_repeat,
+        ]),
+        ("78", "Phase 78 — reselect last Visual selection", [
+            test_gv_reselects_characterwise_selection_after_escape,
+            test_gv_reselects_linewise_selection_after_operation,
+            test_gv_is_per_buffer_and_clamps_deleted_selection,
         ]),
     ]
 

@@ -136,6 +136,9 @@ class ModeMixin:
             elif key in ("*", "#"):
                 self._search_word_under_cursor(1 if key == "*" else -1, whole=False)
                 return
+            elif key == "v":
+                self._restore_visual_selection()
+                return
             else:
                 return
         elif key == "g" and not self.pending_op:
@@ -554,10 +557,29 @@ class ModeMixin:
         self._clamp_cursor()
         self._ensure_scroll()
 
+    def _remember_visual_selection(self):
+        """Save the current Visual mode, anchor, and endpoint for gv."""
+        self.buffers[self.buf_idx].last_visual = (
+            self.mode, self.vx, self.vy, self.cx, self.cy,
+        )
+
+    def _restore_visual_selection(self):
+        """Restore the current buffer's last Visual selection."""
+        saved = self.buffers[self.buf_idx].last_visual
+        if not saved:
+            self.msg = "No previous Visual selection"
+            return
+        self.mode, self.vx, self.vy, self.cx, self.cy = saved
+        self.vy = max(0, min(self.vy, len(self.buf.lines) - 1))
+        self.vx = max(0, min(self.vx, len(self.buf.lines[self.vy])))
+        self._clamp_cursor()
+        self._ensure_scroll()
+
     def handle_visual(self, key):
         if key not in ("j", "k", "DOWN", "UP"):
             self._sticky_cx = None
         if key == "ESC":
+            self._remember_visual_selection()
             self.mode = Mode.NORMAL
             return
         # Resolve pending find-char
@@ -578,6 +600,7 @@ class ModeMixin:
                 sel = self._selection_range()
                 if sel:
                     sy, sx, ey, ex = sel
+                    self._remember_visual_selection()
                     self._snapshot()
                     self._toggle_comment(sy, ey - sy + 1)
                 self.mode = Mode.NORMAL
@@ -586,6 +609,7 @@ class ModeMixin:
                 sel = self._selection_range()
                 if sel:
                     sy, sx, ey, ex = sel
+                    self._remember_visual_selection()
                     self._snapshot()
                     self._change_case_range(sy, sx, ey, min(ex + 1, len(self.buf.lines[ey])), self._case_func("g" + key))
                 self.mode = Mode.NORMAL
@@ -604,18 +628,22 @@ class ModeMixin:
             sel = self._selection_range()
             if sel:
                 sy, sx, ey, ex = sel
+                self._remember_visual_selection()
                 self._snapshot()
                 self._change_case_range(sy, sx, ey, min(ex + 1, len(self.buf.lines[ey])), str.swapcase)
             self.mode = Mode.NORMAL
             return
         if key in ("d", "x"):
+            self._remember_visual_selection()
             self._snapshot()
             self._visual_delete()
             return
         if key == "y":
+            self._remember_visual_selection()
             self._visual_yank()
             return
         if key == "c":
+            self._remember_visual_selection()
             self._snapshot()
             self._visual_delete()
             self._enter_insert()
@@ -624,6 +652,7 @@ class ModeMixin:
             sel = self._selection_range()
             if sel:
                 sy, _, ey, _ = sel
+                self._remember_visual_selection()
                 self._snapshot()
                 (self._indent_lines if key == ">" else self._dedent_lines)(sy, ey - sy + 1)
             self.mode = Mode.NORMAL

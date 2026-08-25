@@ -22,6 +22,7 @@ None
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Add per-buffer `gv` restoration of the last characterwise or linewise Visual selection, including clamping after mutations.
 1. Add `>` / `<` indentation to both Visual modes and complete the existing Normal operator forms for motions and text objects.
 1. Fix operator motion boundaries: `cw`/`dw`/yank/case operations consume the final word through one-past-EOL, while failed motions cancel without edits, Insert entry, snapshots, or redo loss.
 1. Make search non-case-sensitive if search terms are all-lower-case (and no regexp chars?)

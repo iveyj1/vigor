@@ -29,7 +29,8 @@ gcc                 toggle line comment
 ~ / g~ / gU / gu    toggle / toggle / upper / lower case
 .                   repeat last change
 u / Ctrl-R          undo / redo
-v V                 visual character / line; d y c x gc > < operate
+v V / gv            visual character / line; reselect last
+                    d y c x gc > < operate on selection
 
 /pattern ?pattern   search forward / backward; typing previews matches
 * # / g* g#         word search; whole / partial
