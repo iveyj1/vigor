@@ -4666,7 +4666,7 @@ def test_recovery_writes_adjacent_panic_backup_without_saving_original():
 
 
 def test_recovery_warns_on_open_and_manual_write_clears_backup():
-    """Existing panic backups are reported and clean saves remove them."""
+    """Existing panic backups are reported, marked in status, and clean saves remove them."""
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "note.txt")
         backup = os.path.join(d, ".vigor-recover.note.txt")
@@ -4675,7 +4675,7 @@ def test_recovery_warns_on_open_and_manual_write_clears_backup():
         screen, _, code = run_vig(b":wq\r", file_path=path)
         exists = os.path.exists(backup)
     assert code == 0 and not exists
-    assert "Recovery file exists:" in screen
+    assert "Recovery file exists:" in screen and "[REC]" in screen
     print("  PASS: recovery warns on open and write clears backup")
 
 

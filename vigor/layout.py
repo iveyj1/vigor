@@ -504,6 +504,8 @@ class RenderMixin:
         fname = self.buf.path or "[No Name]"
         dirty = " [+]" if self.buf.dirty else ""
         presentation = " [MD]" if self.md_view else ""
+        if self.buf.path and os.path.exists(self._recovery_path(self.buf.path)):
+            presentation += " [REC]"
         mode_str = self.mode.value
         count_str = str(self.count) if self.count > 0 else ""
         buf_info = f"[{self.buf_idx + 1}/{len(self.buffers)}] " if len(self.buffers) > 1 else ""
