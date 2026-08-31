@@ -76,7 +76,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 
 :set wrap / :set nowrap
 :set wrapcol=N
-:set list / :set nolist        show tabs as ›···
+:set list / :set nolist        show tabs as ›··· (default for make)
 :set wrapmove / :set nowrapmove
 :set number / :set nonumber
 :set relativenumber / :set norelativenumber

@@ -4337,7 +4337,8 @@ def test_makefile_detection_and_tab_insertion():
         screen2, content2, code2 = run_vig(b"i\t\x1b:ft\r:wq\r", file_path=mkfile)
     assert code1 == 0 and content1 == "\techo one\n" and "filetype=make (auto)" in screen1
     assert code2 == 0 and content2 == "\techo two\n" and "filetype=make (auto)" in screen2
-    print("  PASS: Makefiles insert literal tabs")
+    assert "›···echo one" in screen1 and "›···echo two" in screen2
+    print("  PASS: Makefiles insert literal tabs and show them")
 
 
 def test_forced_make_filetype_inserts_literal_tabs():

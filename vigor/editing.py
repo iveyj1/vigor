@@ -399,7 +399,8 @@ class EditingMixin:
     def _view_line(self, y):
         if self._is_markdown_fence_line(y):
             return ""
-        return self.md_lines[y] if self.md_view else expand_tabs_for_display(self.buf.lines[y], self.opt_list)
+        visible_tabs = self.opt_list or self._effective_filetype() == "make"
+        return self.md_lines[y] if self.md_view else expand_tabs_for_display(self.buf.lines[y], visible_tabs)
 
     def _view_col(self, y, index):
         if self.md_view:
