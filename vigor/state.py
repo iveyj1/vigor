@@ -60,7 +60,7 @@ class BufferState:
         "md_view", "md_lines", "md_maps", "md_languages", "filetype_override", "autodetect",
         "last_visual",
         "_undo_stack", "_redo_stack",
-        "_undo_save_depth", "_undo_branched", "autosave_deadline",
+        "_undo_save_depth", "_undo_branched", "autosave_deadline", "recovery_deadline",
     )
 
     def __init__(self, path=None):
@@ -81,3 +81,4 @@ class BufferState:
         self._undo_save_depth = 0
         self._undo_branched = False
         self.autosave_deadline = None
+        self.recovery_deadline = None

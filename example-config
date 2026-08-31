@@ -20,4 +20,6 @@ set autodetect
 set saveversions=0
 set noautosave
 set autosavedelay=1000
+set norecovery
+set recoverydelay=1000
 set makeprg=make

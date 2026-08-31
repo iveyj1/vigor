@@ -94,6 +94,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.opt_saveversions = 0  # prior disk versions retained on explicit writes
         self.opt_autosave = False
         self.opt_autosavedelay = 1000  # idle milliseconds before autosave
+        self.opt_recovery = False
+        self.opt_recoverydelay = 1000  # idle milliseconds before panic backup
         self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
@@ -416,16 +418,37 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._undo_save_depth = bs._undo_save_depth
         self._undo_branched = bs._undo_branched
 
-    def _autosave_dirty_changed(self, bs, dirty):
-        """Schedule or clear autosave when a buffer's dirty state is assigned."""
-        if dirty and self.opt_autosave and bs.buf.path:
-            bs.autosave_deadline = time.monotonic() + self.opt_autosavedelay / 1000
+    def _recovery_path(self, path):
+        """Adjacent panic-backup path for a named buffer."""
+        return os.path.join(os.path.dirname(path), ".vigor-recover." + os.path.basename(path))
+
+    def _delete_recovery(self, bs):
+        if bs.buf.path:
+            try:
+                os.unlink(self._recovery_path(bs.buf.path))
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+
+    def _dirty_changed(self, bs, dirty):
+        """Schedule or clear timed file protectors when dirty state changes."""
+        if dirty and bs.buf.path:
+            now = time.monotonic()
+            bs.autosave_deadline = now + self.opt_autosavedelay / 1000 if self.opt_autosave else None
+            bs.recovery_deadline = now + self.opt_recoverydelay / 1000 if self.opt_recovery else None
         else:
             bs.autosave_deadline = None
+            bs.recovery_deadline = None
+            self._delete_recovery(bs)
 
     def _reschedule_autosaves(self):
         for bs in self.buffers:
-            self._autosave_dirty_changed(bs, bs.buf.dirty)
+            self._dirty_changed(bs, bs.buf.dirty)
+
+    def _reschedule_recovery(self):
+        for bs in self.buffers:
+            self._dirty_changed(bs, bs.buf.dirty)
 
     def _autosave_state(self, bs):
         """Write one due buffer without version rotation or directory prompts."""
@@ -448,11 +471,30 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             if bs.autosave_deadline is not None and bs.autosave_deadline <= now:
                 self._autosave_state(bs)
 
+    def _recovery_state(self, bs):
+        """Write one due panic backup without touching the edited file."""
+        bs.recovery_deadline = None
+        if not (self.opt_recovery and bs.buf.dirty and bs.buf.path):
+            return
+        try:
+            with open(self._recovery_path(bs.buf.path), "w") as f:
+                f.write(bs.buf.serialized())
+            self.msg = f'Panic backup: {self._recovery_path(bs.buf.path)}'
+        except OSError as e:
+            self.msg = f"Can't write panic backup: {e.strerror or str(e)}"
+
+    def _run_due_recovery(self, now):
+        for bs in self.buffers:
+            if bs.recovery_deadline is not None and bs.recovery_deadline <= now:
+                self._recovery_state(bs)
+
     def _initialize_buffer_detection(self, bs):
         """Capture current detection policy and prepare automatic Markdown view."""
-        bs.buf.dirty_callback = lambda dirty, state=bs: self._autosave_dirty_changed(state, dirty)
+        bs.buf.dirty_callback = lambda dirty, state=bs: self._dirty_changed(state, dirty)
         if bs.autodetect is not None:
             return
+        if bs.buf.path and os.path.exists(self._recovery_path(bs.buf.path)):
+            self.msg = f'Recovery file exists: {self._recovery_path(bs.buf.path)}'
         bs.autodetect = self.opt_autodetect
         if bs.autodetect and filetype_for_path(bs.buf.path, bs.buf.lines[0]) == "markdown":
             bs.md_view = True
@@ -688,6 +730,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     deadlines.append(self._yank_flash[0])
                 deadlines.extend(bs.autosave_deadline for bs in self.buffers
                                  if bs.autosave_deadline is not None)
+                deadlines.extend(bs.recovery_deadline for bs in self.buffers
+                                 if bs.recovery_deadline is not None)
                 if deadlines:
                     timeout = max(0.0, min(deadlines) - time.monotonic())
                     ready, _, _ = select.select([self.term.fd], [], [], timeout)
@@ -698,6 +742,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                         if self._yank_flash and self._yank_flash[0] <= now:
                             self._yank_flash = None
                         self._run_due_autosaves(now)
+                        self._run_due_recovery(now)
                         continue
                 if self._splash:
                     self._splash = False

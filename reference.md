@@ -159,6 +159,8 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set saveversions=<N>` | retain 0–100 prior disk versions on explicit writes (`0` disables; default `0`) |
 | `:set autosave` / `noautosave` | toggle idle autosave for dirty named buffers (default off) |
 | `:set autosavedelay=<N>` | idle milliseconds after the last mutation before autosave (default 1000) |
+| `:set recovery` / `norecovery` | toggle adjacent `.vigor-recover.NAME` panic backups for dirty named buffers (default off) |
+| `:set recoverydelay=<N>` | idle milliseconds after the last mutation before writing a panic backup (default 1000) |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.

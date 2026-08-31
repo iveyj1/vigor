@@ -95,6 +95,8 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set saveversions=N       retain 0..100 explicit-write prior versions
 :set autosave / :set noautosave
 :set autosavedelay=N      idle milliseconds
+:set recovery / :set norecovery    write adjacent .vigor-recover.NAME panic backups
+:set recoverydelay=N      idle milliseconds
 :set makeprg=COMMAND
 
 Mouse visual mode combines wheel scrolling, click positioning, and drag selection.

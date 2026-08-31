@@ -4650,6 +4650,51 @@ def test_autosave_options_validate_and_load_from_config():
     print("  PASS: autosave options validate and load from config")
 
 
+def test_recovery_writes_adjacent_panic_backup_without_saving_original():
+    """Recovery writes dirty contents to .vigor-recover.NAME only."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        backup = os.path.join(d, ".vigor-recover.note.txt")
+        open(path, "w").write("one\n")
+        screen, content, code = run_vig(
+            b":set recoverydelay=30\r:set recovery\riX", file_path=path, timeout=0.5,
+        )
+        recovered = open(backup).read()
+    assert code == -99 and content == "one\n" and recovered == "Xone\n"
+    assert "Panic backup:" in screen
+    print("  PASS: recovery writes panic backup without saving original")
+
+
+def test_recovery_warns_on_open_and_manual_write_clears_backup():
+    """Existing panic backups are reported and clean saves remove them."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        backup = os.path.join(d, ".vigor-recover.note.txt")
+        open(path, "w").write("one\n")
+        open(backup, "w").write("draft\n")
+        screen, _, code = run_vig(b":wq\r", file_path=path)
+        exists = os.path.exists(backup)
+    assert code == 0 and not exists
+    assert "Recovery file exists:" in screen
+    print("  PASS: recovery warns on open and write clears backup")
+
+
+def test_recovery_options_validate_and_load_from_config():
+    """Recovery and its delay use startup configuration."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.txt")
+        backup = os.path.join(d, ".vigor-recover.note.txt")
+        config = os.path.join(d, "config")
+        open(path, "w").write("one\n")
+        open(config, "w").write("set recovery\nset recoverydelay=30\n")
+        _, content, code = run_vig(b"iX", file_path=path, env={"VIG_CONFIG": config}, timeout=0.5)
+        bad, _, bad_code = run_vig(b":set recoverydelay=-1\r:q\r", file_path=path)
+        recovered = open(backup).read()
+    assert code == -99 and content == "one\n" and recovered == "Xone\n"
+    assert bad_code == 0 and "recoverydelay must be >= 0" in bad
+    print("  PASS: recovery options validate and load from config")
+
+
 # ── Phase 73: config and in-editor help audit ──────────────────────────────
 
 def test_example_config_lists_all_runtime_defaults():
@@ -4661,7 +4706,7 @@ def test_example_config_lists_all_runtime_defaults():
         "set yankflash=300", "set delcopy", "set norghidden",
         "set nohlsearch", "set nomarkdownfences", "set autodetect",
         "set saveversions=0", "set noautosave", "set autosavedelay=1000",
-        "set makeprg=make",
+        "set norecovery", "set recoverydelay=1000", "set makeprg=make",
     ]
     path = os.path.join(os.path.dirname(VIG), "example-config")
     lines = [line.strip() for line in open(path) if line.strip() and not line.startswith("#")]
@@ -4683,7 +4728,8 @@ def test_vighelp_covers_commands_and_config_options():
     options = ("wrap", "wrapcol", "list", "wordwrap", "wrapmove", "number", "relativenumber",
                "autoindent", "comment", "scrolloff", "clipboard", "mouse",
                "yankflash", "delcopy", "rghidden", "hlsearch", "markdownfences",
-               "autodetect", "saveversions", "autosave", "autosavedelay", "makeprg")
+               "autodetect", "saveversions", "autosave", "autosavedelay",
+               "recovery", "recoverydelay", "makeprg")
     assert all(command in help_text for command in commands)
     assert all(f":set {option}" in help_text for option in options)
     print("  PASS: vighelp covers commands and config options")
@@ -5376,6 +5422,9 @@ def main():
             test_explicit_write_clears_pending_autosave,
             test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit,
             test_autosave_options_validate_and_load_from_config,
+            test_recovery_writes_adjacent_panic_backup_without_saving_original,
+            test_recovery_warns_on_open_and_manual_write_clears_backup,
+            test_recovery_options_validate_and_load_from_config,
         ]),
         ("73", "Phase 73 — config and in-editor help audit", [
             test_example_config_lists_all_runtime_defaults,

@@ -805,6 +805,25 @@ class CommandMixin:
             self.opt_autosavedelay = val
             self._reschedule_autosaves()
             self.msg = f"autosavedelay={val}"
+        elif opt == "recovery":
+            self.opt_recovery = True
+            self._reschedule_recovery()
+            self.msg = "recovery on"
+        elif opt == "norecovery":
+            self.opt_recovery = False
+            self._reschedule_recovery()
+            self.msg = "recovery off"
+        elif opt.startswith("recoverydelay="):
+            try:
+                val = int(opt[len("recoverydelay="):])
+                if val < 0:
+                    raise ValueError
+            except ValueError:
+                self.msg = "recoverydelay must be >= 0"
+                return
+            self.opt_recoverydelay = val
+            self._reschedule_recovery()
+            self.msg = f"recoverydelay={val}"
         elif opt.startswith("saveversions="):
             try:
                 val = int(opt[len("saveversions="):])
