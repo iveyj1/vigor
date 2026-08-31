@@ -4679,6 +4679,20 @@ def test_recovery_warns_on_open_and_manual_write_clears_backup():
     print("  PASS: recovery warns on open and write clears backup")
 
 
+def test_recovery_marker_survives_status_truncation():
+    """The [REC] status marker appears before long filenames can truncate it."""
+    with tempfile.TemporaryDirectory() as d:
+        nested = os.path.join(d, "very", "long", "directory", "name", "for", "status")
+        os.makedirs(nested)
+        path = os.path.join(nested, "note.txt")
+        backup = os.path.join(nested, ".vigor-recover.note.txt")
+        open(path, "w").write("one\n")
+        open(backup, "w").write("draft\n")
+        screen, _, code = run_vig(b":q\r", file_path=path, cols=36)
+    assert code == 0 and "[REC]" in last_frame(screen)
+    print("  PASS: recovery marker survives status truncation")
+
+
 def test_recovery_options_validate_and_load_from_config():
     """Recovery and its delay use startup configuration."""
     with tempfile.TemporaryDirectory() as d:
@@ -5424,6 +5438,7 @@ def main():
             test_autosave_options_validate_and_load_from_config,
             test_recovery_writes_adjacent_panic_backup_without_saving_original,
             test_recovery_warns_on_open_and_manual_write_clears_backup,
+            test_recovery_marker_survives_status_truncation,
             test_recovery_options_validate_and_load_from_config,
         ]),
         ("73", "Phase 73 — config and in-editor help audit", [

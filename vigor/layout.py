@@ -503,13 +503,13 @@ class RenderMixin:
         out.append("\x1b[7m")
         fname = self.buf.path or "[No Name]"
         dirty = " [+]" if self.buf.dirty else ""
-        presentation = " [MD]" if self.md_view else ""
+        markers = " [MD]" if self.md_view else ""
         if self.buf.path and os.path.exists(self._recovery_path(self.buf.path)):
-            presentation += " [REC]"
+            markers += " [REC]"
         mode_str = self.mode.value
         count_str = str(self.count) if self.count > 0 else ""
         buf_info = f"[{self.buf_idx + 1}/{len(self.buffers)}] " if len(self.buffers) > 1 else ""
-        left = f" {mode_str} | {buf_info}{fname}{dirty}{presentation}"
+        left = f" {mode_str}{markers} | {buf_info}{fname}{dirty}"
         right = f" {count_str} {self.cy + 1}:{self.cx + 1} "
         pad = self.cols - len(left) - len(right)
         if pad < 0:
