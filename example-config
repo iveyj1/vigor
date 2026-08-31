@@ -1,6 +1,7 @@
 # Every supported startup option at its runtime default.
 set nowrap
 set wrapcol=0
+set nolist
 set nowrapmove
 set nonumber
 set norelativenumber

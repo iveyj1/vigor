@@ -49,6 +49,20 @@ def display_index(line, target):
     return len(line)
 
 
+def expand_tabs_for_display(line, visible=False):
+    """Expand tabs to display cells, optionally marking each occupied cell."""
+    out, col = [], 0
+    for ch in line:
+        if ch == "\t":
+            width = TABSTOP - col % TABSTOP
+            out.append("›" + "·" * (width - 1) if visible else " " * width)
+            col += width
+        else:
+            out.append(ch)
+            col += 1
+    return "".join(out)
+
+
 class VisibleRow:
     """One rendered content row and its source/display coordinates."""
 

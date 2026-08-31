@@ -711,6 +711,12 @@ class CommandMixin:
             self.opt_wrapcol = val
             self.msg = f"wrapcol={val}"
             self._ensure_scroll()
+        elif opt == "list":
+            self.opt_list = True
+            self.msg = "list on"
+        elif opt == "nolist":
+            self.opt_list = False
+            self.msg = "list off"
         elif opt == "number":
             self.opt_number = True
             self.msg = "number on"

@@ -76,6 +76,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.search_dir = 1  # 1=forward, -1=backward
         self.opt_wrap = False  # :set wrap
         self.opt_wrapcol = 0  # :set wrapcol=N (0 uses terminal width)
+        self.opt_list = False  # :set list/nolist shows tabs visibly
         self.opt_number = False  # :set number
         self.opt_relnum = False  # :set relativenumber
         self.opt_scrolloff = 0  # :set scrolloff=N

@@ -6,7 +6,7 @@ import sys
 import time
 
 from .highlight import build_markdown_view, filetype_for_path
-from .layout import ViewportLayout, display_col, display_index
+from .layout import ViewportLayout, display_col, display_index, expand_tabs_for_display
 from .state import Mode
 
 
@@ -399,7 +399,7 @@ class EditingMixin:
     def _view_line(self, y):
         if self._is_markdown_fence_line(y):
             return ""
-        return self.md_lines[y] if self.md_view else self.buf.lines[y].expandtabs(4)
+        return self.md_lines[y] if self.md_view else expand_tabs_for_display(self.buf.lines[y], self.opt_list)
 
     def _view_col(self, y, index):
         if self.md_view:

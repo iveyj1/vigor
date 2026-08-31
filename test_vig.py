@@ -3243,6 +3243,16 @@ def test_tab_expansion_preserves_highlight_boundaries():
     print("  PASS: tab expansion preserves highlight boundaries")
 
 
+def test_list_option_shows_tabs_without_changing_source():
+    """The list option renders tabs visibly while preserving tab-expanded width."""
+    path = write_temp("\tabc\n")
+    screen, content, code = run_vig(b":set list\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "\tabc\n"
+    assert "›···abc" in screen and "list on" in screen, screen[-800:]
+    print("  PASS: list shows tabs without changing source")
+
+
 def test_layout_maps_source_and_screen_coordinates():
     """Shared layout maps exact-width EOL and wrapped rows in both directions."""
     from vigor.layout import ViewportLayout, display_col, display_index
@@ -4597,7 +4607,7 @@ def test_autosave_options_validate_and_load_from_config():
 def test_example_config_lists_all_runtime_defaults():
     """The example contains each supported startup option exactly once at its default."""
     expected = [
-        "set nowrap", "set wrapcol=0", "set nowrapmove", "set nonumber",
+        "set nowrap", "set wrapcol=0", "set nolist", "set nowrapmove", "set nonumber",
         "set norelativenumber", "set autoindent", "set comment=#",
         "set scrolloff=0", "set clipboard=auto", "set mouse=off",
         "set yankflash=300", "set delcopy", "set norghidden",
@@ -4622,7 +4632,7 @@ def test_vighelp_covers_commands_and_config_options():
                 ":help", ":md", ":nomd", ":ft", ":cd", ":cdb", ":pwd",
                 ":read", ":!command", ":[range]!command", ":[range]s/",
                 ":make", ":qf", ":rg", ":rgf")
-    options = ("wrap", "wrapcol", "wrapmove", "number", "relativenumber",
+    options = ("wrap", "wrapcol", "list", "wrapmove", "number", "relativenumber",
                "autoindent", "comment", "scrolloff", "clipboard", "mouse",
                "yankflash", "delcopy", "rghidden", "hlsearch", "markdownfences",
                "autodetect", "saveversions", "autosave", "autosavedelay", "makeprg")
@@ -5192,6 +5202,7 @@ def main():
             test_tab_display_columns_drive_sticky_vertical_motion,
             test_tabbed_line_hscroll_uses_display_columns,
             test_tab_expansion_preserves_highlight_boundaries,
+            test_list_option_shows_tabs_without_changing_source,
             test_layout_maps_source_and_screen_coordinates,
         ]),
         ("54", "Phase 54 — build identification", [

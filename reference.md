@@ -140,6 +140,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
 | `:set wrap` / `nowrap` | toggle line wrapping |
 | `:set wrapcol=<N>` | wrap at most N content display columns; `0` uses terminal width |
+| `:set list` / `nolist` | show literal tabs as visible `›···` cells while preserving source tabs |
 | `:set wrapmove` / `nowrapmove` | with wrap on, make `j`/`k`/Up/Down move by displayed rows |
 | `:set number` / `nonumber` | toggle absolute line numbers |
 | `:set relativenumber` / `norelativenumber` | toggle relative line numbers |
