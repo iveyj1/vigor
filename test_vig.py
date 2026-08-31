@@ -4326,6 +4326,29 @@ def test_filetype_rejects_unknown_value():
     print("  PASS: filetype rejects unknown value")
 
 
+def test_makefile_detection_and_tab_insertion():
+    """Makefile names and .mk files insert literal tabs with the Tab key."""
+    with tempfile.TemporaryDirectory() as d:
+        makefile = os.path.join(d, "Makefile")
+        mkfile = os.path.join(d, "rules.mk")
+        open(makefile, "w").write("echo one\n")
+        open(mkfile, "w").write("echo two\n")
+        screen1, content1, code1 = run_vig(b"i\t\x1b:ft\r:wq\r", file_path=makefile)
+        screen2, content2, code2 = run_vig(b"i\t\x1b:ft\r:wq\r", file_path=mkfile)
+    assert code1 == 0 and content1 == "\techo one\n" and "filetype=make (auto)" in screen1
+    assert code2 == 0 and content2 == "\techo two\n" and "filetype=make (auto)" in screen2
+    print("  PASS: Makefiles insert literal tabs")
+
+
+def test_forced_make_filetype_inserts_literal_tabs():
+    """:ft make enables literal Tab insertion for non-Makefile names."""
+    path = write_named_temp("echo ok\n", ".txt")
+    screen, content, code = run_vig(b":ft make\ri\t\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "\techo ok\n" and "filetype=make (forced)" in screen
+    print("  PASS: forced make filetype inserts literal tabs")
+
+
 # ── Phase 70: automatic syntax and Markdown detection ─────────────────────
 
 def test_markdown_files_open_in_markdown_view():
@@ -5300,6 +5323,8 @@ def main():
             test_filetype_markdown_controls_presentation,
             test_filetype_override_persists_per_buffer_and_reload,
             test_filetype_rejects_unknown_value,
+            test_makefile_detection_and_tab_insertion,
+            test_forced_make_filetype_inserts_literal_tabs,
         ]),
         ("70", "Phase 70 — automatic syntax and Markdown detection", [
             test_markdown_files_open_in_markdown_view,

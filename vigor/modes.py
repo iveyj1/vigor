@@ -532,9 +532,13 @@ class ModeMixin:
             self._exec_motion(key, 1)
         elif key == "TAB":
             line = self.buf.lines[self.cy]
-            spaces = 4 - (self.cx % 4)
-            self.buf.lines[self.cy] = line[:self.cx] + " " * spaces + line[self.cx:]
-            self.cx += spaces
+            if self._effective_filetype() == "make":
+                self.buf.lines[self.cy] = line[:self.cx] + "\t" + line[self.cx:]
+                self.cx += 1
+            else:
+                spaces = 4 - (self.cx % 4)
+                self.buf.lines[self.cy] = line[:self.cx] + " " * spaces + line[self.cx:]
+                self.cx += spaces
             self.buf.dirty = True
         elif key == "DEL":
             line = self.buf.lines[self.cy]

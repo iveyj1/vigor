@@ -121,7 +121,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:md` / `:markdown` | toggle non-destructive Markdown presentation for the current buffer |
 | `:nomd` | return the current buffer to literal source display |
 | `:filetype` / `:ft` | report the current effective file type and whether it is automatic or forced |
-| `:filetype TYPE` / `:ft TYPE` | force `text`, `bash`, `c`, `cpp`, `python`, or `markdown`; `auto` clears the override and redetects |
+| `:filetype TYPE` / `:ft TYPE` | force `text`, `bash`, `c`, `cpp`, `python`, `markdown`, or `make`; `auto` clears the override and redetects |
 | `:cd <path>` | change the single global working directory |
 | `:cdb` | change to the focused file's directory; errors for unnamed/quickfix buffers |
 | `:pwd` | show the current working directory |

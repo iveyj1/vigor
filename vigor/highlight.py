@@ -227,7 +227,10 @@ def language_for_path(path, first_line=""):
 
 def filetype_for_path(path, first_line=""):
     """Return an automatically detected file type, falling back to text."""
+    name = os.path.basename(path or "")
     extension = os.path.splitext(path or "")[1].lower()
+    if name in ("Makefile", "makefile", "GNUmakefile") or extension == ".mk":
+        return "make"
     if extension in (".md", ".markdown"):
         return "markdown"
     return language_for_path(path, first_line) or "text"

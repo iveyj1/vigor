@@ -12,7 +12,7 @@ from .state import BufferState, Mode
 class CommandMixin:
     """Command subsystem mixed into the application orchestrator."""
 
-    _FILETYPES = frozenset(("auto", "text", "bash", "c", "cpp", "python", "markdown"))
+    _FILETYPES = frozenset(("auto", "text", "bash", "c", "cpp", "python", "markdown", "make"))
 
     # ── Command mode ───────────────────────────────────────────────────
 
