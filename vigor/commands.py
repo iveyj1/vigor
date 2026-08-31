@@ -700,14 +700,17 @@ class CommandMixin:
             self.opt_wrap = False
             self.msg = "wrap off"
             self._ensure_scroll()
-        elif opt.startswith("wrapcol="):
-            try:
-                val = int(opt[len("wrapcol="):])
-                if val < 0:
-                    raise ValueError
-            except ValueError:
-                self.msg = "wrapcol must be >= 0"
-                return
+        elif opt == "wrapcol" or opt.startswith("wrapcol="):
+            if opt == "wrapcol":
+                val = self._cursor_display_col() + 1
+            else:
+                try:
+                    val = int(opt[len("wrapcol="):])
+                    if val < 0:
+                        raise ValueError
+                except ValueError:
+                    self.msg = "wrapcol must be >= 0"
+                    return
             self.opt_wrapcol = val
             self.msg = f"wrapcol={val}"
             self._ensure_scroll()
@@ -717,6 +720,14 @@ class CommandMixin:
         elif opt == "nolist":
             self.opt_list = False
             self.msg = "list off"
+        elif opt == "wordwrap":
+            self.opt_wordwrap = True
+            self.msg = "wordwrap on"
+            self._ensure_scroll()
+        elif opt == "nowordwrap":
+            self.opt_wordwrap = False
+            self.msg = "wordwrap off"
+            self._ensure_scroll()
         elif opt == "number":
             self.opt_number = True
             self.msg = "number on"

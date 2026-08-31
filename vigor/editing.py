@@ -423,7 +423,7 @@ class EditingMixin:
         return ViewportLayout(
             len(self.buf.lines), self._view_line, self._view_col, self._view_index,
             self.rows, self.cols, self._gutter_width(), self.opt_wrap,
-            self.opt_wrapcol, self.scroll, self._wrap_skip,
+            self.opt_wrapcol, self.opt_wordwrap, self.scroll, self._wrap_skip,
             hidden_line=self._is_markdown_fence_line,
         )
 
@@ -441,10 +441,10 @@ class EditingMixin:
             self.cx = self._view_index(self.cy, self._sticky_cx)
             return
         layout = self._viewport_layout()
-        cols = layout.wrap_cols
+        row, local_col = layout.wrap_position(self.cy, display_x)
         if self._sticky_cx is None:
-            self._sticky_cx = display_x % cols
-        col, row = self._sticky_cx, display_x // cols
+            self._sticky_cx = local_col
+        col = self._sticky_cx
         current_rows = layout.line_rows(self.cy)
         if current_rows == 0:
             target_y = layout.next_visible(self.cy, delta)
@@ -452,19 +452,23 @@ class EditingMixin:
                 self.cy, self.cx = target_y, self._view_index(target_y, col)
         elif delta > 0:
             if row + 1 < current_rows:
-                self.cx = self._view_index(self.cy, (row + 1) * cols + col)
+                start, end = layout.wrap_segments(self.cy)[row + 1]
+                self.cx = self._view_index(self.cy, min(start + col, end))
             else:
                 target_y = layout.next_visible(self.cy, 1)
                 if target_y is not None:
-                    self.cy, self.cx = target_y, self._view_index(target_y, col)
+                    start, end = layout.wrap_segments(target_y)[0]
+                    self.cy, self.cx = target_y, self._view_index(target_y, min(start + col, end))
         elif row > 0:
-            self.cx = self._view_index(self.cy, (row - 1) * cols + col)
+            start, end = layout.wrap_segments(self.cy)[row - 1]
+            self.cx = self._view_index(self.cy, min(start + col, end))
         else:
             target_y = layout.next_visible(self.cy, -1)
             if target_y is not None:
+                segments = layout.wrap_segments(target_y)
+                start, end = segments[-1]
                 self.cy = target_y
-                target = (layout.line_rows(target_y) - 1) * cols + col
-                self.cx = self._view_index(target_y, target)
+                self.cx = self._view_index(target_y, min(start + col, end))
         self._clamp_cursor()
 
     def _motion_j(self):

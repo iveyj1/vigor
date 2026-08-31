@@ -3262,7 +3262,7 @@ def test_layout_maps_source_and_screen_coordinates():
         len(lines), view,
         lambda y, x: display_col(lines[y], x),
         lambda y, x: display_index(lines[y], x),
-        rows=4, cols=5, gutter_width=0, wrap=True, wrapcol=0,
+        rows=4, cols=5, gutter_width=0, wrap=True, wrapcol=0, wordwrap=False,
         scroll=0, wrap_skip=0,
     )
     assert layout.source_to_screen(0, 5) == (1, 0)
@@ -3712,6 +3712,30 @@ def test_wrapcol_validation_and_startup_config():
     assert "abcd\x1b[K\r\nefgh" in screen
     assert "wrapcol must be >= 0" in screen
     print("  PASS: wrapcol validates and loads from config")
+
+
+def test_bare_wrapcol_uses_cursor_column():
+    """Bare :set wrapcol uses the current 1-based display cursor column."""
+    path = write_temp("abcdefghij\n")
+    screen, _, code = run_vig(b"llll:set wrapcol\r:set wrap\r:q\r",
+                              file_path=path, cols=20, rows=8)
+    os.unlink(path)
+    assert code == 0 and "wrapcol=5" in screen
+    assert "abcde\x1b[K\r\nfghij" in screen, screen[-800:]
+    print("  PASS: bare wrapcol uses cursor column")
+
+
+def test_wordwrap_prefers_whitespace_breaks():
+    """wordwrap breaks approximate display rows at whitespace when available."""
+    path = write_temp("one two three\n")
+    screen, _, code = run_vig(b":set wrapcol=10\r:set wrap\r:set wordwrap\r:q\r",
+                              file_path=path, cols=20, rows=8)
+    os.unlink(path)
+    frame = last_frame(screen)
+    assert code == 0 and "wordwrap on" in screen
+    assert "one two \x1b[K\r\nthree" in frame and "one two th" not in frame
+    print("  PASS: wordwrap prefers whitespace breaks")
+
 
 # ── Phase 60: markdown fence hiding ────────────────────────────────────────
 
@@ -4631,7 +4655,7 @@ def test_autosave_options_validate_and_load_from_config():
 def test_example_config_lists_all_runtime_defaults():
     """The example contains each supported startup option exactly once at its default."""
     expected = [
-        "set nowrap", "set wrapcol=0", "set nolist", "set nowrapmove", "set nonumber",
+        "set nowrap", "set wrapcol=0", "set nolist", "set nowordwrap", "set nowrapmove", "set nonumber",
         "set norelativenumber", "set autoindent", "set comment=#",
         "set scrolloff=0", "set clipboard=auto", "set mouse=off",
         "set yankflash=300", "set delcopy", "set norghidden",
@@ -4656,7 +4680,7 @@ def test_vighelp_covers_commands_and_config_options():
                 ":help", ":md", ":nomd", ":ft", ":cd", ":cdb", ":pwd",
                 ":read", ":!command", ":[range]!command", ":[range]s/",
                 ":make", ":qf", ":rg", ":rgf")
-    options = ("wrap", "wrapcol", "list", "wrapmove", "number", "relativenumber",
+    options = ("wrap", "wrapcol", "list", "wordwrap", "wrapmove", "number", "relativenumber",
                "autoindent", "comment", "scrolloff", "clipboard", "mouse",
                "yankflash", "delcopy", "rghidden", "hlsearch", "markdownfences",
                "autodetect", "saveversions", "autosave", "autosavedelay", "makeprg")
@@ -5260,6 +5284,8 @@ def main():
             test_wrapcol_wraps_at_configured_display_column,
             test_wrapcol_drives_wrapmove_and_respects_terminal_width,
             test_wrapcol_validation_and_startup_config,
+            test_bare_wrapcol_uses_cursor_column,
+            test_wordwrap_prefers_whitespace_breaks,
         ]),
         ("60", "Phase 60 — markdown fence hiding", [
             test_markdownfences_hides_backtick_and_tilde_fences,

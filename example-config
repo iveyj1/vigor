@@ -2,6 +2,7 @@
 set nowrap
 set wrapcol=0
 set nolist
+set nowordwrap
 set nowrapmove
 set nonumber
 set norelativenumber

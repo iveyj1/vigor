@@ -84,7 +84,7 @@ class ViewportLayout:
     """
 
     def __init__(self, line_count, view_line, source_to_display, display_to_source,
-                 rows, cols, gutter_width, wrap, wrapcol, scroll, wrap_skip,
+                 rows, cols, gutter_width, wrap, wrapcol, wordwrap, scroll, wrap_skip,
                  hidden_line=None):
         self.line_count = line_count
         self.view_line = view_line
@@ -95,6 +95,7 @@ class ViewportLayout:
         self.gutter_width = gutter_width
         self.wrap = wrap
         self.wrapcol = wrapcol
+        self.wordwrap = wordwrap
         self.scroll = scroll
         self.wrap_skip = wrap_skip
         self.hidden_line = hidden_line or (lambda _y: False)
@@ -108,12 +109,54 @@ class ViewportLayout:
         available = self.content_cols
         return min(available, self.wrapcol) if self.wrapcol else available
 
+    def wrap_segments(self, source_y):
+        """Return wrapped display-column ranges for one logical line."""
+        line, cols = self.view_line(source_y), self.wrap_cols
+        if not self.wrap:
+            return [(0, len(line))]
+        if not self.wordwrap:
+            return [(start, min(start + cols, len(line)))
+                    for start in range(0, len(line) + 1, cols)]
+        segments, start, n = [], 0, len(line)
+        while start < n:
+            hard_end = min(start + cols, n)
+            if hard_end == n:
+                segments.append((start, n))
+                break
+            break_at = None
+            for i in range(hard_end - 1, start, -1):
+                if line[i].isspace():
+                    break_at = i
+                    break
+            if break_at is None:
+                segments.append((start, hard_end))
+                start = hard_end
+            else:
+                segments.append((start, break_at + 1))
+                start = break_at + 1
+        if not segments:
+            return [(0, 0)]
+        if segments[-1][1] == n and segments[-1][1] - segments[-1][0] == cols:
+            segments.append((n, n))
+        return segments
+
     def line_rows(self, source_y):
         if self.hidden_line(source_y):
             return 0
-        if not self.wrap:
-            return 1
-        return len(self.view_line(source_y)) // self.wrap_cols + 1
+        return len(self.wrap_segments(source_y)) if self.wrap else 1
+
+    def wrap_position(self, source_y, display_x):
+        """Return wrapped row and row-local column for a display column."""
+        segments = self.wrap_segments(source_y)
+        for i, (start, end) in enumerate(segments):
+            if start <= display_x < end or start == end == display_x:
+                return i, display_x - start
+            if display_x == end and end - start < self.wrap_cols:
+                return i, display_x - start
+        if not segments:
+            return 0, 0
+        i, (start, end) = len(segments) - 1, segments[-1]
+        return i, max(0, min(display_x, end) - start)
 
     def next_visible(self, source_y, direction):
         """Return the next non-hidden source line strictly in one direction."""
@@ -166,12 +209,12 @@ class ViewportLayout:
         while source_y is not None and len(result) < self.rows:
             line = self.view_line(source_y)
             if self.wrap:
-                for wrap_row in range(first_skip, self.line_rows(source_y)):
+                segments = self.wrap_segments(source_y)
+                for wrap_row in range(first_skip, len(segments)):
                     if len(result) >= self.rows:
                         break
-                    start = wrap_row * self.wrap_cols
-                    text = line[start:start + self.wrap_cols]
-                    result.append(VisibleRow(len(result), source_y, wrap_row, start, text))
+                    start, end = segments[wrap_row]
+                    result.append(VisibleRow(len(result), source_y, wrap_row, start, line[start:end]))
             else:
                 start = max(0, hscroll)
                 text = line[start:start + self.content_cols]
@@ -193,7 +236,7 @@ class ViewportLayout:
             if y is None:
                 return self.rows
         display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
-        return row + (display_x // self.wrap_cols if self.wrap else 0)
+        return row + (self.wrap_position(source_y, display_x)[0] if self.wrap else 0)
 
     def position_at_view_row(self, target, col):
         """Map a viewport display row and desired column to a source position."""
@@ -201,7 +244,11 @@ class ViewportLayout:
         while y is not None:
             available = self.line_rows(y) - skip
             if target < available:
-                display_x = (skip + target) * self.wrap_cols + col if self.wrap else col
+                if self.wrap:
+                    start, end = self.wrap_segments(y)[skip + target]
+                    display_x = min(start + col, end)
+                else:
+                    display_x = col
                 return y, self.display_to_source(y, display_x)
             target -= available
             y, skip = self.next_visible(y, 1), 0
@@ -213,11 +260,10 @@ class ViewportLayout:
         if target_y is None:
             return None
         display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
-        wanted_wrap = display_x // self.wrap_cols if self.wrap else 0
+        wanted_wrap, local_col = self.wrap_position(target_y, display_x) if self.wrap else (0, display_x - hscroll)
         for row in self.visible_rows(hscroll):
             if row.source_y == target_y and row.wrap_row == wanted_wrap:
-                screen_x = display_x - row.display_start + self.gutter_width
-                return row.screen_row, screen_x
+                return row.screen_row, local_col + self.gutter_width
         return None
 
     def screen_to_source(self, screen_y, screen_x, hscroll=0):
@@ -227,7 +273,9 @@ class ViewportLayout:
             return None
         row = rows[screen_y]
         content_x = max(0, screen_x - self.gutter_width)
-        target = min(row.display_start + content_x, len(self.view_line(row.source_y)))
+        target = min(row.display_start + content_x,
+                     row.display_start + len(row.text),
+                     len(self.view_line(row.source_y)))
         return row.source_y, self.display_to_source(row.source_y, target)
 
 
@@ -250,13 +298,13 @@ class RenderMixin:
         num = abs(buf_line - self.cy) if self.opt_relnum else buf_line + 1
         return str(num).rjust(width) + " "
 
-    def _cursor_wrap_row(self, content_cols):
+    def _cursor_wrap_row(self, content_cols=None):
         """Displayed wrap row for the cursor within its buffer line."""
-        return self._cursor_display_col() // content_cols if content_cols > 0 else 0
+        return self._viewport_layout().wrap_position(self.cy, self._cursor_display_col())[0]
 
-    def _cursor_wrap_col(self, content_cols):
+    def _cursor_wrap_col(self, content_cols=None):
         """Displayed wrap column for the cursor within its buffer line."""
-        return self._cursor_display_col() % content_cols if content_cols > 0 else 0
+        return self._viewport_layout().wrap_position(self.cy, self._cursor_display_col())[1]
 
     def _line_screen_rows(self, line_idx):
         """How many screen rows does buffer line `line_idx` occupy?"""

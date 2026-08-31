@@ -77,6 +77,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.opt_wrap = False  # :set wrap
         self.opt_wrapcol = 0  # :set wrapcol=N (0 uses terminal width)
         self.opt_list = False  # :set list/nolist shows tabs visibly
+        self.opt_wordwrap = False  # :set wordwrap/nowordwrap prefers whitespace breaks
         self.opt_number = False  # :set number
         self.opt_relnum = False  # :set relativenumber
         self.opt_scrolloff = 0  # :set scrolloff=N
@@ -571,7 +572,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
     def _scroll_view(self, delta, n=1):
         """Scroll viewport by display rows, moving cursor only to keep it visible."""
         display_x = self._cursor_display_col()
-        col = display_x % self._wrap_cols() if self.opt_wrap else display_x
+        col = (self._viewport_layout().wrap_position(self.cy, display_x)[1]
+               if self.opt_wrap else display_x)
         for _ in range(n):
             if not self._move_view_top(delta):
                 break
