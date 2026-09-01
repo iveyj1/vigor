@@ -7,7 +7,7 @@
 None
 
 ### Implement
-None
+1. Proposal: State-coupling refactor in three phases — declarative `:set` option table (net −60–100 lines), timer-only dirty callback with explicit recovery-file deletion, and property-based per-buffer state replacing `_save_buf_state`/`_load_buf_state` (net −30–50 lines); see `proposals/state-coupling-refactor.md`. Startup-sequence restructuring is deferred within the proposal.
 
 ### On Hold
 1. If not already done, remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
