@@ -134,11 +134,11 @@ class EditingMixin:
         self._ensure_scroll()
 
     def _update_dirty(self):
-        """Recalculate dirty flag based on undo stack position."""
-        if self._undo_branched:
-            self.buf.dirty = True
-        else:
-            self.buf.dirty = len(self._undo_stack) != self._undo_save_depth
+        """Recalculate dirty state; undoing to disk also retires recovery."""
+        dirty = self._undo_branched or len(self._undo_stack) != self._undo_save_depth
+        self.buf.dirty = dirty
+        if not dirty:
+            self._delete_recovery(self.buffers[self.buf_idx])
 
     def _enter_insert(self):
         """Enter insert mode, resetting word-count tracking."""

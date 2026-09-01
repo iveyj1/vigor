@@ -215,7 +215,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             if self.buf.save(path):
                 self._undo_save_depth = len(self._undo_stack)
                 self._undo_branched = False
-                self._update_dirty()
+                self._delete_recovery(self.buffers[self.buf_idx])
                 if close_after:
                     if len(self.buffers) > 1:
                         self._close_buffer()
@@ -267,6 +267,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 self.mode = Mode.NORMAL
                 return
         self.buf.dirty = False
+        self._delete_recovery(self.buffers[self.buf_idx])
         self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         self.cx = self.cy = self.scroll = self._wrap_skip = 0
         self._undo_stack.clear()
@@ -423,7 +424,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         else:
             bs.autosave_deadline = None
             bs.recovery_deadline = None
-            self._delete_recovery(bs)
 
     def _reschedule_autosaves(self):
         for bs in self.buffers:
@@ -442,6 +442,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             return
         try:
             bs.buf.save()
+            self._delete_recovery(bs)
             depth = len(bs._undo_stack)
             bs._undo_save_depth, bs._undo_branched = depth, False
             if bs is self.buffers[self.buf_idx]:
