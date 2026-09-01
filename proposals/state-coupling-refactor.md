@@ -2,7 +2,7 @@
 
 ### Status
 
-Proposed. Not started.
+Implemented. R1–R3 are complete; the optional startup-sequence restructuring in R4 remains deferred until motivated by a concrete failure.
 
 ### Motivation
 

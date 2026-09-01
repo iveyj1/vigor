@@ -7,7 +7,7 @@
 None
 
 ### Implement
-1. Proposal: State-coupling refactor in three phases — declarative `:set` option table (net −60–100 lines), timer-only dirty callback with explicit recovery-file deletion, and property-based per-buffer state replacing `_save_buf_state`/`_load_buf_state` (net −30–50 lines); see `proposals/state-coupling-refactor.md`. Startup-sequence restructuring is deferred within the proposal.
+None
 
 ### On Hold
 1. If not already done, remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
@@ -22,6 +22,7 @@ None
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Complete the state-coupling refactor: declarative `:set` option metadata, timer-only dirty callbacks with explicit recovery cleanup, and property-based per-buffer state with no save/load mirrors; see `proposals/state-coupling-refactor.md`. Startup-sequence restructuring remains deferred until a concrete failure motivates it.
 1. Add per-buffer `gv` restoration of the last characterwise or linewise Visual selection, including clamping after mutations.
 1. Add `>` / `<` indentation to both Visual modes and complete the existing Normal operator forms for motions and text objects.
 1. Fix operator motion boundaries: `cw`/`dw`/yank/case operations consume the final word through one-past-EOL, while failed motions cancel without edits, Insert entry, snapshots, or redo loss.

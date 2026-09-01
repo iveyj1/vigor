@@ -17,7 +17,32 @@ from .terminal import Terminal
 
 # ── Editor ─────────────────────────────────────────────────────────────────
 
+def _state_property(name):
+    """Delegate one Editor working attribute to the focused BufferState."""
+    def get(editor):
+        return getattr(editor.buffers[editor.buf_idx], name)
+    def set_(editor, value):
+        setattr(editor.buffers[editor.buf_idx], name, value)
+    return property(get, set_)
+
+
 class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
+    buf = _state_property("buf")
+    cx = _state_property("cx")
+    cy = _state_property("cy")
+    scroll = _state_property("scroll")
+    _wrap_skip = _state_property("wrap_skip")
+    md_view = _state_property("md_view")
+    md_lines = _state_property("md_lines")
+    md_maps = _state_property("md_maps")
+    md_languages = _state_property("md_languages")
+    filetype_override = _state_property("filetype_override")
+    buffer_autodetect = _state_property("autodetect")
+    _undo_stack = _state_property("_undo_stack")
+    _redo_stack = _state_property("_redo_stack")
+    _undo_save_depth = _state_property("_undo_save_depth")
+    _undo_branched = _state_property("_undo_branched")
+
     def __init__(self, paths=None):
         # Existing directories open one startup completion; other paths are buffers.
         file_paths, startup_dir = [], None
@@ -30,22 +55,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 file_paths.append(resolved)
         self.buffers = [BufferState(p) for p in file_paths] if file_paths else [BufferState()]
         self.buf_idx = 0
-        # Load first buffer's state into working attributes
-        bs = self.buffers[0]
-        self.buf = bs.buf
-        self.cx = bs.cx
-        self.cy = bs.cy
-        self.scroll = bs.scroll
-        self.md_view = bs.md_view
-        self.md_lines = bs.md_lines
-        self.md_maps = bs.md_maps
-        self.md_languages = bs.md_languages
-        self.filetype_override = bs.filetype_override
-        self.buffer_autodetect = bs.autodetect
-        self._undo_stack = bs._undo_stack
-        self._redo_stack = bs._redo_stack
-        self._undo_save_depth = bs._undo_save_depth
-        self._undo_branched = bs._undo_branched
         self.mode = Mode.NORMAL
         self.cmd = ""  # command-line input
         self.cmd_cx = 0  # command/search prompt cursor column
@@ -76,7 +85,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.search_dir = 1  # 1=forward, -1=backward
         for _, attr, default, _, _ in OPTIONS.values():
             setattr(self, attr, default)
-        self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
         self.last_find = None       # (cmd, ch) for f/t/F/T repeat
@@ -104,7 +112,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._load_config()
         for state in self.buffers:
             self._initialize_buffer_detection(state)
-        self._load_buf_state(0)
         if self.buf.path and os.path.exists(self._recovery_path(self.buf.path)):
             self.msg = self._recovery_message(self.buf.path)
         self.term = Terminal(self.opt_mouse)
@@ -368,37 +375,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     # ── Buffer management ──────────────────────────────────────────────
 
-    def _save_buf_state(self):
-        """Save working attributes back into current BufferState."""
-        bs = self.buffers[self.buf_idx]
-        bs.buf = self.buf
-        bs.cx, bs.cy, bs.scroll = self.cx, self.cy, self.scroll
-        bs.wrap_skip = self._wrap_skip
-        bs.md_view, bs.md_lines, bs.md_maps = self.md_view, self.md_lines, self.md_maps
-        bs.md_languages = self.md_languages
-        bs.filetype_override = self.filetype_override
-        bs.autodetect = self.buffer_autodetect
-        bs._undo_stack = self._undo_stack
-        bs._redo_stack = self._redo_stack
-        bs._undo_save_depth = self._undo_save_depth
-        bs._undo_branched = self._undo_branched
-
-    def _load_buf_state(self, idx):
-        """Load BufferState at idx into working attributes."""
-        self.buf_idx = idx
-        bs = self.buffers[idx]
-        self.buf = bs.buf
-        self.cx, self.cy, self.scroll = bs.cx, bs.cy, bs.scroll
-        self._wrap_skip = bs.wrap_skip
-        self.md_view, self.md_lines, self.md_maps = bs.md_view, bs.md_lines, bs.md_maps
-        self.md_languages = bs.md_languages
-        self.filetype_override = bs.filetype_override
-        self.buffer_autodetect = bs.autodetect
-        self._undo_stack = bs._undo_stack
-        self._redo_stack = bs._redo_stack
-        self._undo_save_depth = bs._undo_save_depth
-        self._undo_branched = bs._undo_branched
-
     def _recovery_path(self, path):
         """Adjacent panic-backup path for a named buffer."""
         return os.path.join(os.path.dirname(path), ".vigor-recover." + os.path.basename(path))
@@ -445,8 +421,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self._delete_recovery(bs)
             depth = len(bs._undo_stack)
             bs._undo_save_depth, bs._undo_branched = depth, False
-            if bs is self.buffers[self.buf_idx]:
-                self._undo_save_depth, self._undo_branched = depth, False
             self.msg = f'"{bs.buf.path}" autosaved'
         except OSError as e:
             bs.autosave_deadline = None
@@ -492,11 +466,9 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if (len(self.buffers) == 1 and self.buf.path is None
                 and self.buf.lines == [""] and not self.buf.dirty):
             self.buffers[0] = bs
-            self._load_buf_state(0)
         else:
-            self._save_buf_state()
             self.buffers.insert(self.buf_idx + 1, bs)
-            self._load_buf_state(self.buf_idx + 1)
+            self.buf_idx += 1
 
     def _switch_buffer(self, idx):
         """Switch to buffer at idx, saving current state first."""
@@ -504,8 +476,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             return
         if idx < 0 or idx >= len(self.buffers):
             return
-        self._save_buf_state()
-        self._load_buf_state(idx)
+        self.buf_idx = idx
         self._sticky_cx = None
         self._clamp_cursor()
         self._ensure_scroll()
@@ -513,13 +484,11 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     def _close_buffer(self):
         """Remove current buffer and load an adjacent one."""
-        self._save_buf_state()
         old = self.buffers.pop(self.buf_idx)
         if old is self.quickfix_state:
             self.quickfix_state = None
         if self.buf_idx >= len(self.buffers):
             self.buf_idx = len(self.buffers) - 1
-        self._load_buf_state(self.buf_idx)
         self._sticky_cx = None
         self._clamp_cursor()
         self._ensure_scroll()
