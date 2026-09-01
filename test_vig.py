@@ -4952,6 +4952,37 @@ def test_gv_is_per_buffer_and_clamps_deleted_selection():
     print("  PASS: gv history is per-buffer and clamps deleted ranges")
 
 
+# ── Phase 79: no-op undo boundaries ───────────────────────────────────────
+
+def test_noop_edits_preserve_redo():
+    """Commands that change no text neither add undo entries nor clear redo."""
+    actions = (
+        b"i\x1b", b"~", b"<<", b"$vd", b"$D", b"X", b"J", b"r1",
+        b"$s\x1b", b"$C\x1b", b"guw",
+    )
+    for action in actions + (b":%!cat\r",):
+        path = write_temp("123\n")
+        _, content, code = run_vig(b"xu" + action + b"\x12:wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == "23\n", (action, content)
+    for action in (b"dd", b"gcc", b"Vd", b"cc\x1b"):
+        path = write_temp("")
+        _, content, code = run_vig(b"i1\x1bu" + action + b"\x12:wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == "1\n", (action, content)
+    print("  PASS: no-op edits preserve redo")
+
+
+def test_changed_dedent_and_case_have_one_undo_boundary():
+    """Central no-op checks still snapshot real dedent and case mutations once."""
+    for original, action in (("    one\n", b"<<u"), ("one\n", b"gUwu")):
+        path = write_temp(original)
+        _, content, code = run_vig(action + b":wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == original, (action, content)
+    print("  PASS: changed dedent and case have one undo boundary")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5506,6 +5537,10 @@ def main():
             test_gv_reselects_characterwise_selection_after_escape,
             test_gv_reselects_linewise_selection_after_operation,
             test_gv_is_per_buffer_and_clamps_deleted_selection,
+        ]),
+        ("79", "Phase 79 — no-op undo boundaries", [
+            test_noop_edits_preserve_redo,
+            test_changed_dedent_and_case_have_one_undo_boundary,
         ]),
     ]
 

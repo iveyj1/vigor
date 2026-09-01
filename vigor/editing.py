@@ -140,12 +140,18 @@ class EditingMixin:
         if not dirty:
             self._delete_recovery(self.buffers[self.buf_idx])
 
-    def _enter_insert(self):
-        """Enter insert mode, resetting word-count tracking."""
+    def _enter_insert(self, snapshot=False):
+        """Enter Insert, deferring its undo boundary until the first mutation."""
         self._sticky_cx = None
         self._insert_word_count = 0
         self._insert_last_space = True
+        self._insert_snapshot_pending = snapshot
         self.mode = Mode.INSERT
+
+    def _prepare_insert_change(self):
+        if self._insert_snapshot_pending:
+            self._snapshot()
+            self._insert_snapshot_pending = False
 
     def _open_line(self, below=True):
         """Open a new line below (o) or above (O) and enter insert mode."""
@@ -661,15 +667,17 @@ class EditingMixin:
         self.buf.dirty = True
 
     def _dedent_lines(self, start, count):
-        """Remove up to 4 leading spaces from count lines starting at start."""
-        for i in range(start, min(start + count, len(self.buf.lines))):
+        """Remove up to 4 leading spaces, creating undo only when needed."""
+        end = min(start + count, len(self.buf.lines))
+        if not any(self.buf.lines[i].startswith(" ") for i in range(start, end)):
+            return False
+        self._snapshot()
+        for i in range(start, end):
             line = self.buf.lines[i]
-            remove = 0
-            while remove < 4 and remove < len(line) and line[remove] == " ":
-                remove += 1
-            if remove > 0:
-                self.buf.lines[i] = line[remove:]
+            remove = min(4, len(line) - len(line.lstrip(" ")))
+            self.buf.lines[i] = line[remove:]
         self.buf.dirty = True
+        return True
 
     def _toggle_comment(self, start, count):
         """Toggle line comments using opt_comment prefix."""
@@ -681,21 +689,26 @@ class EditingMixin:
             ln.lstrip().startswith(self.opt_comment) or ln.strip() == ""
             for ln in lines
         )
-        for i in range(start, end):
-            line = self.buf.lines[i]
+        changed = []
+        for line in lines:
+            new = line
             if all_commented:
-                # Remove first occurrence of comment prefix
                 stripped = line.lstrip()
                 indent = line[:len(line) - len(stripped)]
                 if stripped.startswith(prefix):
-                    self.buf.lines[i] = indent + stripped[len(prefix):]
+                    new = indent + stripped[len(prefix):]
                 elif stripped.startswith(self.opt_comment):
-                    self.buf.lines[i] = indent + stripped[len(self.opt_comment):]
-            else:
-                if line.strip():  # don't comment empty lines
-                    indent = line[:len(line) - len(line.lstrip())]
-                    self.buf.lines[i] = indent + prefix + line.lstrip()
+                    new = indent + stripped[len(self.opt_comment):]
+            elif line.strip():
+                indent = line[:len(line) - len(line.lstrip())]
+                new = indent + prefix + line.lstrip()
+            changed.append(new)
+        if changed == lines:
+            return False
+        self._snapshot()
+        self.buf.lines[start:end] = changed
         self.buf.dirty = True
+        return True
 
     def _find_word_object(self, big=False, around=False):
         """Return (sy, sx, ey, ex) for inner/around word at cursor."""
@@ -915,6 +928,10 @@ class EditingMixin:
         """j, k, G, gg, and doubled operators are linewise."""
         return key in ("j", "k", "DOWN", "UP", "G", "gg", "CTRL_D", "CTRL_U")
 
+    def _range_changes(self, sy, sx, ey, ex, linewise=False):
+        return (not (self.buf.lines == [""] and sy == ey == 0) if linewise
+                else (sy, sx) != (ey, ex))
+
     def _delete_range(self, sy, sx, ey, ex, linewise=False, copy=True):
         """Delete text from (sy,sx) to (ey,ex). Returns deleted text."""
         text, self.cy, self.cx, changed = delete_range(
@@ -947,6 +964,8 @@ class EditingMixin:
         """Delete from cursor to end of line, store in register."""
         line = self.buf.lines[self.cy]
         text = line[self.cx:]
+        if not text:
+            return ""
         self.buf.lines[self.cy] = line[:self.cx]
         self._set_register(text, linewise=False)
         self.buf.dirty = True
@@ -957,9 +976,15 @@ class EditingMixin:
         return {"g~": str.swapcase, "gU": str.upper, "gu": str.lower}[op]
 
     def _change_case_range(self, sy, sx, ey, ex, func):
-        """Apply func to the half-open character range without touching registers."""
-        if change_case(self.buf.lines, sy, sx, ey, ex, func):
-            self.buf.dirty = True
+        """Apply a case transform, creating undo only when content changes."""
+        parts = (self.buf.lines[y][sx if y == sy else 0:ex if y == ey else len(self.buf.lines[y])]
+                 for y in range(sy, ey + 1))
+        if all(func(part) == part for part in parts):
+            return False
+        self._snapshot()
+        change_case(self.buf.lines, sy, sx, ey, ex, func)
+        self.buf.dirty = True
+        return True
 
     def _exec_operator(self, op, motion_key, n, extra_n=None):
         """Execute operator (d/y/c or case conversion) with a motion."""
@@ -982,19 +1007,23 @@ class EditingMixin:
             ty = sy
             tx = len(self.buf.lines[sy])
 
-        if op in ("d", "yd", "c", ">", "<", "g~", "gU", "gu"):
+        changes = self._range_changes(sy, sx, ty, tx, linewise)
+        if op == ">" or changes and op in ("d", "yd", "c"):
             self._snapshot()
 
         if op == "d":
-            self._delete_range(sy, sx, ty, tx, linewise, copy=self.opt_delcopy)
+            if changes:
+                self._delete_range(sy, sx, ty, tx, linewise, copy=self.opt_delcopy)
         elif op == "yd":
-            self._delete_range(sy, sx, ty, tx, linewise, copy=True)
+            if changes:
+                self._delete_range(sy, sx, ty, tx, linewise, copy=True)
         elif op == "y":
             self._yank_range(sy, sx, ty, tx, linewise)
             self.msg = f"{ty - sy + 1} lines yanked" if linewise else "yanked"
         elif op == "c":
-            self._delete_range(sy, sx, ty, tx, linewise)
-            self._enter_insert()
+            if changes:
+                self._delete_range(sy, sx, ty, tx, linewise)
+            self._enter_insert(snapshot=not changes)
         elif op in (">", "<"):
             (self._indent_lines if op == ">" else self._dedent_lines)(sy, ty - sy + 1)
         elif op in ("g~", "gU", "gu"):

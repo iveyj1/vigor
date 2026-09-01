@@ -36,11 +36,13 @@ class ModeMixin:
                 self._recording_keys = []
                 return
             if len(key) == 1 and self.cx < len(self.buf.lines[self.cy]):
-                self._snapshot()
                 line = self.buf.lines[self.cy]
                 end = min(self.cx + repl_n, len(line))
-                self.buf.lines[self.cy] = line[:self.cx] + key * (end - self.cx) + line[end:]
-                self.buf.dirty = True
+                replacement = key * (end - self.cx)
+                if line[self.cx:end] != replacement:
+                    self._snapshot()
+                    self.buf.lines[self.cy] = line[:self.cx] + replacement + line[end:]
+                    self.buf.dirty = True
                 self._save_dot()
             self._clamp_cursor()
             self._ensure_scroll()
@@ -154,7 +156,6 @@ class ModeMixin:
             self.pending_extra_n = None
             if key == "c":
                 # gcc — toggle comment on current line(s)
-                self._snapshot()
                 self._toggle_comment(self.cy, op_n)
                 self._save_dot()
             self._clamp_cursor()
@@ -207,19 +208,23 @@ class ModeMixin:
                     rng = self._find_quote_object("'", around=around)
                 if rng:
                     sy, sx, ey, ex = rng
-                    if op in ("d", "yd", "c", ">", "<", "g~", "gU", "gu"):
+                    changes = self._range_changes(sy, sx, ey, ex)
+                    if op == ">" or changes and op in ("d", "yd", "c"):
                         self._snapshot()
                     if op == "d":
-                        self._delete_range(sy, sx, ey, ex, copy=self.opt_delcopy)
+                        if changes:
+                            self._delete_range(sy, sx, ey, ex, copy=self.opt_delcopy)
                         self._save_dot()
                     elif op == "yd":
-                        self._delete_range(sy, sx, ey, ex, copy=True)
+                        if changes:
+                            self._delete_range(sy, sx, ey, ex, copy=True)
                         self._save_dot()
                     elif op == "y":
                         self._yank_range(sy, sx, ey, ex)
                     elif op == "c":
-                        self._delete_range(sy, sx, ey, ex)
-                        self._enter_insert()
+                        if changes:
+                            self._delete_range(sy, sx, ey, ex)
+                        self._enter_insert(snapshot=not changes)
                     elif op in (">", "<"):
                         (self._indent_lines if op == ">" else self._dedent_lines)(sy, ey - sy + 1)
                         self._save_dot()
@@ -239,39 +244,42 @@ class ModeMixin:
             # Doubled operator = line-wise (dd, yy, cc, >>, <<, g~~, gUU, guu)
             if key == (op[-1] if op in ("g~", "gU", "gu") else op) or (op == "yd" and key == "d"):
                 if op == "d":
-                    self._snapshot()
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
-                    self._delete_range(self.cy, 0, end, 0, linewise=True, copy=self.opt_delcopy)
+                    if self._range_changes(self.cy, 0, end, 0, linewise=True):
+                        self._snapshot()
+                        self._delete_range(self.cy, 0, end, 0, linewise=True, copy=self.opt_delcopy)
                     self._save_dot()
                 elif op == "yd":
-                    self._snapshot()
-                    self._delete_lines(self.cy, op_n)
+                    end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
+                    if self._range_changes(self.cy, 0, end, 0, linewise=True):
+                        self._snapshot()
+                        self._delete_lines(self.cy, op_n)
                     self._save_dot()
                 elif op == "y":
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
                     self._yank_range(self.cy, 0, end, 0, linewise=True)
                     self.msg = f"{op_n} line(s) yanked"
                 elif op == "c":
-                    self._snapshot()
                     # cc: yank lines, clear to single empty line, insert
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
-                    text = "\n".join(self.buf.lines[self.cy:end + 1])
-                    self._set_register(text, linewise=True)
-                    del self.buf.lines[self.cy + 1:end + 1]
-                    self.buf.lines[self.cy] = ""
-                    self.cx = 0
-                    self.buf.dirty = True
-                    self._enter_insert()
+                    changed = end > self.cy or bool(self.buf.lines[self.cy])
+                    if changed:
+                        self._snapshot()
+                        text = "\n".join(self.buf.lines[self.cy:end + 1])
+                        self._set_register(text, linewise=True)
+                        del self.buf.lines[self.cy + 1:end + 1]
+                        self.buf.lines[self.cy] = ""
+                        self.cx = 0
+                        self.buf.dirty = True
+                    self._enter_insert(snapshot=not changed)
                 elif op == ">":
                     self._snapshot()
                     self._indent_lines(self.cy, op_n)
                     self._save_dot()
                 elif op == "<":
-                    self._snapshot()
                     self._dedent_lines(self.cy, op_n)
                     self._save_dot()
                 elif op in ("g~", "gU", "gu"):
-                    self._snapshot()
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
                     self._change_case_range(self.cy, 0, end, len(self.buf.lines[end]), self._case_func(op))
                     self._save_dot()
@@ -322,45 +330,47 @@ class ModeMixin:
         # Line-wise shortcuts
         elif key == "D":
             self._start_dot(n, "D")
-            self._snapshot()
-            self._delete_to_eol()
+            if self.cx < len(self.buf.lines[self.cy]):
+                self._snapshot()
+                self._delete_to_eol()
             self._save_dot()
         elif key == "Y":
             self._yank_range(self.cy, self.cx, self.cy, len(self.buf.lines[self.cy]))
             self.msg = "yanked"
         elif key == "C":
             self._start_dot(n, "C")
-            self._snapshot()
-            self._delete_to_eol()
-            self._enter_insert()
+            changed = self.cx < len(self.buf.lines[self.cy])
+            if changed:
+                self._snapshot()
+                self._delete_to_eol()
+            self._enter_insert(snapshot=not changed)
         elif key == "~":
             self._start_dot(n, "~")
             line = self.buf.lines[self.cy]
             end = min(self.cx + n, len(line))
             if self.cx < end:
-                self._snapshot()
                 self._change_case_range(self.cy, self.cx, self.cy, end, str.swapcase)
                 self.cx = end
             self._save_dot()
         elif key == "J":
             self._start_dot(n, "J")
-            self._snapshot()
-            if not self._join_lines(n):
-                self._undo_stack.pop()
+            if self.cy < len(self.buf.lines) - 1:
+                self._snapshot()
+                self._join_lines(n)
             self._save_dot()
         # Paste
         elif key in ("x", "DEL"):
             self._start_dot(n, key)
-            self._snapshot()
             line = self.buf.lines[self.cy]
             if line and self.cx < len(line):
+                self._snapshot()
                 end = min(self.cx + n, len(line))
                 self._delete_range(self.cy, self.cx, self.cy, end)
             self._save_dot()
         elif key == "X" or key == "BACKSPACE":
             self._start_dot(n, [key])
-            self._snapshot()
             if self.cx > 0:
+                self._snapshot()
                 start = max(self.cx - n, 0)
                 self._delete_range(self.cy, start, self.cy, self.cx)
             self._save_dot()
@@ -370,12 +380,12 @@ class ModeMixin:
             return
         elif key == "s":
             self._start_dot(n, "s")
-            self._snapshot()
             line = self.buf.lines[self.cy]
-            if self.cx < len(line):
-                end = min(self.cx + n, len(line))
-                self._delete_range(self.cy, self.cx, self.cy, end)
-            self._enter_insert()
+            changed = self.cx < len(line)
+            if changed:
+                self._snapshot()
+                self._delete_range(self.cy, self.cx, self.cy, min(self.cx + n, len(line)))
+            self._enter_insert(snapshot=not changed)
         elif key == "p":
             if self.register:
                 self._start_dot(n, "p")
@@ -403,24 +413,20 @@ class ModeMixin:
             self.cmd_cx = 0
         elif key == "i":
             self._start_dot(n, "i")
-            self._snapshot()
-            self._enter_insert()
+            self._enter_insert(snapshot=True)
         elif key == "a":
             self._start_dot(n, "a")
-            self._snapshot()
             self.cx += 1
-            self._enter_insert()
+            self._enter_insert(snapshot=True)
         elif key == "I":
             self._start_dot(n, "I")
-            self._snapshot()
             line = self.buf.lines[self.cy]
             self.cx = len(line) - len(line.lstrip())
-            self._enter_insert()
+            self._enter_insert(snapshot=True)
         elif key == "A":
             self._start_dot(n, "A")
-            self._snapshot()
             self.cx = len(self.buf.lines[self.cy])
-            self._enter_insert()
+            self._enter_insert(snapshot=True)
         elif key == "v":
             self.vx, self.vy = self.cx, self.cy
             self.mode = Mode.VISUAL
@@ -468,6 +474,7 @@ class ModeMixin:
         if self.mode == Mode.INSERT:
             if not text:
                 return
+            self._prepare_insert_change()
             line = self.buf.lines[self.cy]
             before, after = line[:self.cx], line[self.cx:]
             parts = text.split("\n")
@@ -500,11 +507,13 @@ class ModeMixin:
         if key == "ESC":
             # Save dot recording if active
             self._save_dot()
+            self._insert_snapshot_pending = False
             # Stay in place — vig divergence from vi
             self.mode = Mode.NORMAL
             self._clamp_cursor()
             return
         if key == "ENTER":
+            self._prepare_insert_change()
             line = self.buf.lines[self.cy]
             self.buf.lines[self.cy] = line[:self.cx]
             indent = ""
@@ -516,12 +525,14 @@ class ModeMixin:
             self.buf.dirty = True
         elif key == "BACKSPACE":
             if self.cx > 0:
+                self._prepare_insert_change()
                 line = self.buf.lines[self.cy]
                 self.buf.lines[self.cy] = line[:self.cx - 1] + line[self.cx:]
                 self.cx -= 1
                 self.buf.dirty = True
             elif self.cy > 0:
                 # Join with previous line
+                self._prepare_insert_change()
                 prev = self.buf.lines[self.cy - 1]
                 cur = self.buf.lines.pop(self.cy)
                 self.cy -= 1
@@ -531,6 +542,7 @@ class ModeMixin:
         elif key in ("LEFT", "RIGHT", "UP", "DOWN", "HOME", "END"):
             self._exec_motion(key, 1)
         elif key == "TAB":
+            self._prepare_insert_change()
             line = self.buf.lines[self.cy]
             if self._effective_filetype() == "make":
                 self.buf.lines[self.cy] = line[:self.cx] + "\t" + line[self.cx:]
@@ -543,9 +555,11 @@ class ModeMixin:
         elif key == "DEL":
             line = self.buf.lines[self.cy]
             if self.cx < len(line):
+                self._prepare_insert_change()
                 self.buf.lines[self.cy] = line[:self.cx] + line[self.cx + 1:]
                 self.buf.dirty = True
         elif len(key) == 1:
+            self._prepare_insert_change()
             # WORD boundary checkpoint: snapshot every 2 WORDs
             is_space = key.isspace()
             if not is_space and self._insert_last_space:
@@ -605,7 +619,6 @@ class ModeMixin:
                 if sel:
                     sy, sx, ey, ex = sel
                     self._remember_visual_selection()
-                    self._snapshot()
                     self._toggle_comment(sy, ey - sy + 1)
                 self.mode = Mode.NORMAL
                 return
@@ -614,7 +627,6 @@ class ModeMixin:
                 if sel:
                     sy, sx, ey, ex = sel
                     self._remember_visual_selection()
-                    self._snapshot()
                     self._change_case_range(sy, sx, ey, min(ex + 1, len(self.buf.lines[ey])), self._case_func("g" + key))
                 self.mode = Mode.NORMAL
                 return
@@ -633,13 +645,11 @@ class ModeMixin:
             if sel:
                 sy, sx, ey, ex = sel
                 self._remember_visual_selection()
-                self._snapshot()
                 self._change_case_range(sy, sx, ey, min(ex + 1, len(self.buf.lines[ey])), str.swapcase)
             self.mode = Mode.NORMAL
             return
         if key in ("d", "x"):
             self._remember_visual_selection()
-            self._snapshot()
             self._visual_delete()
             return
         if key == "y":
@@ -648,16 +658,16 @@ class ModeMixin:
             return
         if key == "c":
             self._remember_visual_selection()
-            self._snapshot()
-            self._visual_delete()
-            self._enter_insert()
+            changed = self._visual_delete()
+            self._enter_insert(snapshot=not changed)
             return
         if key in (">", "<"):
             sel = self._selection_range()
             if sel:
                 sy, _, ey, _ = sel
                 self._remember_visual_selection()
-                self._snapshot()
+                if key == ">":
+                    self._snapshot()
                 (self._indent_lines if key == ">" else self._dedent_lines)(sy, ey - sy + 1)
             self.mode = Mode.NORMAL
             self._clamp_cursor()
@@ -687,8 +697,12 @@ class ModeMixin:
         if not linewise:
             # Include the end character
             ex = min(ex + 1, len(self.buf.lines[ey]))
-        self._delete_range(sy, sx, ey, ex, linewise)
+        changed = self._range_changes(sy, sx, ey, ex, linewise)
+        if changed:
+            self._snapshot()
+            self._delete_range(sy, sx, ey, ex, linewise)
         self.mode = Mode.NORMAL
+        return changed
 
     def _visual_yank(self):
         """Yank the visual selection."""

@@ -25,7 +25,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — concise in-editor command and option help opened by `:help`
 - `example-config` — every supported startup option shown at its runtime default
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 365 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 380 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -132,8 +132,8 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Snapshot placement** — snapshots are taken at two granularities:
 
-- Atomic: before any destructive Normal/Visual mode operation (`dd`, `d{motion}`, `D`, `C`, `cc`, `c{motion}`, `p`, `P`, visual `d`/`x`/`c`/`>`/`<`, substitute, `>>`, `<<`, `gcc`). Also before entering Insert mode from `i`/`a`/`I`/`A`/`o`/`O`.
-- Periodic during Insert: every 2 WORD boundaries (space→non-space transitions) typed from the keyboard. This breaks long insert sessions into undoable chunks of ~2 words each.
+- Atomic: before any destructive Normal/Visual mode operation (`dd`, `d{motion}`, `D`, `C`, `cc`, `c{motion}`, `p`, `P`, visual `d`/`x`/`c`/`>`/`<`, substitute, `>>`, `<<`, `gcc`). Insert entry through `i`/`a`/`I`/`A` defers its initial snapshot until the first mutation; `o`/`O` snapshot immediately because opening the line is itself a mutation.
+- Periodic during Insert: every 2 WORD boundaries (space→non-space transitions) typed from the keyboard. This breaks long insert sessions into undoable chunks of ~2 words each. No-op edits are preflighted so they neither add undo entries nor clear redo history; case transforms, dedents, comments, empty ranges, identity filters, and empty Insert sessions share this rule.
 
 **Dirty flag with undo** — `_undo_save_depth` records `len(_undo_stack)` at the last save. `_undo_branched` is set `True` when clearing the redo stack would discard the save point (i.e., the user undid past the save, then made a new edit). `_update_dirty()` sets `buf.dirty = (len(_undo_stack) != _undo_save_depth) or _undo_branched`. On save, `_undo_save_depth` is updated and `_undo_branched` is cleared. Each buffer has its own undo/redo stacks stored in its `BufferState`.
 
@@ -199,7 +199,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 365 test functions organized into 77 phase groups (selectors 1–78, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 380 test functions organized into 78 phase groups (selectors 1–79, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 ### Workflow for AI Agents
 

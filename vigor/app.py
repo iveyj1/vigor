@@ -87,6 +87,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             setattr(self, attr, default)
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
+        self._insert_snapshot_pending = False
         self.last_find = None       # (cmd, ch) for f/t/F/T repeat
         self._last_action = None    # (count, keys) for dot repeat
         self._recording_keys = []   # keys being recorded for dot

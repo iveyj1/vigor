@@ -10,7 +10,6 @@ None
 None
 
 ### On Hold
-1. If not already done, remove remaining no-op undo snapshots, especially Insert entry/exit without mutation, case transforms that make no change, dedent on unindented lines, and empty Visual ranges.
 1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
 1. Add \v search modifier
 1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
@@ -22,6 +21,7 @@ None
 1. add 'kjk' alias for <esc> in insert mode(s)
 
 ### Completed
+1. Remove no-op undo boundaries without clearing redo history, including empty Insert sessions, unchanged case/comment transforms, unindented dedents, empty character/line ranges, identity filters, and ineffective single-key edits.
 1. Complete the state-coupling refactor: declarative `:set` option metadata, timer-only dirty callbacks with explicit recovery cleanup, and property-based per-buffer state with no save/load mirrors; see `proposals/state-coupling-refactor.md`. Startup-sequence restructuring remains deferred until a concrete failure motivates it.
 1. Add per-buffer `gv` restoration of the last characterwise or linewise Visual selection, including clamping after mutations.
 1. Add `>` / `<` indentation to both Visual modes and complete the existing Normal operator forms for motions and text objects.

@@ -470,6 +470,9 @@ class CommandMixin:
             self._add_buffer(bs)
             self.msg = "[Filter output]"
             return
+        if self.buf.lines[sy:ey + 1] == new_lines:
+            self.msg = "(no change)"
+            return
         self._snapshot()
         self.buf.lines[sy:ey + 1] = new_lines
         if not self.buf.lines:
