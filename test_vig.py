@@ -3739,6 +3739,18 @@ def test_wordwrap_prefers_whitespace_breaks():
     print("  PASS: wordwrap prefers whitespace breaks")
 
 
+def test_wordwrap_wrapmove_crosses_breakpoint():
+    """A whitespace wrap boundary belongs to the next row, so j cannot stick there."""
+    path = write_temp("one two three\nnext\n")
+    screen, _, code = run_vig(
+        b":set wrapcol=10\r:set wrap\r:set wordwrap\r:set wrapmove\rjj:q\r",
+        file_path=path, cols=80, rows=8,
+    )
+    os.unlink(path)
+    assert code == 0 and "2:1 \x1b[m" in last_frame(screen)
+    print("  PASS: wordwrap wrapmove crosses breakpoint")
+
+
 # ── Phase 60: markdown fence hiding ────────────────────────────────────────
 
 def write_named_temp(content, suffix):
@@ -5358,6 +5370,7 @@ def main():
             test_wrapcol_validation_and_startup_config,
             test_bare_wrapcol_uses_cursor_column,
             test_wordwrap_prefers_whitespace_breaks,
+            test_wordwrap_wrapmove_crosses_breakpoint,
         ]),
         ("60", "Phase 60 — markdown fence hiding", [
             test_markdownfences_hides_backtick_and_tilde_fences,

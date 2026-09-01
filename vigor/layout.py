@@ -151,8 +151,6 @@ class ViewportLayout:
         for i, (start, end) in enumerate(segments):
             if start <= display_x < end or start == end == display_x:
                 return i, display_x - start
-            if display_x == end and end - start < self.wrap_cols:
-                return i, display_x - start
         if not segments:
             return 0, 0
         i, (start, end) = len(segments) - 1, segments[-1]
