@@ -2,6 +2,7 @@ VIGOR HELP
 
 Run `vig tutor` for an exercise-driven introduction.
 See `reference.md` for detailed semantics and deliberate vi divergences.
+[RO] marks files without write mode bits; their first in-memory edit warns once.
 
 KEY / COMMAND       ACTION
 

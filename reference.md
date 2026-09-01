@@ -210,6 +210,7 @@ For an unrecognized one-key Space combination, Space is a no-op and the followin
 
 Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o` to open it. `<space>j`/`<space>k` navigate and open remembered quickfix items from either quickfix or source buffers. A successful open shows the acted-on quickfix line in the message bar. `<space>c` returns to quickfix.
 | Status bar `[N/M]` | shown when >1 buffer open |
+| Status bar `[RO]` | file has no write mode bits; first in-memory edit warns once |
 
 ### Insert Mode
 | Key | Action |

@@ -5012,6 +5012,32 @@ def test_wrapped_edge_motions_work_in_operators_and_visual():
     print("  PASS: wrapped edge motions work in operators and Visual")
 
 
+# ── Phase 81: read-only buffer warning ─────────────────────────────────────
+
+def test_readonly_file_marks_status_and_warns_on_first_edit():
+    """Mode bits mark read-only buffers while edits remain allowed in memory."""
+    path = write_temp("one\n")
+    os.chmod(path, 0o444)
+    try:
+        screen, content, code = run_vig(b"iX\x1b:q!\r", file_path=path)
+    finally:
+        os.chmod(path, 0o644)
+        os.unlink(path)
+    assert code == 0 and content == "one\n"
+    assert "[RO]" in screen and screen.count("Warning: editing a read-only file") == 1
+    print("  PASS: read-only file marks status and warns on first edit")
+
+
+def test_writable_file_has_no_readonly_marker():
+    """Ordinary writable files do not show read-only state or warnings."""
+    path = write_temp("one\n")
+    screen, content, code = run_vig(b"iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "Xone\n" and "[RO]" not in screen
+    assert "read-only" not in screen
+    print("  PASS: writable file has no read-only marker")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5574,6 +5600,10 @@ def main():
         ("80", "Phase 80 — wrapped-row edge motions", [
             test_wrapped_row_edge_motions,
             test_wrapped_edge_motions_work_in_operators_and_visual,
+        ]),
+        ("81", "Phase 81 — read-only buffer warning", [
+            test_readonly_file_marks_status_and_warns_on_first_edit,
+            test_writable_file_has_no_readonly_marker,
         ]),
     ]
 

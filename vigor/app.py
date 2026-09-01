@@ -224,6 +224,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 self._undo_save_depth = len(self._undo_stack)
                 self._undo_branched = False
                 self._delete_recovery(self.buffers[self.buf_idx])
+                self._refresh_readonly(self.buffers[self.buf_idx])
                 if close_after:
                     if len(self.buffers) > 1:
                         self._close_buffer()
@@ -276,6 +277,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 return
         self.buf.dirty = False
         self._delete_recovery(self.buffers[self.buf_idx])
+        self._refresh_readonly(self.buffers[self.buf_idx])
         self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         self.cx = self.cy = self.scroll = self._wrap_skip = 0
         self._undo_stack.clear()
@@ -392,8 +394,19 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             except OSError:
                 pass
 
+    def _refresh_readonly(self, bs):
+        try:
+            bs.readonly = bool(bs.buf.path and os.path.exists(bs.buf.path)
+                               and not os.stat(bs.buf.path).st_mode & 0o222)
+        except OSError:
+            bs.readonly = False
+        bs.readonly_warned = False
+
     def _dirty_changed(self, bs, dirty):
-        """Schedule or clear timed file protectors when dirty state changes."""
+        """Schedule protectors and warn once when editing a read-only file."""
+        if dirty and bs.readonly and not bs.readonly_warned:
+            bs.readonly_warned = True
+            self.msg = "Warning: editing a read-only file"
         if dirty and bs.buf.path:
             now = time.monotonic()
             bs.autosave_deadline = now + self.opt_autosavedelay / 1000 if self.opt_autosave else None
@@ -420,6 +433,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         try:
             bs.buf.save()
             self._delete_recovery(bs)
+            self._refresh_readonly(bs)
             depth = len(bs._undo_stack)
             bs._undo_save_depth, bs._undo_branched = depth, False
             self.msg = f'"{bs.buf.path}" autosaved'
@@ -450,8 +464,9 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 self._recovery_state(bs)
 
     def _initialize_buffer_detection(self, bs):
-        """Capture current detection policy and prepare automatic Markdown view."""
+        """Capture file policies and prepare automatic Markdown view."""
         bs.buf.dirty_callback = lambda dirty, state=bs: self._dirty_changed(state, dirty)
+        self._refresh_readonly(bs)
         if bs.autodetect is not None:
             return
         if bs.buf.path and os.path.exists(self._recovery_path(bs.buf.path)):
