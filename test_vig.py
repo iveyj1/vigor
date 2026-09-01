@@ -5058,6 +5058,31 @@ def test_relative_range_rejects_out_of_bounds_endpoint():
     print("  PASS: relative range rejects out-of-bounds endpoint")
 
 
+# ── Phase 83: filtered command history ─────────────────────────────────────
+
+def test_command_history_filters_by_typed_prefix():
+    """Up searches only history entries beginning with the current command draft."""
+    path = write_temp("one\n")
+    keys = b":set wrapcol=3\r:set number\r:set w\x1b[A\r:q\r"
+    screen, _, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and "wrapcol=3" in screen
+    assert "Unknown option: w" not in screen
+    print("  PASS: command history filters by typed prefix")
+
+
+def test_filtered_history_restores_draft_and_ignores_no_match():
+    """Down restores the draft, while Up with no prefix match leaves it unchanged."""
+    path = write_temp("one\n")
+    keys = (b":set wrap\r:set number\r:set w\x1b[A\x1b[B\r"
+            b":missing\x1b[A\r:q\r")
+    screen, _, code = run_vig(keys, file_path=path)
+    os.unlink(path)
+    assert code == 0 and "Unknown option: w" in screen
+    assert "Not a command: missing" in screen
+    print("  PASS: filtered history restores draft and ignores no match")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5628,6 +5653,10 @@ def main():
         ("82", "Phase 82 — relative command ranges", [
             test_relative_ranges_work_for_substitute_and_filter,
             test_relative_range_rejects_out_of_bounds_endpoint,
+        ]),
+        ("83", "Phase 83 — filtered command history", [
+            test_command_history_filters_by_typed_prefix,
+            test_filtered_history_restores_draft_and_ignores_no_match,
         ]),
     ]
 

@@ -51,21 +51,26 @@ class CommandMixin:
     def _reset_history_nav(self):
         self._hist_idx = None
         self._hist_draft = ""
+        self._hist_matches = []
 
-    def _history_nav(self, hist, older):
+    def _history_nav(self, hist, older, prefix=False):
         if not hist:
             return
         if self._hist_idx is None:
             self._hist_draft = self.cmd
-            self._hist_idx = len(hist)
+            self._hist_matches = ([item for item in hist if item.startswith(self.cmd)]
+                                  if prefix else hist)
+            if not self._hist_matches:
+                return
+            self._hist_idx = len(self._hist_matches)
         self._hist_idx += -1 if older else 1
         if self._hist_idx < 0:
             self._hist_idx = 0
-        if self._hist_idx >= len(hist):
+        if self._hist_idx >= len(self._hist_matches):
             self._hist_idx = None
             self.cmd = self._hist_draft
         else:
-            self.cmd = hist[self._hist_idx]
+            self.cmd = self._hist_matches[self._hist_idx]
         self.cmd_cx = len(self.cmd)
 
     def _add_history(self, hist, text):
@@ -200,10 +205,10 @@ class CommandMixin:
             self._clear_completion()
             return
         if key == "UP":
-            self._history_nav(self.cmd_history, older=True)
+            self._history_nav(self.cmd_history, older=True, prefix=True)
             return
         if key == "DOWN":
-            self._history_nav(self.cmd_history, older=False)
+            self._history_nav(self.cmd_history, older=False, prefix=True)
             return
         if key == "TAB":
             self._start_completion()

@@ -13,8 +13,6 @@ None
 
 Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies.
 
-1. Filter command history using the partially typed command line.
-   **High feasibility; 20–40 lines.** Existing history navigation is a suitable seam. Define whether matching is prefix-only or substring-based and preserve the unsubmitted draft when navigation returns past the newest match.
 1. Detect when a named file changed on disk after it was opened or written.
    **Moderate feasibility; 35–60 lines.** Store a per-buffer disk signature and check on buffer focus and before writes. Specify whether detection only warns, blocks writes, or offers reload; account for deletion, replacement, autosave, and vigor's own writes.
 1. Add optional incremental-search scrolling when no preview hit is visible.
@@ -41,6 +39,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Filter `:` command history by the typed prefix while preserving and restoring the unsubmitted draft.
 1. Share filter/substitute range parsing with absolute, `.`, `$`, and current-line-relative `+N`/`-N` endpoints.
 1. Mark files with no write mode bits as `[RO]`, allow in-memory editing, and warn once per buffer on the first mutation.
 1. Add `g0`, `g^`, and `g$` wrapped-row motions in Normal, Visual, and operator-pending modes; defer special `I`/`A` behavior.

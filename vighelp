@@ -38,7 +38,7 @@ v V / gv            visual character / line; reselect last
 * # / g* g#         word search; whole / partial
 n N                 repeat search / reverse
 
-:command            enter command prompt; arrows edit/history, Tab completes
+:command            enter command prompt; Up filters history by typed prefix
 :w [path]           write current buffer
 :q / :q! / :wq      quit / force quit / write and quit
 :qa / :qa!          quit all / force quit all
