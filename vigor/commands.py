@@ -9,6 +9,35 @@ from .highlight import ANSI_ESCAPE
 from .state import BufferState, Mode
 
 
+# name: (kind, Editor attribute, default, validation, change hook)
+OPTIONS = {
+    "wrap": ("bool", "opt_wrap", False, None, "_ensure_scroll"),
+    "wrapcol": ("int", "opt_wrapcol", 0, (0, None), "_ensure_scroll"),
+    "list": ("bool", "opt_list", False, None, None),
+    "wordwrap": ("bool", "opt_wordwrap", False, None, "_ensure_scroll"),
+    "wrapmove": ("bool", "opt_wrapmove", False, None, None),
+    "number": ("bool", "opt_number", False, None, None),
+    "relativenumber": ("bool", "opt_relnum", False, None, None),
+    "autoindent": ("bool", "opt_autoindent", True, None, None),
+    "comment": ("str", "opt_comment", "#", None, None),
+    "scrolloff": ("int", "opt_scrolloff", 0, (0, None), None),
+    "clipboard": ("enum", "opt_clipboard", "auto", ("osc52", "auto", "off"), None),
+    "mouse": ("enum", "opt_mouse", "off", ("off", "scroll", "cursor", "visual"), "_set_mouse"),
+    "yankflash": ("int", "opt_yankflash", 300, (0, None), None),
+    "delcopy": ("bool", "opt_delcopy", True, None, None),
+    "rghidden": ("bool", "opt_rghidden", False, None, None),
+    "hlsearch": ("bool", "opt_hlsearch", False, None, None),
+    "markdownfences": ("bool", "opt_markdownfences", False, None, None),
+    "autodetect": ("bool", "opt_autodetect", True, None, None),
+    "saveversions": ("int", "opt_saveversions", 0, (0, 100), None),
+    "autosave": ("bool", "opt_autosave", False, None, "_reschedule_autosaves"),
+    "autosavedelay": ("int", "opt_autosavedelay", 1000, (0, None), "_reschedule_autosaves"),
+    "recovery": ("bool", "opt_recovery", False, None, "_reschedule_recovery"),
+    "recoverydelay": ("int", "opt_recoverydelay", 1000, (0, None), "_reschedule_recovery"),
+    "makeprg": ("str", "opt_makeprg", "make", None, None),
+}
+
+
 class CommandMixin:
     """Command subsystem mixed into the application orchestrator."""
 
@@ -686,195 +715,52 @@ class CommandMixin:
             except Exception as e:
                 self.msg = str(e)
 
+    def _set_mouse(self):
+        term = getattr(self, "term", None)
+        if term:
+            term.set_mouse(self.opt_mouse)
+
     def _exec_set(self, arg):
-        """Handle :set <option> commands."""
+        """Handle :set <option> commands from the declarative option table."""
         if not arg:
             self.msg = "Argument required"
             return
         opt = arg.strip()
-        if opt == "wrap":
-            self.opt_wrap = True
-            self.msg = "wrap on"
-            self._ensure_scroll()
-        elif opt == "nowrap":
-            self.opt_wrap = False
-            self.msg = "wrap off"
-            self._ensure_scroll()
-        elif opt == "wrapcol" or opt.startswith("wrapcol="):
-            if opt == "wrapcol":
-                val = self._cursor_display_col() + 1
-            else:
-                try:
-                    val = int(opt[len("wrapcol="):])
-                    if val < 0:
-                        raise ValueError
-                except ValueError:
-                    self.msg = "wrapcol must be >= 0"
-                    return
-            self.opt_wrapcol = val
-            self.msg = f"wrapcol={val}"
-            self._ensure_scroll()
-        elif opt == "list":
-            self.opt_list = True
-            self.msg = "list on"
-        elif opt == "nolist":
-            self.opt_list = False
-            self.msg = "list off"
-        elif opt == "wordwrap":
-            self.opt_wordwrap = True
-            self.msg = "wordwrap on"
-            self._ensure_scroll()
-        elif opt == "nowordwrap":
-            self.opt_wordwrap = False
-            self.msg = "wordwrap off"
-            self._ensure_scroll()
-        elif opt == "number":
-            self.opt_number = True
-            self.msg = "number on"
-        elif opt == "nonumber":
-            self.opt_number = False
-            self.msg = "number off"
-        elif opt == "relativenumber":
-            self.opt_relnum = True
-            self.msg = "relativenumber on"
-        elif opt == "norelativenumber":
-            self.opt_relnum = False
-            self.msg = "relativenumber off"
-        elif opt == "autoindent":
-            self.opt_autoindent = True
-            self.msg = "autoindent on"
-        elif opt == "noautoindent":
-            self.opt_autoindent = False
-            self.msg = "autoindent off"
-        elif opt.startswith("comment="):
-            self.opt_comment = opt[8:]
-            self.msg = f"comment={self.opt_comment}"
-        elif opt.startswith("scrolloff="):
-            try:
-                val = int(opt[len("scrolloff="):])
-                if val < 0:
-                    raise ValueError
-            except ValueError:
-                self.msg = "scrolloff must be >= 0"
-                return
-            self.opt_scrolloff = val
-            self.msg = f"scrolloff={val}"
-        elif opt.startswith("clipboard="):
-            val = opt[len("clipboard="):]
-            if val not in ("osc52", "auto", "off"):
-                self.msg = "clipboard must be osc52, auto, or off"
-                return
-            self.opt_clipboard = val
-            self.msg = f"clipboard={val}"
-        elif opt.startswith("mouse="):
-            val = opt[len("mouse="):]
-            if val not in ("off", "scroll", "cursor", "visual"):
-                self.msg = "mouse must be off, scroll, cursor, or visual"
-                return
-            self.opt_mouse = val
-            term = getattr(self, "term", None)
-            if term:
-                term.set_mouse(val)
-            self.msg = f"mouse={val}"
-        elif opt.startswith("yankflash="):
-            try:
-                val = int(opt[len("yankflash="):])
-                if val < 0:
-                    raise ValueError
-            except ValueError:
-                self.msg = "yankflash must be >= 0"
-                return
-            self.opt_yankflash = val
-            self.msg = f"yankflash={val}"
-        elif opt == "autosave":
-            self.opt_autosave = True
-            self._reschedule_autosaves()
-            self.msg = "autosave on"
-        elif opt == "noautosave":
-            self.opt_autosave = False
-            self._reschedule_autosaves()
-            self.msg = "autosave off"
-        elif opt.startswith("autosavedelay="):
-            try:
-                val = int(opt[len("autosavedelay="):])
-                if val < 0:
-                    raise ValueError
-            except ValueError:
-                self.msg = "autosavedelay must be >= 0"
-                return
-            self.opt_autosavedelay = val
-            self._reschedule_autosaves()
-            self.msg = f"autosavedelay={val}"
-        elif opt == "recovery":
-            self.opt_recovery = True
-            self._reschedule_recovery()
-            self.msg = "recovery on"
-        elif opt == "norecovery":
-            self.opt_recovery = False
-            self._reschedule_recovery()
-            self.msg = "recovery off"
-        elif opt.startswith("recoverydelay="):
-            try:
-                val = int(opt[len("recoverydelay="):])
-                if val < 0:
-                    raise ValueError
-            except ValueError:
-                self.msg = "recoverydelay must be >= 0"
-                return
-            self.opt_recoverydelay = val
-            self._reschedule_recovery()
-            self.msg = f"recoverydelay={val}"
-        elif opt.startswith("saveversions="):
-            try:
-                val = int(opt[len("saveversions="):])
-                if not 0 <= val <= 100:
-                    raise ValueError
-            except ValueError:
-                self.msg = "saveversions must be 0..100"
-                return
-            self.opt_saveversions = val
-            self.msg = f"saveversions={val}"
-        elif opt == "delcopy":
-            self.opt_delcopy = True
-            self.msg = "delcopy on"
-        elif opt == "nodelcopy":
-            self.opt_delcopy = False
-            self.msg = "delcopy off"
-        elif opt == "wrapmove":
-            self.opt_wrapmove = True
-            self.msg = "wrapmove on"
-        elif opt == "nowrapmove":
-            self.opt_wrapmove = False
-            self.msg = "wrapmove off"
-        elif opt == "markdownfences":
-            self.opt_markdownfences = True
-            self.msg = "markdownfences on"
-        elif opt == "nomarkdownfences":
-            self.opt_markdownfences = False
-            self.msg = "markdownfences off"
-        elif opt == "autodetect":
-            self.opt_autodetect = True
-            self.msg = "autodetect on"
-        elif opt == "noautodetect":
-            self.opt_autodetect = False
-            self.msg = "autodetect off"
-        elif opt == "rghidden":
-            self.opt_rghidden = True
-            self.msg = "rghidden on"
-        elif opt == "norghidden":
-            self.opt_rghidden = False
-            self.msg = "rghidden off"
-        elif opt == "hlsearch":
-            self.opt_hlsearch = True
-            self.msg = "hlsearch on"
-        elif opt == "nohlsearch":
-            self.opt_hlsearch = False
-            self.msg = "hlsearch off"
-        elif opt.startswith("makeprg="):
-            self.opt_makeprg = opt[len("makeprg="):]
-            self.msg = f"makeprg={self.opt_makeprg}"
-        else:
+        if opt == "wrapcol":
+            opt = f"wrapcol={self._cursor_display_col() + 1}"
+        name, sep, raw = opt.partition("=")
+        enabled = True
+        spec = OPTIONS.get(name)
+        if not spec and not sep and name.startswith("no"):
+            name, enabled = name[2:], False
+            spec = OPTIONS.get(name)
+        if not spec or (spec[0] == "bool") != (not sep):
             self.msg = f"Unknown option: {opt}"
+            return
+        kind, attr, _, valid, hook = spec
+        if kind == "bool":
+            value = enabled
+        elif kind == "str":
+            value = raw
+        elif kind == "enum":
+            if raw not in valid:
+                self.msg = f"{name} must be {', '.join(valid[:-1])}, or {valid[-1]}"
+                return
+            value = raw
+        else:
+            try:
+                value = int(raw)
+                low, high = valid
+                if value < low or high is not None and value > high:
+                    raise ValueError
+            except ValueError:
+                limit = f">= {valid[0]}" if valid[1] is None else f"{valid[0]}..{valid[1]}"
+                self.msg = f"{name} must be {limit}"
+                return
+        setattr(self, attr, value)
+        if hook:
+            getattr(self, hook)()
+        self.msg = f"{name} {'on' if value else 'off'}" if kind == "bool" else f"{name}={value}"
 
     def _exec_substitute(self, m):
         """Execute :[range]s/pat/repl/[g] substitute command."""

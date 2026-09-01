@@ -7,7 +7,7 @@ import shutil
 import select
 import time
 
-from .commands import CommandMixin
+from .commands import CommandMixin, OPTIONS
 from .editing import EditingMixin
 from .highlight import build_markdown_view, filetype_for_path
 from .layout import RenderMixin
@@ -74,34 +74,12 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.search_pattern = ""  # last / or ? search
         self.search_ignorecase = False  # smart-case flag for active search
         self.search_dir = 1  # 1=forward, -1=backward
-        self.opt_wrap = False  # :set wrap
-        self.opt_wrapcol = 0  # :set wrapcol=N (0 uses terminal width)
-        self.opt_list = False  # :set list/nolist shows tabs visibly
-        self.opt_wordwrap = False  # :set wordwrap/nowordwrap prefers whitespace breaks
-        self.opt_number = False  # :set number
-        self.opt_relnum = False  # :set relativenumber
-        self.opt_scrolloff = 0  # :set scrolloff=N
-        self.opt_clipboard = "auto"  # :set clipboard=osc52|auto|off
-        self.opt_mouse = "off"  # :set mouse=off|scroll|cursor|visual
-        self.opt_yankflash = 300  # :set yankflash=N milliseconds
-        self.opt_delcopy = True  # :set delcopy/nodelcopy
-        self.opt_wrapmove = False  # :set wrapmove/nowrapmove
-        self.opt_markdownfences = False  # :set markdownfences/nomarkdownfences
-        self.opt_rghidden = False  # :set rghidden/norghidden
-        self.opt_hlsearch = False  # :set hlsearch/nohlsearch
-        self.opt_makeprg = "make"  # :set makeprg=<shell command>
-        self.opt_autodetect = True  # detect syntax and Markdown for newly opened buffers
-        self.opt_saveversions = 0  # prior disk versions retained on explicit writes
-        self.opt_autosave = False
-        self.opt_autosavedelay = 1000  # idle milliseconds before autosave
-        self.opt_recovery = False
-        self.opt_recoverydelay = 1000  # idle milliseconds before panic backup
+        for _, attr, default, _, _ in OPTIONS.values():
+            setattr(self, attr, default)
         self._wrap_skip = 0  # wrapped display rows to skip at top line
         self._insert_word_count = 0 # WORD boundaries since last snapshot
         self._insert_last_space = True  # for WORD boundary counting
         self.last_find = None       # (cmd, ch) for f/t/F/T repeat
-        self.opt_autoindent = True  # autoindent on Enter
-        self.opt_comment = "#"      # comment character for toggle
         self._last_action = None    # (count, keys) for dot repeat
         self._recording_keys = []   # keys being recorded for dot
         self._recording = False     # currently recording for dot

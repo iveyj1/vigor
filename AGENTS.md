@@ -52,7 +52,7 @@ Commit at the end of each completed development phase. Do not leave partial or f
 
 **ANSI, not curses.** All terminal control uses escape sequences written to stdout. This gives us complete control over what bytes hit the terminal and keeps the rendering logic transparent.
 
-**Config and help maintenance.** Whenever a config option is added, removed, renamed, or its default changes, update `example-config` so it lists every supported option at its runtime default. Update `vighelp`, `reference.md`, and the option lists in this file in the same phase.
+**Config and help maintenance.** `vigor.commands.OPTIONS` is the authoritative declaration of option kinds, attributes, defaults, validation, and change hooks; `Editor` derives its `opt_*` defaults from it and `_exec_set` interprets it. Keep exceptional behavior in small explicit hooks rather than growing another option-dispatch chain. Whenever an option is added, removed, renamed, or its default changes, update `example-config` so it lists every supported option at its runtime default. Update `vighelp`, `reference.md`, and the option lists in this file in the same phase.
 
 
 ### Requirements

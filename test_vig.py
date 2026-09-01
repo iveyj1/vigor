@@ -11,6 +11,8 @@ import select
 import shutil
 import re
 
+from vigor.commands import OPTIONS
+
 VIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vig")
 VIG_DIAGNOSTICS = os.path.join(os.path.dirname(VIG), "scripts", "vig-diagnostics")
 FRAME_MARKER = b"\x1b[?25l\x1b[H"
@@ -4733,13 +4735,8 @@ def test_recovery_options_validate_and_load_from_config():
 def test_example_config_lists_all_runtime_defaults():
     """The example contains each supported startup option exactly once at its default."""
     expected = [
-        "set nowrap", "set wrapcol=0", "set nolist", "set nowordwrap", "set nowrapmove", "set nonumber",
-        "set norelativenumber", "set autoindent", "set comment=#",
-        "set scrolloff=0", "set clipboard=auto", "set mouse=off",
-        "set yankflash=300", "set delcopy", "set norghidden",
-        "set nohlsearch", "set nomarkdownfences", "set autodetect",
-        "set saveversions=0", "set noautosave", "set autosavedelay=1000",
-        "set norecovery", "set recoverydelay=1000", "set makeprg=make",
+        "set " + (("" if default else "no") + name if kind == "bool" else f"{name}={default}")
+        for name, (kind, _, default, _, _) in OPTIONS.items()
     ]
     path = os.path.join(os.path.dirname(VIG), "example-config")
     lines = [line.strip() for line in open(path) if line.strip() and not line.startswith("#")]
@@ -4758,11 +4755,7 @@ def test_vighelp_covers_commands_and_config_options():
                 ":help", ":md", ":nomd", ":ft", ":cd", ":cdb", ":pwd",
                 ":read", ":!command", ":[range]!command", ":[range]s/",
                 ":make", ":qf", ":rg", ":rgf")
-    options = ("wrap", "wrapcol", "list", "wordwrap", "wrapmove", "number", "relativenumber",
-               "autoindent", "comment", "scrolloff", "clipboard", "mouse",
-               "yankflash", "delcopy", "rghidden", "hlsearch", "markdownfences",
-               "autodetect", "saveversions", "autosave", "autosavedelay",
-               "recovery", "recoverydelay", "makeprg")
+    options = OPTIONS
     assert all(command in help_text for command in commands)
     assert all(f":set {option}" in help_text for option in options)
     print("  PASS: vighelp covers commands and config options")
