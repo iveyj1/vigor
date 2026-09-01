@@ -94,7 +94,7 @@ The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKD
 | `*` / `#` | search the whole word under cursor forward / backward |
 | `g*` / `g#` | search the word under cursor as a partial match forward / backward |
 | `n` / `N` | next / previous match; successful searches center when practical |
-| `:[range]s/pat/repl/[g]` | substitute (any delimiter; range: `%`, `N,M`) |
+| `:[range]s/pat/repl/[g]` | substitute (any delimiter; endpoints: `N`, `.`, `$`, `+N`, `-N`) |
 
 ### Command/Search Input
 - In `:` command mode, Up/Down browse command history.
@@ -139,7 +139,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
 | `:! <cmd>` / `:!<cmd>` | run shell command and show one-line truncated output in message bar |
-| `:[range]!<cmd>` | pipe lines to shell command stdin and replace the range with stdout (`%`, `.`, `$`, `N,M`) |
+| `:[range]!<cmd>` | pipe lines to shell command stdin and replace the range (`%`; endpoints `N`, `.`, `$`, `+N`, `-N`) |
 | `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
 | `:set wrap` / `nowrap` | toggle line wrapping |
 | `:set wrapcol[=<N>]` | wrap at most N content display columns; bare `wrapcol` uses the current cursor column; `0` uses terminal width |

@@ -58,7 +58,7 @@ n N                 repeat search / reverse
 :!command           run shell command; show one-line output
 :[range]!command    replace lines with command output
 :[range]!!command   open command output in a new buffer
-:[range]s/pat/repl/g substitute; range may be %, N, or N,M
+:[range]s/pat/repl/g substitute; endpoints: N, ., $, +N, -N
 :make [args]        run makeprg into quickfix
 :qf !command        run diagnostic command into quickfix
 :rg pattern [path]  ripgrep results into quickfix

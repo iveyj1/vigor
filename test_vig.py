@@ -5038,6 +5038,26 @@ def test_writable_file_has_no_readonly_marker():
     print("  PASS: writable file has no read-only marker")
 
 
+# ── Phase 82: relative command ranges ──────────────────────────────────────
+
+def test_relative_ranges_work_for_substitute_and_filter():
+    """Dot and signed endpoints resolve from the current line in both range users."""
+    path = write_temp("x1\nx2\nx3\nx4\nx5\n")
+    _, content, code = run_vig(b"jj:.,+1s/x/y/\r:-1,+1!tr y z\r:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "x1\nx2\nz3\nz4\nx5\n", content
+    print("  PASS: relative ranges work for substitute and filter")
+
+
+def test_relative_range_rejects_out_of_bounds_endpoint():
+    """A signed endpoint outside the buffer fails without partial substitution."""
+    path = write_temp("x1\nx2\n")
+    screen, content, code = run_vig(b":+9s/x/y/\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "x1\nx2\n" and "Invalid range: +9" in screen
+    print("  PASS: relative range rejects out-of-bounds endpoint")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5604,6 +5624,10 @@ def main():
         ("81", "Phase 81 — read-only buffer warning", [
             test_readonly_file_marks_status_and_warns_on_first_edit,
             test_writable_file_has_no_readonly_marker,
+        ]),
+        ("82", "Phase 82 — relative command ranges", [
+            test_relative_ranges_work_for_substitute_and_filter,
+            test_relative_range_rejects_out_of_bounds_endpoint,
         ]),
     ]
 

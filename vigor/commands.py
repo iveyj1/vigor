@@ -9,6 +9,9 @@ from .highlight import ANSI_ESCAPE
 from .state import BufferState, Mode
 
 
+_RANGE_ENDPOINT = r"(?:[.$]|\d+|[+-]\d+)"
+_RANGE = rf"(?:%|{_RANGE_ENDPOINT}(?:,{_RANGE_ENDPOINT})?)"
+
 # name: (kind, Editor attribute, default, validation, change hook)
 OPTIONS = {
     "wrap": ("bool", "opt_wrap", False, None, "_ensure_scroll"),
@@ -225,14 +228,15 @@ class CommandMixin:
 
         # ── Substitute command: [range]s/pat/repl/[g] ──
         sub_match = re.match(
-            r'^(%|(\d+)(,(\d+))?)?s([^a-zA-Z0-9\s])(.*?)\5(.*?)(?:\5([g]*))?$',
-            stripped
+            rf'^(?P<range>{_RANGE})?s(?P<delimiter>[^a-zA-Z0-9\s])'
+            rf'(?P<pattern>.*?)(?P=delimiter)(?P<replacement>.*?)'
+            rf'(?:(?P=delimiter)(?P<flags>g*))?$', stripped,
         )
         if sub_match:
             self._exec_substitute(sub_match)
             return
 
-        filter_match = re.match(r'^(%|[.$0-9]+(?:,[.$0-9]+)?)?(!!?)(.*)$', stripped)
+        filter_match = re.match(rf'^({_RANGE})?(!!?)(.*)$', stripped)
         if filter_match and (filter_match.group(1) or filter_match.group(2) == "!!"):
             self._exec_filter(filter_match.group(1), filter_match.group(3).strip(), new_buffer=filter_match.group(2) == "!!")
             self.mode = Mode.NORMAL
@@ -421,11 +425,8 @@ class CommandMixin:
             return self.cy
         if token == "$":
             return len(self.buf.lines) - 1
-        if token.isdigit():
-            n = int(token)
-            if 1 <= n <= len(self.buf.lines):
-                return n - 1
-        return None
+        target = self.cy + int(token) if re.fullmatch(r"[+-]\d+", token) else int(token) - 1
+        return target if 0 <= target < len(self.buf.lines) else None
 
     def _parse_filter_range(self, spec, default_all=False):
         if not spec:
@@ -767,27 +768,19 @@ class CommandMixin:
 
     def _exec_substitute(self, m):
         """Execute :[range]s/pat/repl/[g] substitute command."""
-        range_spec = m.group(1)  # '%' or '10' or '10,20' or None
-        start_str = m.group(2)   # first line number or None
-        end_str = m.group(4)     # second line number or None
-        pattern = m.group(6)
-        replacement = m.group(7)
-        flags_str = m.group(8) or ""
+        range_spec = m.group("range")
+        pattern = m.group("pattern")
+        replacement = m.group("replacement")
+        flags_str = m.group("flags") or ""
 
-        # Determine line range
-        if range_spec == "%":
-            start_line = 0
-            end_line = len(self.buf.lines) - 1
-        elif start_str is not None:
-            start_line = max(0, int(start_str) - 1)  # 1-indexed to 0-indexed
-            if end_str is not None:
-                end_line = min(int(end_str) - 1, len(self.buf.lines) - 1)
-            else:
-                end_line = start_line
+        if range_spec:
+            rng = self._parse_filter_range(range_spec)
+            if rng is None:
+                self.mode = Mode.NORMAL
+                return
+            start_line, end_line = rng
         else:
-            # No range: current line only
-            start_line = self.cy
-            end_line = self.cy
+            start_line = end_line = self.cy
 
         try:
             pat = re.compile(pattern)
