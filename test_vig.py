@@ -4675,7 +4675,7 @@ def test_recovery_warns_on_open_and_manual_write_clears_backup():
         screen, _, code = run_vig(b":wq\r", file_path=path)
         exists = os.path.exists(backup)
     assert code == 0 and not exists
-    assert "Recovery file exists:" in screen and "[REC]" in screen
+    assert "Recovery file" in screen and "found" in screen and "[REC]" in screen
     print("  PASS: recovery warns on open and write clears backup")
 
 
@@ -4691,6 +4691,23 @@ def test_recovery_marker_survives_status_truncation():
         screen, _, code = run_vig(b":q\r", file_path=path, cols=36)
     assert code == 0 and "[REC]" in last_frame(screen)
     print("  PASS: recovery marker survives status truncation")
+
+
+def test_startup_recovery_message_overrides_config_status():
+    """Opening a path directly reports its recovery file after config messages."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "foo")
+        backup = os.path.join(d, ".vigor-recover.foo")
+        config = os.path.join(d, "config")
+        open(path, "w").write("one\n")
+        open(backup, "w").write("draft\n")
+        open(config, "w").write("set makeprg=echo config-option\n")
+        screen, _, code = run_vig(b"", file_path=path, env={"VIG_CONFIG": config}, timeout=2.5, cols=120)
+    frame = last_frame(screen)
+    assert code == -99 and "[REC]" in frame
+    assert f'Recovery file "{backup}" found for "{path}"' in frame
+    assert "makeprg=echo config-option" not in frame
+    print("  PASS: startup recovery message overrides config status")
 
 
 def test_recovery_options_validate_and_load_from_config():
@@ -5439,6 +5456,7 @@ def main():
             test_recovery_writes_adjacent_panic_backup_without_saving_original,
             test_recovery_warns_on_open_and_manual_write_clears_backup,
             test_recovery_marker_survives_status_truncation,
+            test_startup_recovery_message_overrides_config_status,
             test_recovery_options_validate_and_load_from_config,
         ]),
         ("73", "Phase 73 — config and in-editor help audit", [
