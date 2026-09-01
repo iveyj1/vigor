@@ -4699,16 +4699,14 @@ def test_startup_recovery_message_overrides_config_status():
         path = os.path.join(d, "foo")
         backup = os.path.join(d, ".vigor-recover.foo")
         config = os.path.join(d, "config")
-        marker = os.path.join(d, ".vigor-recovery-detected")
         open(path, "w").write("one\n")
         open(backup, "w").write("draft\n")
         open(config, "w").write("set recovery\nset makeprg=echo config-option\n")
         screen, _, code = run_vig(b"", file_path=path, cwd=d,
                                   env={"VIG_CONFIG": config}, timeout=2.5, cols=120)
-        touched = os.path.exists(marker)
         backup_exists = os.path.exists(backup)
     frame = last_frame(screen)
-    assert code == -99 and "[REC]" in frame and touched and backup_exists
+    assert code == -99 and "[REC]" in frame and backup_exists
     assert f'Recovery file "{backup}" found for "{path}"' in frame
     assert "makeprg=echo config-option" not in frame
     print("  PASS: startup recovery message overrides config status")

@@ -128,7 +128,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self._initialize_buffer_detection(state)
         self._load_buf_state(0)
         if self.buf.path and os.path.exists(self._recovery_path(self.buf.path)):
-            self._touch_recovery_detected()
             self.msg = self._recovery_message(self.buf.path)
         self.term = Terminal(self.opt_mouse)
         self._update_size()
@@ -428,14 +427,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
     def _recovery_message(self, path):
         return f'Recovery file "{self._recovery_path(path)}" found for "{path}"'
 
-    def _touch_recovery_detected(self):
-        """Leave a cwd marker when a panic backup is detected."""
-        try:
-            with open(".vigor-recovery-detected", "a"):
-                pass
-        except OSError:
-            pass
-
     def _delete_recovery(self, bs):
         if bs.buf.path:
             try:
@@ -510,7 +501,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if bs.autodetect is not None:
             return
         if bs.buf.path and os.path.exists(self._recovery_path(bs.buf.path)):
-            self._touch_recovery_detected()
             self.msg = self._recovery_message(bs.buf.path)
         bs.autodetect = self.opt_autodetect
         if bs.autodetect and filetype_for_path(bs.buf.path, bs.buf.lines[0]) == "markdown":
