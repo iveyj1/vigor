@@ -103,6 +103,8 @@ The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKD
 
 Lowercase literal `/` and `?` patterns ignore case. A capital letter or any regex metacharacter makes the search case-sensitive. Lowercase `*`, `#`, `g*`, and `g#` word searches also ignore case. Repeats and `hlsearch` retain the active search's case behavior.
 
+Substitute replacements may not produce carriage returns or line feeds inside a logical line. Use `:[range]!command` for multiline transformations.
+
 While a `/` or `?` prompt is being typed, visible matches preview without moving the cursor. Esc clears the preview, and incomplete regular expressions quietly show no matches. After Enter, `hlsearch` controls persistence. Ordinary matches are yellow; the match containing the cursor is magenta.
 
 ### Ex Commands

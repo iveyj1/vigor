@@ -794,24 +794,30 @@ class CommandMixin:
             return
 
         global_flag = "g" in flags_str
-        total_subs = 0
+        changes, total_subs = [], 0
+        try:
+            for line_idx in range(start_line, end_line + 1):
+                line = self.buf.lines[line_idx]
+                new_line, count = pat.subn(replacement, line, count=0 if global_flag else 1)
+                if "\r" in new_line or "\n" in new_line:
+                    self.msg = "CR/LF not allowed in substitute; use :[range]! for multiline changes"
+                    self.mode = Mode.NORMAL
+                    return
+                if count:
+                    changes.append((line_idx, new_line))
+                    total_subs += count
+        except re.error as e:
+            self.msg = f"Invalid replacement: {e}"
+            self.mode = Mode.NORMAL
+            return
 
-        self._snapshot()
-        for line_idx in range(start_line, end_line + 1):
-            line = self.buf.lines[line_idx]
-            if global_flag:
-                new_line, count = pat.subn(replacement, line)
-            else:
-                new_line, count = pat.subn(replacement, line, count=1)
-            if count > 0:
+        if total_subs:
+            self._snapshot()
+            for line_idx, new_line in changes:
                 self.buf.lines[line_idx] = new_line
-                total_subs += count
-
-        if total_subs > 0:
             self.buf.dirty = True
             self.msg = f"{total_subs} substitution(s)"
         else:
-            self._undo_stack.pop()  # remove no-op snapshot
             self.msg = "Pattern not found"
         self.mode = Mode.NORMAL
 

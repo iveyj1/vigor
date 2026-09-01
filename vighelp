@@ -71,6 +71,7 @@ Groups use (...); replacements can reuse them with \1 or \g<1>.
 Lowercase literal searches ignore case; uppercase or regex patterns are case-sensitive.
 Substitute accepts any punctuation delimiter: :%s|/old/path|/new/path|g
 A selected substitute delimiter cannot be backslash-escaped; choose another delimiter.
+Substitute rejects CR/LF replacements; use :[range]! for multiline transforms.
 
 OPTIONS (shown with available forms; defaults are in example-config)
 

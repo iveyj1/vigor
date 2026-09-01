@@ -1037,6 +1037,20 @@ def test_substitute_not_found():
     assert code == 0
     print("  PASS: s/ not found")
 
+
+def test_substitute_rejects_embedded_line_controls():
+    """Regex replacement escapes cannot put CR/LF inside a logical buffer line."""
+    original = "one\\ntwo\n"
+    for escape in (b"r", b"n"):
+        path = write_temp(original)
+        screen, content, code = run_vig(
+            b":%s/\\\\n/\\" + escape + b"/g\r:q\r", file_path=path,
+        )
+        os.unlink(path)
+        assert code == 0 and content == original
+        assert "CR/LF not allowed in substitute" in screen
+    print("  PASS: substitute rejects embedded line controls")
+
 # ── Phase 12 — Line Wrap ───────────────────────────────────────────────────
 
 def test_set_wrap():
@@ -5058,6 +5072,7 @@ def main():
             test_substitute_line_range,
             test_substitute_regex,
             test_substitute_not_found,
+            test_substitute_rejects_embedded_line_controls,
         ]),
         ("12", "Phase 12 — Line Wrap", [
             test_set_wrap,
