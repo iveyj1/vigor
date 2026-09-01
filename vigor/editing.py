@@ -86,7 +86,7 @@ class EditingMixin:
 
     _MOTION_KEYS = frozenset(
         "h l j k w W b B e E G 0 ^ $".split()
-        + ["LEFT", "RIGHT", "DOWN", "UP", "HOME", "END", "gg", "CTRL_D", "CTRL_U"]
+        + ["LEFT", "RIGHT", "DOWN", "UP", "HOME", "END", "gg", "g0", "g^", "g$", "CTRL_D", "CTRL_U"]
     )
     _FIND_DISPATCH = {"f": "_motion_f", "F": "_motion_F", "t": "_motion_t", "T": "_motion_T"}
     _FIND_REVERSE = {"f": "F", "F": "f", "t": "T", "T": "t"}
@@ -491,6 +491,19 @@ class EditingMixin:
         self.cy = min(n - 1, len(self.buf.lines) - 1) if extra_n is not None else 0
         self.cx = 0
 
+    def _motion_display_edge(self, key):
+        """Move to an edge/nonblank position of the current wrapped row."""
+        layout = self._viewport_layout()
+        row = layout.wrap_position(self.cy, self._cursor_display_col())[0]
+        start, end = layout.wrap_segments(self.cy)[row]
+        target = start
+        if key == "g^":
+            line = self._view_line(self.cy)
+            target = next((i for i in range(start, end) if not line[i].isspace()), start)
+        elif key == "g$":
+            target = max(start, end - 1)
+        self.cx = self._view_index(self.cy, target)
+
     def _motion_zero(self):
         self.cx = 0
 
@@ -539,6 +552,9 @@ class EditingMixin:
             "E": lambda: self.motion_e(big=True),
             "G": lambda: self._motion_G_count(n, extra_n),
             "gg": lambda: self._motion_gg_count(n, extra_n),
+            "g0": lambda: self._motion_display_edge("g0"),
+            "g^": lambda: self._motion_display_edge("g^"),
+            "g$": lambda: self._motion_display_edge("g$"),
             "0": self._motion_zero,
             "^": self._motion_caret,
             "$": self._motion_dollar,
@@ -547,7 +563,7 @@ class EditingMixin:
             "CTRL_D": self._motion_ctrl_d,
             "CTRL_U": self._motion_ctrl_u,
         }
-        repeat = 1 if key in ("G", "gg", "0", "^", "$", "HOME", "END") else n
+        repeat = 1 if key in ("G", "gg", "g0", "g^", "g$", "0", "^", "$", "HOME", "END") else n
         for _ in range(repeat):
             handlers[key]()
         return True
@@ -997,8 +1013,8 @@ class EditingMixin:
         # Normalize range
         if (sy, sx) > (ty, tx):
             sy, sx, ty, tx = ty, tx, sy, sx
-        # Inclusive motions (e, E, f, t): include the end character
-        if motion_key in ("e", "E", "f", "t"):
+        # Inclusive motions include their end character.
+        if motion_key in ("e", "E", "f", "t", "g$"):
             tx += 1
             if not linewise and ty < len(self.buf.lines):
                 tx = min(tx, len(self.buf.lines[ty]))

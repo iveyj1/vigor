@@ -15,7 +15,8 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `w` `W` `b` `B` `e` `E` | word motions (small / big WORD) |
 | `0` | column 0 |
 | `^` | first non-blank character |
-| `$` | end of line |
+| `$` | end of logical line |
+| `g0` / `g^` / `g$` | current wrapped-row start / first non-blank / last character |
 | `gg` / `G` | first / last line (with count: line N) |
 | `f{c}` `t{c}` `F{c}` `T{c}` | find char forward / backward (`t`/`T` stop before) |
 | `;` `,` | repeat / reverse last find-char |
@@ -70,7 +71,7 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `v` | enter character-wise visual |
 | `V` | enter line-wise visual |
 | `gv` | restore the current buffer's last Visual mode, anchor, and endpoint |
-| All motions | `h` `j` `k` `l` `w` `b` `e` `W` `B` `E` `0` `$` `^` `G` `gg` |
+| All motions | `h` `j` `k` `l` `w` `b` `e` `W` `B` `E` `0` `$` `^` `g0` `g^` `g$` `G` `gg` |
 | `d` `x` | delete selection |
 | `y` | yank selection |
 | `c` | change selection |

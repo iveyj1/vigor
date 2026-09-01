@@ -7,7 +7,8 @@ KEY / COMMAND       ACTION
 
 h j k l / arrows    move left/down/up/right; counts repeat motions
 w b e / W B E       word / WORD motions
-0 ^ $ / Home End    line start, first text, line end
+0 ^ $ / Home End    logical line start, first text, line end
+g0 g^ g$            wrapped row start, first text, last character
 gg / G              first / last line; counts select line
 f t F T ; ,         find character; repeat / reverse
 %                   match bracket

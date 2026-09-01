@@ -13,8 +13,6 @@ None
 
 Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies.
 
-1. Add `g$`, `g0`, and `g^` motions for wrapped display rows.
-   **High feasibility; 25–45 runtime lines.** `ViewportLayout` already exposes the required segments and mappings. Implement motions first; specify operator behavior for `y`/`d` and Insert behavior for `I`/`A` as a separate follow-up rather than coupling all semantics into one phase.
 1. Warn on the first edit of a read-only file and show a persistent read-only status marker.
    **High feasibility; 25–45 lines.** Independent of other items. Define read-only from the opened file's mode/access state, refresh it after writes or reloads, and warn once per buffer.
 1. Add `.`, `+N`, and `-N` relative line specifiers for range commands.
@@ -47,6 +45,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Add `g0`, `g^`, and `g$` wrapped-row motions in Normal, Visual, and operator-pending modes; defer special `I`/`A` behavior.
 1. Remove no-op undo boundaries without clearing redo history, including empty Insert sessions, unchanged case/comment transforms, unindented dedents, empty character/line ranges, identity filters, and ineffective single-key edits.
 1. Complete the state-coupling refactor: declarative `:set` option metadata, timer-only dirty callbacks with explicit recovery cleanup, and property-based per-buffer state with no save/load mirrors; see `proposals/state-coupling-refactor.md`. Startup-sequence restructuring remains deferred until a concrete failure motivates it.
 1. Add per-buffer `gv` restoration of the last characterwise or linewise Visual selection, including clamping after mutations.

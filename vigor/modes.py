@@ -128,6 +128,8 @@ class ModeMixin:
             self._pending_g = False
             if key == "g":
                 key = "gg"
+            elif key in ("0", "^", "$"):
+                key = "g" + key
             elif key == "c":
                 # gcc — toggle comment (enter pending for second c)
                 self._enter_op_pending("gc", n, extra_n)
@@ -174,8 +176,8 @@ class ModeMixin:
             # Handle 'g' prefix in operator-pending (e.g. dgg)
             if self._pending_g_op:
                 self._pending_g_op = False
-                if key == "g":
-                    key = "gg"
+                if key == "g" or key in ("0", "^", "$"):
+                    key = "g" + key
             elif key == "g":
                 self._pending_g_op = True
                 return
@@ -613,6 +615,8 @@ class ModeMixin:
             self._pending_g = False
             if key == "g":
                 key = "gg"
+            elif key in ("0", "^", "$"):
+                key = "g" + key
             elif key == "c":
                 # gc in visual — toggle comment on selected lines
                 sel = self._selection_range()

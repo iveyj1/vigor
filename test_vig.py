@@ -4983,6 +4983,35 @@ def test_changed_dedent_and_case_have_one_undo_boundary():
     print("  PASS: changed dedent and case have one undo boundary")
 
 
+# ── Phase 80: wrapped-row edge motions ─────────────────────────────────────
+
+def test_wrapped_row_edge_motions():
+    """g0/g^/g$ use the current display segment rather than the logical line."""
+    cases = (
+        (b"10lg0rX", "abcdefgh  Xxyz\n"),
+        (b"10lg^rX", "abcdefgh   Xyz\n"),
+        (b"g$rX", "abcdefgh X xyz\n"),
+    )
+    for action, expected in cases:
+        path = write_temp("abcdefgh   xyz\n")
+        _, content, code = run_vig(b":set wrapcol=10\r:set wrap\r" + action + b":wq\r",
+                                   file_path=path, cols=40)
+        os.unlink(path)
+        assert code == 0 and content == expected, (action, content)
+    print("  PASS: wrapped-row edge motions")
+
+
+def test_wrapped_edge_motions_work_in_operators_and_visual():
+    """g$ is inclusive for operators and all wrapped motions dispatch in Visual."""
+    for action in (b"dg$", b"vg$d"):
+        path = write_temp("abcdefghijkl\n")
+        _, content, code = run_vig(b":set wrapcol=8\r:set wrap\r" + action + b":wq\r",
+                                   file_path=path, cols=40)
+        os.unlink(path)
+        assert code == 0 and content == "ijkl\n", (action, content)
+    print("  PASS: wrapped edge motions work in operators and Visual")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5541,6 +5570,10 @@ def main():
         ("79", "Phase 79 — no-op undo boundaries", [
             test_noop_edits_preserve_redo,
             test_changed_dedent_and_case_have_one_undo_boundary,
+        ]),
+        ("80", "Phase 80 — wrapped-row edge motions", [
+            test_wrapped_row_edge_motions,
+            test_wrapped_edge_motions_work_in_operators_and_visual,
         ]),
     ]
 
