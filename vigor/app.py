@@ -458,11 +458,13 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     def _reschedule_autosaves(self):
         for bs in self.buffers:
-            self._dirty_changed(bs, bs.buf.dirty)
+            bs.autosave_deadline = (time.monotonic() + self.opt_autosavedelay / 1000
+                                    if bs.buf.dirty and bs.buf.path and self.opt_autosave else None)
 
     def _reschedule_recovery(self):
         for bs in self.buffers:
-            self._dirty_changed(bs, bs.buf.dirty)
+            bs.recovery_deadline = (time.monotonic() + self.opt_recoverydelay / 1000
+                                    if bs.buf.dirty and bs.buf.path and self.opt_recovery else None)
 
     def _autosave_state(self, bs):
         """Write one due buffer without version rotation or directory prompts."""
