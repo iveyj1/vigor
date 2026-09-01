@@ -10,15 +10,41 @@ None
 None
 
 ### On Hold
-1. Proposal: Visual Block mode via Ctrl-V. Candidate editing scope, register semantics, short-line padding, tabs, and numeric operations remain undecided; see `proposals/block-select.md`. Highlighting plus delete/yank is estimated at 80–120 runtime lines; the broader editing scope is estimated at 180–280 runtime lines plus tests.
-1. Add \v search modifier
-1. Add `.`, `+<number>`, and `-<number>` as relative line specifiers for range commands. 
-1. Warning message in status when first edit is made to a R/O file. Indicate R/O file in status bar.
-1. Proposal: Pipe stdin text into the initial unnamed buffer, then use `/dev/tty` for interactive terminal input; define non-interactive fallback behavior. Estimated 60–90 net lines.
-1. marks
-1. configurable keymaps
-1. filtering on partially typed command entry for : command history
-1. add 'kjk' alias for <esc> in insert mode(s)
+
+Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies.
+
+1. Add `g$`, `g0`, and `g^` motions for wrapped display rows.
+   **High feasibility; 25–45 runtime lines.** `ViewportLayout` already exposes the required segments and mappings. Implement motions first; specify operator behavior for `y`/`d` and Insert behavior for `I`/`A` as a separate follow-up rather than coupling all semantics into one phase.
+1. Warn on the first edit of a read-only file and show a persistent read-only status marker.
+   **High feasibility; 25–45 lines.** Independent of other items. Define read-only from the opened file's mode/access state, refresh it after writes or reloads, and warn once per buffer.
+1. Add `.`, `+N`, and `-N` relative line specifiers for range commands.
+   **High feasibility; 20–40 lines.** Centralize range endpoint parsing so filters and substitutes share the same syntax; do this before adding more range-using commands.
+1. Filter command history using the partially typed command line.
+   **High feasibility; 20–40 lines.** Existing history navigation is a suitable seam. Define whether matching is prefix-only or substring-based and preserve the unsubmitted draft when navigation returns past the newest match.
+1. Detect when a named file changed on disk after it was opened or written.
+   **Moderate feasibility; 35–60 lines.** Store a per-buffer disk signature and check on buffer focus and before writes. Specify whether detection only warns, blocks writes, or offers reload; account for deletion, replacement, autosave, and vigor's own writes.
+1. Add optional incremental-search scrolling when no preview hit is visible.
+   **Moderate feasibility; 30–50 lines.** Existing preview spans and `ViewportLayout` make finding/centering practical, but Search must save and restore the original viewport on Esc or a failed pattern. Add it as an option only after defining that cancellation behavior.
+1. Add a `\v` search modifier.
+   **Small implementation after specification; 15–35 lines.** Python regex syntax is already close to Vim's “very magic” mode, so first define exactly which vigor escapes and metacharacters `\v` changes; avoid a modifier that is merely ignored.
+1. Pipe stdin into the initial unnamed buffer, then use `/dev/tty` for interaction.
+   **Moderate feasibility; estimated 60–90 lines, so notify before implementation.** First write the missing proposal defining non-interactive fallback, stdin/filename precedence, terminal-open failures, and behavior under pipes and redirection.
+1. Add in-session location history.
+   **Moderate feasibility; 40–70 lines.** Establish one jump-stack abstraction before last-location commands or marks. Define which actions create entries and whether quickfix/search/buffer switches participate.
+1. Open or jump to the last location.
+   **Depends on location history; 20–50 lines in-session, more if persistent.** Decide whether “last” means the prior jump, the last cursor position per open buffer, or a location persisted across invocations; persistent state needs a separate storage design.
+1. Add marks.
+   **Moderate-to-large; 60–100 lines.** Build on location-history jumps and per-buffer state. Specify local/global names, deletion behavior, path persistence, motions, operators, and what happens when edited text invalidates a mark.
+1. Add named registers.
+   **Large; 80–130 lines.** Extend the current unnamed-register and operator-prefix state before macros or Visual Block. Specify numbered/small-delete/clipboard registers only if they are actually wanted; a compact first phase could support named character registers plus the existing unnamed register.
+1. Add Visual Block mode via Ctrl-V; see `proposals/block-select.md`.
+   **Large; 80–120 lines for highlighting plus delete/yank, 180–280 for broader editing.** Implement after register semantics are settled. Short-line padding, tabs, insert/change behavior, and numeric operations remain design blockers.
+1. Add configurable keymaps.
+   **Large and architecturally broad; likely 120+ lines.** Define scope before implementation: remap versus recursive mapping, mode-specific maps, multi-key timeout, config syntax, and interaction with counts/operator-pending. Keep this below editor-state and command dispatch rather than introducing a plugin system.
+1. Add `kjk` as an Insert-mode Esc alias.
+   **Small alone, but implement after the keymap decision.** A hard-coded sequence requires buffering/rollback semantics and could conflict with later configurable mappings; preferably express it through the chosen mapping mechanism.
+1. Add macros.
+   **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
 1. Remove no-op undo boundaries without clearing redo history, including empty Insert sessions, unchanged case/comment transforms, unindented dedents, empty character/line ranges, identity filters, and ineffective single-key edits.
