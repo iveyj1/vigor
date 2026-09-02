@@ -1,6 +1,6 @@
 ### Standing Guidance
 1) Do not support legacy configurations, file formats, or removed behaviors.  Remove any dead code due to changes.  There are no existing implementations or configuration files. 
-2) Review proposed changes for estimated change size.  If the net increase in number of lines of code in the runtime for an individual item exceeds about 50, notify me before implementation.
+2) Review proposed changes for estimated change size.  If the net increase in number of lines of code in the runtime for an individual item exceeds about 50, notify user before implementation.
 3) If minor changes to proposed functionality would result in significant code savings, bring that to light before implementation.
 
 ### Active
