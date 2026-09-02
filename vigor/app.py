@@ -6,6 +6,7 @@ import signal
 import shutil
 import select
 import time
+import hashlib
 
 from .commands import CommandMixin, OPTIONS
 from .editing import EditingMixin
@@ -111,11 +112,13 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.quickfix_state = None  # BufferState holding last quickfix results
         self.quickfix_cwd = os.getcwd()
         self.last_key = ""  # last decoded key read from terminal
+        self._protect_fallback_warned = False
         self._load_config()
         for state in self.buffers:
             self._initialize_buffer_detection(state)
-        if self.buf.path and os.path.exists(self._recovery_path(self.buf.path)):
-            self.msg = self._recovery_message(self.buf.path)
+        recovery = self._existing_recovery(self.buf.path) if self.buf.path else None
+        if recovery:
+            self.msg = self._recovery_message(self.buf.path, recovery)
         self.term = Terminal(self.opt_mouse)
         self._update_size()
         self._startup_completion = startup_dir is not None
@@ -176,16 +179,44 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         """Resolve a command path against the process working directory."""
         return os.path.abspath(os.path.expanduser(path.strip()))
 
+    def _protection_dir(self, path, create=False):
+        """Return artifact directory, central flag, and new-fallback notice."""
+        if self.opt_protectdir == "file":
+            return os.path.dirname(path) or ".", False, False
+        auto = self.opt_protectdir == "auto"
+        root = (os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"),
+                             "vigor", "files") if auto else self.opt_protectdir)
+        digest = hashlib.sha256(os.fsencode(os.path.abspath(path))).hexdigest()[:20]
+        directory = os.path.join(root, f"{os.path.basename(path)[:80]}.{digest}")
+        if create:
+            try:
+                os.makedirs(root, mode=0o700, exist_ok=True)
+                if auto:
+                    os.chmod(root, 0o700)
+                os.makedirs(directory, mode=0o700, exist_ok=True)
+                os.chmod(directory, 0o700)
+            except OSError:
+                if not auto:
+                    raise
+                notice = not self._protect_fallback_warned
+                self._protect_fallback_warned = True
+                return os.path.dirname(path) or ".", False, notice
+        return directory, True, False
+
     def _preserve_version(self, path):
-        """Rotate adjacent prior-disk versions before an explicit overwrite."""
+        """Rotate prior-disk versions before an explicit overwrite."""
         count, base = self.opt_saveversions, os.path.basename(path)
         if not count or base.startswith(".vigor-bak.") or not os.path.isfile(path):
-            return
+            return False
         with open(path, "r", newline="") as f:
             if f.read() == self.buf.serialized():
-                return
-        parent = os.path.dirname(path) or "."
-        prefix = f".vigor-bak.{base}."
+                return False
+        parent, central, notice = self._protection_dir(path, create=True)
+        if central:
+            parent, prefix = os.path.join(parent, "versions"), ""
+            os.makedirs(parent, mode=0o700, exist_ok=True)
+        else:
+            prefix = f".vigor-bak.{base}."
         temp = os.path.join(parent, prefix + f"tmp.{os.getpid()}")
         try:
             shutil.copy2(path, temp)
@@ -195,15 +226,16 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     os.replace(older, os.path.join(parent, prefix + str(generation)))
             os.replace(temp, os.path.join(parent, prefix + "1"))
             for name in os.listdir(parent):
-                if name.startswith(prefix) and name[len(prefix):].isdigit():
-                    if int(name[len(prefix):]) > count:
-                        os.unlink(os.path.join(parent, name))
+                suffix = name[len(prefix):] if name.startswith(prefix) else ""
+                if suffix.isdigit() and int(suffix) > count:
+                    os.unlink(os.path.join(parent, name))
         except OSError:
             try:
                 os.unlink(temp)
             except OSError:
                 pass
             raise
+        return notice
 
     def _write_buffer_to_path(self, path, close_after=False, manual=True):
         """Write current buffer, prompting first if parent directories are missing."""
@@ -213,17 +245,21 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self.msg = f'Create directory "{parent}"? (y/n)'
             self.mode = Mode.NORMAL
             return False
+        version_fallback = False
         if manual:
             try:
-                self._preserve_version(path)
+                version_fallback = self._preserve_version(path)
             except OSError as e:
                 self.msg = f"Can't preserve prior version: {e.strerror or str(e)}"
                 self.mode = Mode.NORMAL
                 return False
+        old_path = self.buf.path
         try:
             if self.buf.save(path):
                 self._undo_save_depth = len(self._undo_stack)
                 self._undo_branched = False
+                if old_path:
+                    self._delete_recovery_path(old_path)
                 self._delete_recovery(self.buffers[self.buf_idx])
                 self._refresh_readonly(self.buffers[self.buf_idx])
                 if close_after:
@@ -233,7 +269,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                         self.running = False
                 else:
                     n = len(self.buf.lines)
-                    self.msg = f'"{self.buf.path}" {n}L written'
+                    prefix = "protectdir fallback; " if version_fallback else ""
+                    self.msg = prefix + f'"{self.buf.path}" {n}L written'
             else:
                 self.msg = "No file name"
         except OSError as e:
@@ -379,21 +416,38 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     # ── Buffer management ──────────────────────────────────────────────
 
-    def _recovery_path(self, path):
-        """Adjacent panic-backup path for a named buffer."""
+    @staticmethod
+    def _adjacent_recovery_path(path):
         return os.path.join(os.path.dirname(path), ".vigor-recover." + os.path.basename(path))
 
-    def _recovery_message(self, path):
-        return f'Recovery file "{self._recovery_path(path)}" found for "{path}"'
+    def _recovery_path(self, path, create=False):
+        directory, central, notice = self._protection_dir(path, create)
+        target = os.path.join(directory, "recovery" if central else ".vigor-recover." + os.path.basename(path))
+        return (target, notice) if create else target
+
+    def _recovery_candidates(self, path):
+        paths = [self._recovery_path(path)]
+        if self.opt_protectdir == "auto":
+            paths.append(self._adjacent_recovery_path(path))
+        return tuple(dict.fromkeys(paths))
+
+    def _existing_recovery(self, path):
+        return next((candidate for candidate in self._recovery_candidates(path)
+                     if os.path.exists(candidate)), None)
+
+    def _recovery_message(self, path, recovery=None):
+        return f'Recovery file "{recovery or self._recovery_path(path)}" found for "{path}"'
+
+    def _delete_recovery_path(self, path):
+        for candidate in self._recovery_candidates(path):
+            try:
+                os.unlink(candidate)
+            except (FileNotFoundError, OSError):
+                pass
 
     def _delete_recovery(self, bs):
         if bs.buf.path:
-            try:
-                os.unlink(self._recovery_path(bs.buf.path))
-            except FileNotFoundError:
-                pass
-            except OSError:
-                pass
+            self._delete_recovery_path(bs.buf.path)
 
     def _refresh_readonly(self, bs):
         try:
@@ -453,9 +507,12 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if not (self.opt_recovery and bs.buf.dirty and bs.buf.path):
             return
         try:
-            with open(self._recovery_path(bs.buf.path), "w") as f:
+            target, fallback = self._recovery_path(bs.buf.path, create=True)
+            fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            with os.fdopen(fd, "w") as f:
                 f.write(bs.buf.serialized())
-            self.msg = f'Panic backup: {self._recovery_path(bs.buf.path)}'
+            prefix = "protectdir fallback; " if fallback else ""
+            self.msg = prefix + f'Panic backup: {target}'
         except OSError as e:
             self.msg = f"Can't write panic backup: {e.strerror or str(e)}"
 
@@ -470,8 +527,9 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._refresh_readonly(bs)
         if bs.autodetect is not None:
             return
-        if bs.buf.path and os.path.exists(self._recovery_path(bs.buf.path)):
-            self.msg = self._recovery_message(bs.buf.path)
+        recovery = self._existing_recovery(bs.buf.path) if bs.buf.path else None
+        if recovery:
+            self.msg = self._recovery_message(bs.buf.path, recovery)
         bs.autodetect = self.opt_autodetect
         if bs.autodetect and filetype_for_path(bs.buf.path, bs.buf.lines[0]) == "markdown":
             bs.md_view = True

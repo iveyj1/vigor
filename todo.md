@@ -39,6 +39,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Centralize recovery and manual-save versions under `protectdir=auto|file|PATH` using basename/path-hash identities without path metadata; keep autosave writing the original and fall back adjacent only when automatic XDG storage is unavailable.
 1. Filter `:` command history by the typed prefix while preserving and restoring the unsubmitted draft.
 1. Share filter/substitute range parsing with absolute, `.`, `$`, and current-line-relative `+N`/`-N` endpoints.
 1. Mark files with no write mode bits as `[RO]`, allow in-memory editing, and warn once per buffer on the first mutation.

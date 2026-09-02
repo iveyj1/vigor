@@ -33,6 +33,7 @@ OPTIONS = {
     "markdownfences": ("bool", "opt_markdownfences", False, None, None),
     "autodetect": ("bool", "opt_autodetect", True, None, None),
     "saveversions": ("int", "opt_saveversions", 0, (0, 100), None),
+    "protectdir": ("path", "opt_protectdir", "auto", None, None),
     "autosave": ("bool", "opt_autosave", False, None, "_reschedule_autosaves"),
     "autosavedelay": ("int", "opt_autosavedelay", 1000, (0, None), "_reschedule_autosaves"),
     "recovery": ("bool", "opt_recovery", False, None, "_reschedule_recovery"),
@@ -751,6 +752,11 @@ class CommandMixin:
             value = enabled
         elif kind == "str":
             value = raw
+        elif kind == "path":
+            if not raw:
+                self.msg = f"{name} requires auto, file, or a path"
+                return
+            value = raw if raw in ("auto", "file") else os.path.abspath(os.path.expanduser(raw))
         elif kind == "enum":
             if raw not in valid:
                 self.msg = f"{name} must be {', '.join(valid[:-1])}, or {valid[-1]}"

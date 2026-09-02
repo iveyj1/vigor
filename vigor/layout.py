@@ -504,7 +504,7 @@ class RenderMixin:
         markers = " [MD]" if self.md_view else ""
         if self.buffers[self.buf_idx].readonly:
             markers += " [RO]"
-        if self.buf.path and os.path.exists(self._recovery_path(self.buf.path)):
+        if self.buf.path and self._existing_recovery(self.buf.path):
             markers += " [REC]"
         mode_str = self.mode.value
         count_str = str(self.count) if self.count > 0 else ""

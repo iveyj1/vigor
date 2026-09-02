@@ -96,9 +96,10 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set markdownfences / :set nomarkdownfences
 :set autodetect / :set noautodetect
 :set saveversions=N       retain 0..100 explicit-write prior versions
+:set protectdir=auto|file|PATH   protection artifact directory
 :set autosave / :set noautosave
 :set autosavedelay=N      idle milliseconds
-:set recovery / :set norecovery    write adjacent .vigor-recover.NAME panic backups
+:set recovery / :set norecovery    write idle panic-recovery snapshots
 :set recoverydelay=N      idle milliseconds
 :set makeprg=COMMAND
 
@@ -106,7 +107,9 @@ Mouse visual mode combines wheel scrolling, click positioning, and drag selectio
 .py, C/C++ extensions, and .sh/.bash use line-local language highlighting.
 Extensionless bash/sh shebangs select shell highlighting.
 Markdown fences support python/py, bash/sh/shell, c, and cpp/c++/cc/cxx.
-Manual versions are adjacent `.vigor-bak.<name>.N` files; autosave does not rotate them.
+Recovery and manual versions use protectdir; autosave still writes the original.
+`auto` uses XDG state, `file` uses adjacent hidden files, and PATH is explicit.
+Central artifacts use basename plus an absolute-path hash and contain no path metadata.
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping

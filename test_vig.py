@@ -4475,7 +4475,7 @@ def test_saveversions_rotates_prior_disk_contents():
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "note.txt")
         open(path, "w").write("one\n")
-        keys = (b":set saveversions=2\r:%s/one/two/\r:w\r"
+        keys = (b":set protectdir=file\r:set saveversions=2\r:%s/one/two/\r:w\r"
                 b":%s/two/three/\r:w\r:%s/three/four/\r:wq\r")
         _, content, code = run_vig(keys, file_path=path)
         newest = open(os.path.join(d, ".vigor-bak.note.txt.1")).read()
@@ -4494,10 +4494,10 @@ def test_saveversions_skips_unchanged_and_new_targets():
         new_path = os.path.join(d, "new.txt")
         open(path, "w").write("one\n")
         _, _, code = run_vig(
-            b":set saveversions=2\r:%s/one/two/\r:w\r:w\r:q\r", file_path=path,
+            b":set protectdir=file\r:set saveversions=2\r:%s/one/two/\r:w\r:w\r:q\r", file_path=path,
         )
         _, new_content, new_code = run_vig(
-            b":set saveversions=2\rihello\x1b:wq\r", file_path=new_path,
+            b":set protectdir=file\r:set saveversions=2\rihello\x1b:wq\r", file_path=new_path,
         )
         names = os.listdir(d)
     assert code == new_code == 0 and new_content == "hello\n"
@@ -4514,7 +4514,7 @@ def test_saveversions_preserves_existing_save_as_target():
         open(source, "w").write("source\n")
         open(target, "w").write("target\n")
         _, _, code = run_vig(
-            f":set saveversions=1\r:w {target}\r:q\r", file_path=source,
+            f":set protectdir=file\r:set saveversions=1\r:w {target}\r:q\r", file_path=source,
         )
         written = open(target).read()
         backup = open(os.path.join(d, ".vigor-bak.target.txt.1")).read()
@@ -4527,7 +4527,7 @@ def test_saveversions_reduction_removes_excess_generations():
     with tempfile.TemporaryDirectory() as d:
         path = os.path.join(d, "note.txt")
         open(path, "w").write("one\n")
-        keys = (b":set saveversions=3\r:%s/one/two/\r:w\r:%s/two/three/\r:w\r"
+        keys = (b":set protectdir=file\r:set saveversions=3\r:%s/one/two/\r:w\r:%s/two/three/\r:w\r"
                 b":set saveversions=1\r:%s/three/four/\r:wq\r")
         _, _, code = run_vig(keys, file_path=path)
         names = os.listdir(d)
@@ -4543,7 +4543,7 @@ def test_saveversions_failure_blocks_write():
         open(path, "w").write("one\n")
         os.mkdir(os.path.join(d, ".vigor-bak.note.txt.1"))
         screen, content, code = run_vig(
-            b":set saveversions=1\r:%s/one/two/\r:w\r:q!\r", file_path=path,
+            b":set protectdir=file\r:set saveversions=1\r:%s/one/two/\r:w\r:q!\r", file_path=path,
         )
     assert code == 0 and content == "one\n"
     assert "Can't preserve prior version" in screen
@@ -4556,7 +4556,7 @@ def test_backup_files_do_not_version_themselves():
         path = os.path.join(d, ".vigor-bak.note.txt.1")
         open(path, "w").write("one\n")
         _, content, code = run_vig(
-            b":set saveversions=3\r:%s/one/two/\r:wq\r", file_path=path,
+            b":set protectdir=file\r:set saveversions=3\r:%s/one/two/\r:wq\r", file_path=path,
         )
         names = os.listdir(d)
     assert code == 0 and content == "two\n" and names == [".vigor-bak.note.txt.1"]
@@ -4569,7 +4569,7 @@ def test_saveversions_validates_and_loads_from_config():
         path = os.path.join(d, "note.txt")
         config = os.path.join(d, "config")
         open(path, "w").write("one\n")
-        open(config, "w").write("set saveversions=1\n")
+        open(config, "w").write("set protectdir=file\nset saveversions=1\n")
         screen, _, code = run_vig(
             b":%s/one/two/\r:wq\r", file_path=path, env={"VIG_CONFIG": config},
         )
@@ -4622,7 +4622,7 @@ def test_autosave_does_not_rotate_manual_versions():
         path = os.path.join(d, "note.txt")
         open(path, "w").write("one\n")
         screen, content, code = run_vig(
-            b":set saveversions=2\r:set autosavedelay=30\r:set autosave\riX",
+            b":set protectdir=file\r:set saveversions=2\r:set autosavedelay=30\r:set autosave\riX",
             file_path=path, timeout=0.5,
         )
         names = os.listdir(d)
@@ -4637,7 +4637,7 @@ def test_explicit_write_clears_pending_autosave():
         path = os.path.join(d, "note.txt")
         open(path, "w").write("one\n")
         screen, content, code = run_vig(
-            b":set saveversions=1\r:set autosavedelay=200\r:set autosave\r"
+            b":set protectdir=file\r:set saveversions=1\r:set autosavedelay=200\r:set autosave\r"
             b":%s/one/two/\r:w\r",
             file_path=path, timeout=0.5,
         )
@@ -4685,7 +4685,7 @@ def test_recovery_writes_adjacent_panic_backup_without_saving_original():
         backup = os.path.join(d, ".vigor-recover.note.txt")
         open(path, "w").write("one\n")
         screen, content, code = run_vig(
-            b":set recoverydelay=30\r:set recovery\riX", file_path=path, timeout=0.5,
+            b":set protectdir=file\r:set recoverydelay=30\r:set recovery\riX", file_path=path, timeout=0.5,
         )
         recovered = open(backup).read()
     assert code == -99 and content == "one\n" and recovered == "Xone\n"
@@ -4747,7 +4747,7 @@ def test_recovery_options_validate_and_load_from_config():
         backup = os.path.join(d, ".vigor-recover.note.txt")
         config = os.path.join(d, "config")
         open(path, "w").write("one\n")
-        open(config, "w").write("set recovery\nset recoverydelay=30\n")
+        open(config, "w").write("set protectdir=file\nset recovery\nset recoverydelay=30\n")
         _, content, code = run_vig(b"iX", file_path=path, env={"VIG_CONFIG": config}, timeout=0.5)
         bad, _, bad_code = run_vig(b":set recoverydelay=-1\r:q\r", file_path=path)
         recovered = open(backup).read()
@@ -5081,6 +5081,102 @@ def test_filtered_history_restores_draft_and_ignores_no_match():
     assert code == 0 and "Unknown option: w" in screen
     assert "Not a command: missing" in screen
     print("  PASS: filtered history restores draft and ignores no match")
+
+
+# ── Phase 84: central protection storage ───────────────────────────────────
+
+def test_auto_protectdir_centralizes_versions_without_collisions():
+    """Default XDG storage isolates equal basenames by absolute-path hash."""
+    with tempfile.TemporaryDirectory() as d:
+        state = os.path.join(d, "state")
+        env = {"XDG_STATE_HOME": state, "VIG_NO_CONFIG": "1"}
+        paths = [os.path.join(d, name, "note.txt") for name in ("one", "two")]
+        originals = ("first\n", "second\n")
+        for path, original in zip(paths, originals):
+            os.makedirs(os.path.dirname(path))
+            open(path, "w").write(original)
+            _, _, code = run_vig(b":set saveversions=1\riX\x1b:wq\r",
+                                 file_path=path, env=env)
+            assert code == 0
+        root = os.path.join(state, "vigor", "files")
+        entries = [os.path.join(root, name) for name in os.listdir(root)]
+        versions = [open(os.path.join(entry, "versions", "1")).read() for entry in entries]
+        names = [name for entry in entries for name in os.listdir(entry)]
+    assert len(entries) == 2 and sorted(versions) == sorted(originals)
+    assert "metadata.json" not in names
+    print("  PASS: auto protectdir centralizes versions without collisions")
+
+
+def test_central_recovery_is_detected_and_cleaned():
+    """Central recovery remains deterministic from the source path and needs no metadata."""
+    with tempfile.TemporaryDirectory() as d:
+        state = os.path.join(d, "state")
+        path = os.path.join(d, "note.txt")
+        env = {"XDG_STATE_HOME": state, "VIG_NO_CONFIG": "1"}
+        open(path, "w").write("one\n")
+        _, content, first = run_vig(
+            b":set recoverydelay=30\r:set recovery\riX", file_path=path,
+            env=env, timeout=0.5,
+        )
+        root = os.path.join(state, "vigor", "files")
+        entry = os.path.join(root, os.listdir(root)[0])
+        recovery = os.path.join(entry, "recovery")
+        recovered = open(recovery).read()
+        modes = (os.stat(root).st_mode & 0o777, os.stat(entry).st_mode & 0o777,
+                 os.stat(recovery).st_mode & 0o777)
+        target = os.path.join(d, "saved-as.txt")
+        screen, _, second = run_vig(f":w {target}\r:q\r", file_path=path, env=env)
+        remains = os.path.exists(recovery)
+        target_content = open(target).read()
+    assert first == -99 and second == 0 and content == "one\n" and recovered == "Xone\n"
+    assert target_content == "one\n" and "[REC]" in screen and "Recovery file" in screen and not remains
+    assert modes == (0o700, 0o700, 0o600), modes
+    print("  PASS: central recovery is detected and cleaned")
+
+
+def test_auto_protectdir_falls_back_to_file_directory():
+    """An unavailable automatic state root reports and uses adjacent protection."""
+    with tempfile.TemporaryDirectory() as d:
+        state = os.path.join(d, "not-a-directory")
+        path = os.path.join(d, "note.txt")
+        backup = os.path.join(d, ".vigor-recover.note.txt")
+        open(state, "w").write("blocked\n")
+        open(path, "w").write("one\n")
+        screen, content, code = run_vig(
+            b":set recoverydelay=30\r:set recovery\riX", file_path=path,
+            env={"XDG_STATE_HOME": state, "VIG_NO_CONFIG": "1"}, timeout=0.5,
+        )
+        recovered = open(backup).read()
+    assert code == -99 and content == "one\n" and recovered == "Xone\n"
+    assert "protectdir fallback" in screen
+    print("  PASS: auto protectdir falls back to file directory")
+
+
+def test_explicit_protectdir_stores_central_versions():
+    """A configured path is resolved and used instead of XDG state storage."""
+    with tempfile.TemporaryDirectory() as d:
+        root = os.path.join(d, "protection")
+        path = os.path.join(d, "note.txt")
+        open(path, "w").write("one\n")
+        keys = f":set protectdir={root}\r:set saveversions=1\riX\x1b:wq\r"
+        _, content, code = run_vig(keys, file_path=path)
+        entry = os.path.join(root, os.listdir(root)[0])
+        version = open(os.path.join(entry, "versions", "1")).read()
+    assert code == 0 and content == "Xone\n" and version == "one\n"
+    print("  PASS: explicit protectdir stores central versions")
+
+
+def test_configured_protectdir_failure_blocks_versioned_write():
+    """An explicit unusable protection path never silently falls back."""
+    with tempfile.TemporaryDirectory() as d:
+        blocked = os.path.join(d, "blocked")
+        path = os.path.join(d, "note.txt")
+        open(blocked, "w").write("not a directory\n")
+        open(path, "w").write("one\n")
+        keys = f":set protectdir={blocked}\r:set saveversions=1\riX\x1b:w\r:q!\r"
+        screen, content, code = run_vig(keys, file_path=path)
+    assert code == 0 and content == "one\n" and "Can't preserve prior version" in screen
+    print("  PASS: configured protectdir failure blocks versioned write")
 
 
 # ── Runner ─────────────────────────────────────────────────────────────────
@@ -5657,6 +5753,13 @@ def main():
         ("83", "Phase 83 — filtered command history", [
             test_command_history_filters_by_typed_prefix,
             test_filtered_history_restores_draft_and_ignores_no_match,
+        ]),
+        ("84", "Phase 84 — central protection storage", [
+            test_auto_protectdir_centralizes_versions_without_collisions,
+            test_central_recovery_is_detected_and_cleaned,
+            test_auto_protectdir_falls_back_to_file_directory,
+            test_explicit_protectdir_stores_central_versions,
+            test_configured_protectdir_failure_blocks_versioned_write,
         ]),
     ]
 

@@ -160,9 +160,10 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit matched ``` or ~~~ opening/closing marker rows |
 | `:set autodetect` / `noautodetect` | enable or disable syntax and automatic Markdown recognition for subsequently opened buffers (default on) |
 | `:set saveversions=<N>` | retain 0–100 prior disk versions on explicit writes (`0` disables; default `0`) |
+| `:set protectdir=auto\|file\|PATH` | artifact storage: XDG state, adjacent files, or an explicit directory |
 | `:set autosave` / `noautosave` | toggle idle autosave for dirty named buffers (default off) |
 | `:set autosavedelay=<N>` | idle milliseconds after the last mutation before autosave (default 1000) |
-| `:set recovery` / `norecovery` | toggle adjacent `.vigor-recover.NAME` panic backups for dirty named buffers (default off) |
+| `:set recovery` / `norecovery` | toggle panic snapshots for dirty named buffers under `protectdir` (default off) |
 | `:set recoverydelay=<N>` | idle milliseconds after the last mutation before writing a panic backup (default 1000) |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
 
@@ -174,7 +175,9 @@ Markdown presentation styles ATX headers, list markers, and valid pipe tables. T
 
 Autosave uses main-loop deadlines rather than a thread. It writes every due dirty named buffer, including unfocused buffers; unnamed buffers are silently skipped. Explicit writes clear pending deadlines. Success updates the undo save point and clears dirty state. Failure leaves the buffer dirty, reports once in the message bar, and retries only after another mutation. Missing parent directories are errors, and autosaves never rotate `saveversions` backups.
 
-With nonzero `saveversions`, an explicit write that changes an existing target first preserves its raw prior contents and metadata beside it as `.vigor-bak.<basename>.1`; older generations rotate upward to N. New and unchanged targets are skipped, backups do not version themselves, and a backup failure blocks the write. There is no restore command; versions can be opened or copied directly. Add `.vigor-bak.*` to project ignore files as needed.
+With nonzero `saveversions`, an explicit write that changes an existing target first preserves its raw prior contents and metadata under `protectdir`; older generations rotate upward to N. New and unchanged targets are skipped, backups do not version themselves, and a backup failure blocks the write. There is no restore command; versions can be opened or copied directly.
+
+`protectdir=auto` (default) uses `$XDG_STATE_HOME/vigor/files` or `~/.local/state/vigor/files`. Each source gets a directory named from its basename and a truncated SHA-256 hash of its absolute path, containing `recovery` and `versions/N`; no source-path metadata is stored. If automatic storage cannot be created, vigor reports once and falls back to adjacent hidden files. `protectdir=file` selects adjacent `.vigor-recover.NAME` and `.vigor-bak.NAME.N` files explicitly. An explicit path expands `~`, resolves from vigor's working directory, and never silently falls back. Central per-file directories use mode `0700`, and recovery files are created with mode `0600`. Autosave remains distinct and continues writing the original file.
 
 Path semantics: all explicit relative file paths, completion, and shell commands use one process working directory. It starts as the invocation directory and changes globally with `:cd` or `:cdb`; `~` expands. Open buffer paths remain absolute. If `:w` targets a missing parent directory, vig asks `Create directory ...? (y/n)` before calling `mkdir -p` and writing.
 

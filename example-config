@@ -18,6 +18,7 @@ set nohlsearch
 set nomarkdownfences
 set autodetect
 set saveversions=0
+set protectdir=auto
 set noautosave
 set autosavedelay=1000
 set norecovery
