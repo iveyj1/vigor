@@ -224,10 +224,7 @@ class CommandMixin:
             self.cmd = ""
             self.cmd_cx = 0
             return
-        if self._edit_prompt(key, completion=True):
-            return
-        if key == "BACKSPACE":
-            self.mode = Mode.NORMAL
+        self._edit_prompt(key, completion=True)
 
     def _exec_command(self, raw):
         stripped = raw.strip()

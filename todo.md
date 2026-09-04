@@ -39,6 +39,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Keep excess Backspaces at the start of the `:` prompt in Command mode so they cannot reach Normal-mode buffer deletion.
 1. Install the optional diagnostic producer beside `vig` as `vig-diag` and normalize Bash `path: line N:` errors into absolute quickfix locations.
 1. Centralize recovery and manual-save versions under `protectdir=auto|file|PATH` using basename/path-hash identities without path metadata; keep autosave writing the original and fall back adjacent only when automatic XDG storage is unavailable.
 1. Filter `:` command history by the typed prefix while preserving and restoring the unsubmitted draft.

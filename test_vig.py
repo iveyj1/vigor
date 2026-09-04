@@ -5186,6 +5186,17 @@ def test_configured_protectdir_failure_blocks_versioned_write():
     print("  PASS: configured protectdir failure blocks versioned write")
 
 
+# ── Phase 85: command prompt Backspace boundary ────────────────────────────
+
+def test_empty_command_backspace_stays_in_prompt():
+    """Excess Backspaces cannot escape Command mode and delete buffer text."""
+    path = write_temp("abc\n")
+    screen, content, code = run_vig(b"l:\x7f\x7f\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abc\n" and "[+]" not in screen
+    print("  PASS: empty command Backspace stays in prompt")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5767,6 +5778,9 @@ def main():
             test_auto_protectdir_falls_back_to_file_directory,
             test_explicit_protectdir_stores_central_versions,
             test_configured_protectdir_failure_blocks_versioned_write,
+        ]),
+        ("85", "Phase 85 — command prompt Backspace boundary", [
+            test_empty_command_backspace_stays_in_prompt,
         ]),
     ]
 

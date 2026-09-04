@@ -97,7 +97,7 @@ The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKD
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; endpoints: `N`, `.`, `$`, `+N`, `-N`) |
 
 ### Command/Search Input
-- In `:` command mode, Up browses only history entries matching the typed prefix; Down moves toward and eventually restores the unsubmitted draft.
+- In `:` command mode, Up browses only history entries matching the typed prefix; Down moves toward and eventually restores the unsubmitted draft. Backspace at the beginning is a no-op; only Esc or Ctrl-C cancels the prompt.
 - In `/` and `?` search prompts, Up/Down browse shared search history.
 - Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, `:cd`, and shell paths in `:!` commands.
 - A single completion fills the command line. Multiple completions show a centered rounded-border menu; Up/Down moves the reverse-video selection, Tab/Shift-Tab advance/reverse it with wrapping, Enter copies the selected filename into the command line, and Esc hides the menu.
