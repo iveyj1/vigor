@@ -114,6 +114,7 @@ Central artifacts use basename plus an absolute-path hash and contain no path me
 
 <space>d            delete current buffer
 <space>w            toggle line wrapping
+<space>(/{/[/"/' + motion/text object    surround range
 <space>j / k        next / previous quickfix item
 <space>c            switch to quickfix
 <space>o            open quickfix location

@@ -61,7 +61,8 @@ class ModeMixin:
                 self.pending_extra_n = None
                 self._pending_find_for_op = (cmd, key)
                 applied = self._exec_operator(op, cmd, find_n)
-                if applied and op in ("d", "yd", ">", "<", "g~", "gU", "gu"):
+                if applied and (op in ("d", "yd", ">", "<", "g~", "gU", "gu")
+                                or op in self._SURROUND_PAIRS):
                     self._save_dot()
                 elif not applied:
                     self._recording = False
@@ -88,6 +89,13 @@ class ModeMixin:
         # Space leader: wait for next key
         if self._pending_space:
             self._pending_space = False
+            leader_n, leader_extra = self._pending_space_count, self._pending_space_extra
+            self._pending_space_count, self._pending_space_extra = 1, None
+            if key in "({[\"'":
+                self._start_dot(leader_n, [" ", key])
+                self.pending_op, self.pending_count = "s" + key, leader_n
+                self.pending_extra_n = leader_extra
+                return
             if key == "d":
                 if self.buf.dirty:
                     self.msg = "No write since last change (add ! to override)"
@@ -230,8 +238,15 @@ class ModeMixin:
                     elif op in (">", "<"):
                         (self._indent_lines if op == ">" else self._dedent_lines)(sy, ey - sy + 1)
                         self._save_dot()
+                    elif op in self._SURROUND_PAIRS:
+                        if self._surround_range(op, sy, sx, ey, ex):
+                            self._save_dot()
+                        else:
+                            self._recording, self._recording_keys = False, []
                     else:
                         self._change_case_range(sy, sx, ey, ex, self._case_func(op))
+                elif op in self._SURROUND_PAIRS:
+                    self._recording, self._recording_keys = False, []
                 else:
                     self._save_dot()
                 self.pending_op = ""
@@ -287,7 +302,8 @@ class ModeMixin:
                     self._save_dot()
             else:
                 applied = self._exec_operator(op, key, op_n * n, extra_n=extra_n)
-                if applied and op in ("d", "yd", ">", "<", "g~", "gU", "gu"):
+                if applied and (op in ("d", "yd", ">", "<", "g~", "gU", "gu")
+                                or op in self._SURROUND_PAIRS):
                     self._save_dot()
                 elif not applied:
                     self._recording = False
@@ -464,6 +480,7 @@ class ModeMixin:
             self._dot_repeat(n, extra_n)
         elif key == " ":
             self._pending_space = True
+            self._pending_space_count, self._pending_space_extra = n, extra_n
             return
         elif key == "ESC":
             self.pending_op = ""

@@ -99,6 +99,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._pending_g = False     # waiting for second key after 'g'
         self._sticky_cx = None      # desired column during vertical movement
         self._pending_space = False # space-leader: waiting for next key
+        self._pending_space_count = 1
+        self._pending_space_extra = None
         self._pending_g_op = False  # 'g' prefix inside operator-pending
         self._pending_find = None   # (cmd, count) for 'f'/'t'/'F'/'T' waiting for char
         self._pending_find_for_op = None  # (cmd, ch) find for operator
@@ -407,6 +409,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.pending_count = 0
         self.pending_extra_n = None
         self._pending_g = self._pending_space = self._pending_g_op = False
+        self._pending_space_count, self._pending_space_extra = 1, None
         self._pending_find = self._pending_find_for_op = self._pending_textobj = None
         self._pending_replace = 0
         self._pending_ctrl_c = False

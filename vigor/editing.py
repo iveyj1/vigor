@@ -91,6 +91,8 @@ class EditingMixin:
     _FIND_DISPATCH = {"f": "_motion_f", "F": "_motion_F", "t": "_motion_t", "T": "_motion_T"}
     _FIND_REVERSE = {"f": "F", "F": "f", "t": "T", "T": "t"}
     _BRACKETS = {"(": ")", ")": "(", "[": "]", "]": "[", "{": "}", "}": "{"}
+    _SURROUND_PAIRS = {"s(": ("(", ")"), "s{": ("{", "}"), "s[": ("[", "]"),
+                       's"': ('"', '"'), "s'": ("'", "'")}
     _OPEN_BRACKETS = frozenset("([{")
 
     def _snapshot(self):
@@ -948,6 +950,20 @@ class EditingMixin:
         return (not (self.buf.lines == [""] and sy == ey == 0) if linewise
                 else (sy, sx) != (ey, ex))
 
+    def _surround_range(self, op, sy, sx, ey, ex, linewise=False):
+        """Insert a delimiter pair around a nonempty operator range."""
+        if linewise:
+            sx, ex = 0, len(self.buf.lines[ey])
+        if not self._range_changes(sy, sx, ey, ex, linewise):
+            return False
+        self._snapshot()
+        opening, closing = self._SURROUND_PAIRS[op]
+        self.buf.lines[ey] = self.buf.lines[ey][:ex] + closing + self.buf.lines[ey][ex:]
+        self.buf.lines[sy] = self.buf.lines[sy][:sx] + opening + self.buf.lines[sy][sx:]
+        self.cy, self.cx = sy, sx
+        self.buf.dirty = True
+        return True
+
     def _delete_range(self, sy, sx, ey, ex, linewise=False, copy=True):
         """Delete text from (sy,sx) to (ey,ex). Returns deleted text."""
         text, self.cy, self.cx, changed = delete_range(
@@ -1047,6 +1063,8 @@ class EditingMixin:
             if linewise:
                 sy, sx, ty, tx = sy, 0, ty, len(self.buf.lines[ty])
             self._change_case_range(sy, sx, ty, tx, func)
+        elif op in self._SURROUND_PAIRS:
+            return self._surround_range(op, sy, sx, ty, tx, linewise)
         return True
 
     def _paste_after(self):

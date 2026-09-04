@@ -5197,6 +5197,62 @@ def test_empty_command_backspace_stays_in_prompt():
     print("  PASS: empty command Backspace stays in prompt")
 
 
+# ── Phase 86: leader surround operator ─────────────────────────────────────
+
+def test_leader_surrounds_text_objects_with_pairs():
+    """Leader plus delimiter wraps an existing text-object range literally."""
+    pairs = ((b"(", "(word)"), (b"{", "{word}"), (b"[", "[word]"),
+             (b'"', '"word"'), (b"'", "'word'"))
+    for key, wrapped in pairs:
+        path = write_temp("word next\n")
+        _, content, code = run_vig(b" " + key + b"iw:wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == wrapped + " next\n", (key, content)
+    print("  PASS: leader surrounds text objects with pairs")
+
+
+def test_leader_surround_supports_linewise_motions_and_counts():
+    """Linewise delimiters stay inline, and counts work before or after the pair."""
+    path = write_temp("one\ntwo\nthree\n")
+    _, linewise, code = run_vig(b" {j:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and linewise == "{one\ntwo}\nthree\n", linewise
+    for action in (b"2 (w", b" (2w"):
+        path = write_temp("one two three four\n")
+        _, content, code = run_vig(action + b":wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == "(one two )three four\n", (action, content)
+    print("  PASS: leader surround supports linewise motions and counts")
+
+
+def test_leader_surround_is_atomic_repeatable_and_preserves_register():
+    """Surround uses one undo boundary, dot repeats it, and yanked text is retained."""
+    path = write_temp("one\ntwo\n")
+    _, repeated, code = run_vig(b" (iwj.u\x12:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and repeated == "(one)\n(two)\n", repeated
+    path = write_temp("one two\n")
+    _, registered, code = run_vig(
+        b":set clipboard=off\ryiww (iw$p:wq\r", file_path=path,
+    )
+    os.unlink(path)
+    assert code == 0 and registered == "one (two)one\n", registered
+    print("  PASS: leader surround is atomic, repeatable, and preserves register")
+
+
+def test_failed_leader_surround_preserves_redo():
+    """A failed surround motion creates no undo entry and does not clear redo."""
+    path = write_temp("abc\n")
+    _, content, code = run_vig(b"xu (h\x12:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "bc\n", content
+    path = write_temp('""\n')
+    _, content, code = run_vig(b'xul (i"\x12:wq\r', file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == '"\n', content
+    print("  PASS: failed and empty leader surrounds preserve redo")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5781,6 +5837,12 @@ def main():
         ]),
         ("85", "Phase 85 — command prompt Backspace boundary", [
             test_empty_command_backspace_stays_in_prompt,
+        ]),
+        ("86", "Phase 86 — leader surround operator", [
+            test_leader_surrounds_text_objects_with_pairs,
+            test_leader_surround_supports_linewise_motions_and_counts,
+            test_leader_surround_is_atomic_repeatable_and_preserves_register,
+            test_failed_leader_surround_preserves_redo,
         ]),
     ]
 

@@ -204,6 +204,7 @@ It executes arguments directly rather than through a shell; use `sh -c '...'` ex
 | `:ls` | list all buffers |
 | `<space>d` | close current buffer, refusing dirty or last buffers |
 | `<space>w` | toggle `wrap` / `nowrap` |
+| `<space>(` / `{` / `[` / `"` / `'` + motion or text object | surround the range with the matching literal pair; counts and dot repeat work |
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |
 | `<space>o` | open `file:line:column:` location under cursor |
