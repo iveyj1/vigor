@@ -3299,9 +3299,10 @@ def test_install_stamps_build_identification():
         result = subprocess.run([os.path.join(os.path.dirname(VIG), "scripts", "install")],
                                 cwd=os.path.dirname(VIG), env=env, capture_output=True, text=True)
         installed = open(os.path.join(d, "vigor", "__init__.py")).read()
-        diagnostics_installed = os.access(os.path.join(d, "vig-diagnostics"), os.X_OK)
+        diagnostics_installed = os.access(os.path.join(d, "vig-diag"), os.X_OK)
+        old_name_exists = os.path.exists(os.path.join(d, "vig-diagnostics"))
     assert result.returncode == 0, result.stderr
-    assert diagnostics_installed
+    assert diagnostics_installed and not old_name_exists
     assert 'VERSION = "0.1.0"' in installed
     assert re.search(r"BUILD_ID = ['\"][0-9a-f]+ \d{4}-\d{2}-\d{2}(?: dirty)?['\"]", installed)
     assert 'BUILD_ID = "development"' in open(os.path.join(os.path.dirname(VIG), "vigor", "__init__.py")).read()
@@ -3354,7 +3355,7 @@ def test_makeprg_runs_with_make_arguments():
     print("  PASS: makeprg runs with :make arguments")
 
 
-def test_vig_diagnostics_normalizes_gcc_clang_and_python():
+def test_vig_diagnostics_normalizes_gcc_clang_python_and_bash():
     """The optional producer normalizes common diagnostics and preserves status."""
     import subprocess
     with tempfile.TemporaryDirectory() as d:
@@ -3373,13 +3374,19 @@ def test_vig_diagnostics_normalizes_gcc_clang_and_python():
         )
         result = subprocess.run([VIG_DIAGNOSTICS, "--cwd", project,
                                  sys.executable, "produce.py"], capture_output=True, text=True)
+        bash_source = os.path.join(project, "fail.sh")
+        open(bash_source, "w").write("#!/usr/bin/env bash\necho before\nmissing_command\n")
+        bash = subprocess.run([VIG_DIAGNOSTICS, "--cwd", project, "bash", "fail.sh"],
+                              capture_output=True, text=True)
     assert result.returncode == 7
     assert f"{source}:2:4: error: bad token" in result.stdout
     assert f"{source}:3:1: warning: unused" in result.stdout
     assert f"{python_source}:9:1: in run" in result.stdout
     assert "    explode()" in result.stdout
     assert "\x1b[31m" not in result.stdout
-    print("  PASS: vig-diagnostics normalizes GCC/Clang and Python")
+    assert bash.returncode == 127
+    assert f"{bash_source}:3:1:missing_command: command not found" in bash.stdout
+    print("  PASS: vig-diagnostics normalizes GCC/Clang, Python, and Bash")
 
 
 def test_makeprg_config_and_silent_success():
@@ -5585,7 +5592,7 @@ def main():
         ("55", "Phase 55 — build diagnostics", [
             test_qf_command_captures_and_normalizes_diagnostics,
             test_makeprg_runs_with_make_arguments,
-            test_vig_diagnostics_normalizes_gcc_clang_and_python,
+            test_vig_diagnostics_normalizes_gcc_clang_python_and_bash,
             test_makeprg_config_and_silent_success,
         ]),
         ("56", "Phase 56 — working directory", [

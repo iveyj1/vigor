@@ -33,7 +33,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `proposals/` — accepted and deferred feature designs, including `module-architecture.md`
 - `archive/PLAN.md` — retired original development plan, kept for history only
 - `scripts/install` — installs the runtime, launcher, and help file while stamping build identification
-- `scripts/vig-diagnostics` — optional GCC/Clang and Python diagnostic-producer wrapper
+- `scripts/vig-diagnostics` — optional GCC/Clang, Python, and Bash diagnostic producer, installed beside `vig` as `vig-diag`
 - `scripts/update_cloc_by_commit.sh` — saves per-commit runtime Python cloc history to `scripts/cloc_by_commit.md`
 
 ### Management
@@ -80,7 +80,7 @@ Commit at the end of each completed development phase. Do not leave partial or f
 
 **Project tooling**
 
-- `scripts/vig-diagnostics [--cwd DIR] <command> [args...]` runs a command directly, preserves its exit status and merged output, strips ANSI, and normalizes GCC/Clang locations and Python traceback frames to absolute quickfix paths. It is optional tooling, not an editor runtime dependency.
+- `scripts/vig-diagnostics [--cwd DIR] <command> [args...]` (installed as `vig-diag`) runs a command directly, preserves its exit status and merged output, strips ANSI, and normalizes GCC/Clang locations, Python traceback frames, and Bash `path: line N:` errors to absolute quickfix paths. It is optional tooling, not an editor runtime dependency.
 - `scripts/update_cloc_by_commit.sh` records cloc counts and short commit subjects for every commit reachable from the current branch.
 
 ### Divergences from vi

@@ -96,7 +96,7 @@ Captured output uses vigor's existing remembered quickfix buffer.
 
 ### External Translators
 
-The optional `scripts/vig-diagnostics [--cwd DIR] <command> [args...]` wrapper implements the protocol for GCC/Clang output and Python traceback frames. It runs the command directly, merges output, preserves exit status, strips ANSI, and converts recognized relative paths to absolute paths. `--cwd` changes the command directory before execution and provides the base for those paths.
+The optional `scripts/vig-diagnostics [--cwd DIR] <command> [args...]` wrapper, installed beside `vig` as `vig-diag`, implements the protocol for GCC/Clang output, Python traceback frames, and Bash `path: line N:` errors. It runs the command directly, merges output, preserves exit status, strips ANSI, and converts recognized relative paths to absolute paths. `--cwd` changes the command directory before execution and provides the base for those paths.
 
 Projects may provide other wrappers for formats that are not already compatible, including Rust JSON, pytest output, or MSVC diagnostics.
 

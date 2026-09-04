@@ -61,6 +61,7 @@ n N                 repeat search / reverse
 :[range]s/pat/repl/g substitute; endpoints: N, ., $, +N, -N
 :make [args]        run makeprg into quickfix
 :qf !command        run diagnostic command into quickfix
+vig-diag COMMAND     installed diagnostic normalizer; supports Bash line errors
 :rg pattern [path]  ripgrep results into quickfix
 :rgf [path]         fzf live ripgrep; Enter adds filtered rows
 

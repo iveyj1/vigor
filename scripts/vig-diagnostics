@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run a command and normalize GCC/Clang and Python paths for vigor."""
+"""Run a command and normalize GCC/Clang, Python, and Bash paths for vigor."""
 
 import os
 import re
@@ -8,7 +8,9 @@ import sys
 
 ANSI_ESCAPE = re.compile(r"\x1b(?:\[[0-?]*[ -/]*[@-~]|\][^\x07]*(?:\x07|\x1b\\))")
 PYTHON_FRAME = re.compile(r'^\s*File "(.+?)", line (\d+)(?:, in (.*))?$')
+BASH_LOCATION = re.compile(r"^(.+?):\s*line\s+(\d+):\s*(.*)$")
 LOCATION = re.compile(r"^(.+?):(\d+):(?:(\d+):)?(.*)$")
+PROGRAM = os.path.basename(sys.argv[0])
 
 
 def _absolute(path, cwd):
@@ -22,6 +24,9 @@ def normalize(line, cwd):
     if frame and not frame.group(1).startswith("<"):
         detail = f" in {frame.group(3)}" if frame.group(3) else " Python traceback"
         return f"{_absolute(frame.group(1), cwd)}:{frame.group(2)}:1:{detail}"
+    bash = BASH_LOCATION.match(line)
+    if bash:
+        return f"{_absolute(bash.group(1), cwd)}:{bash.group(2)}:1:{bash.group(3)}"
     location = LOCATION.match(line)
     if location:
         path, lineno, column, message = location.groups()
@@ -33,23 +38,23 @@ def main(argv):
     cwd = os.getcwd()
     if argv[:1] == ["--cwd"]:
         if len(argv) < 3:
-            print("Usage: vig-diagnostics [--cwd DIR] <command> [args ...]", file=sys.stderr)
+            print(f"Usage: {PROGRAM} [--cwd DIR] <command> [args ...]", file=sys.stderr)
             return 2
         cwd, argv = os.path.abspath(os.path.expanduser(argv[1])), argv[2:]
     if not argv:
-        print("Usage: vig-diagnostics [--cwd DIR] <command> [args ...]", file=sys.stderr)
+        print(f"Usage: {PROGRAM} [--cwd DIR] <command> [args ...]", file=sys.stderr)
         return 2
     if not os.path.isdir(cwd):
-        print(f"vig-diagnostics: not a directory: {cwd}", file=sys.stderr)
+        print(f"{PROGRAM}: not a directory: {cwd}", file=sys.stderr)
         return 126
     try:
         process = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, text=True, errors="replace")
     except FileNotFoundError:
-        print(f"vig-diagnostics: command not found: {argv[0]}", file=sys.stderr)
+        print(f"{PROGRAM}: command not found: {argv[0]}", file=sys.stderr)
         return 127
     except OSError as error:
-        print(f"vig-diagnostics: {error}", file=sys.stderr)
+        print(f"{PROGRAM}: {error}", file=sys.stderr)
         return 126
     try:
         for line in process.stdout:

@@ -185,16 +185,16 @@ Path semantics: all explicit relative file paths, completion, and shell commands
 
 `:qf !<cmd>` and `:make` retain ordinary output for context while quickfix navigation skips non-location rows. Navigable producers emit `path:line:column: message`; `path:line: message` is normalized to column 1. ANSI escapes are stripped, nonzero output is retained, and silent successful builds leave the current buffer active.
 
-The optional producer wrapper normalizes GCC/Clang output and Python traceback frames while preserving context and command exit status:
+The installer places the optional producer beside `vig` as `vig-diag`. It normalizes GCC/Clang output, Python traceback frames, and Bash `path: line N:` errors while preserving context and command exit status:
 
 ```vim
-:set makeprg=./scripts/vig-diagnostics make
+:set makeprg=vig-diag make
 :make clean
-:qf !./scripts/vig-diagnostics python3 -m pytest
-:qf !./scripts/vig-diagnostics --cwd subproject make
+:qf !vig-diag python3 -m pytest
+:qf !vig-diag --cwd subproject make
 ```
 
-It executes arguments directly rather than through a shell; use `sh -c '...'` explicitly for pipelines or redirection. `--cwd DIR` changes the producer command's directory. Recognized relative GCC/Clang and Python paths become absolute. Vigor also records each quickfix producer's cwd, so later `:cd` commands do not reinterpret generic relative results. See `proposals/build-diagnostics-proposal.md` for the protocol.
+It executes arguments directly rather than through a shell; use `sh -c '...'` explicitly for pipelines or redirection. `--cwd DIR` changes the producer command's directory. Recognized relative GCC/Clang, Python, and Bash `path: line N:` locations become absolute. Vigor also records each quickfix producer's cwd, so later `:cd` commands do not reinterpret generic relative results. See `proposals/build-diagnostics-proposal.md` for the protocol.
 
 ### Multi-Buffer
 | Key / Command | Action |

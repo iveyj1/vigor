@@ -432,9 +432,9 @@ Configure and run a build:
 
 The optional producer wrapper handles common GCC/Clang and Python output:
 
-    :set makeprg=scripts/vig-diagnostics make
-    :qf !scripts/vig-diagnostics python3 program.py
-    :qf !scripts/vig-diagnostics --cwd subproject make
+    :set makeprg=vig-diag make
+    :qf !vig-diag python3 program.py
+    :qf !vig-diag --cwd subproject make
 
 Quickfix shortcuts:
 

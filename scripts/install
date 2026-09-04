@@ -21,4 +21,5 @@ text = text.replace('BUILD_ID = "development"', f"BUILD_ID = {os.environ['BUILD_
 path.write_text(text)
 PY
 cp vig vighelp "$instdir/"
-cp scripts/vig-diagnostics "$instdir/"
+rm -f "$instdir/vig-diagnostics"
+cp scripts/vig-diagnostics "$instdir/vig-diag"
