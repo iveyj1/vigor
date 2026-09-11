@@ -675,6 +675,61 @@ class EditingMixin:
         self.buf.dirty = True
         return True
 
+    def _hard_wrap_line(self, line, width):
+        """Return line split at real newlines, preferring whitespace before width."""
+        if width <= 0 or display_col(line, len(line)) <= width:
+            return [line]
+        prefix = line[:len(line) - len(line.lstrip())]
+        cont_prefix = prefix if display_col(prefix, len(prefix)) < width else ""
+        out, cur = [], line
+        while display_col(cur, len(cur)) > width:
+            min_break = len(cont_prefix) if cur.startswith(cont_prefix) else 0
+            limit = display_index(cur, width)
+            if limit <= min_break:
+                limit = min(len(cur), min_break + 1)
+            split = None
+            for i in range(min(limit, len(cur)) - 1, min_break, -1):
+                if cur[i].isspace():
+                    split = i
+                    break
+            if split is None:
+                split = min(len(cur), max(min_break + 1, limit))
+                head, tail = cur[:split].rstrip(), cur[split:].lstrip()
+            else:
+                head, tail = cur[:split].rstrip(), cur[split + 1:].lstrip()
+            if not head and tail:
+                split = min(len(cur), max(1, display_index(cur, width)))
+                head, tail = cur[:split], cur[split:].lstrip()
+            out.append(head)
+            cur = cont_prefix + tail if tail else ""
+            if not cur:
+                break
+        out.append(cur)
+        return out
+
+    def _hard_wrap_range(self, start, end, width=None):
+        """Hard-wrap logical lines in [start, end] using textwidth-style width."""
+        width = self.opt_textwidth if width is None else width
+        if width <= 0:
+            self.msg = "textwidth=0"
+            return False
+        start = max(0, start)
+        end = min(end, len(self.buf.lines) - 1)
+        if start > end:
+            return False
+        new_lines = []
+        for line in self.buf.lines[start:end + 1]:
+            new_lines.extend(self._hard_wrap_line(line, width))
+        if new_lines == self.buf.lines[start:end + 1]:
+            self.msg = "Already wrapped"
+            return False
+        self._snapshot()
+        self.buf.lines[start:end + 1] = new_lines
+        self.cy, self.cx = start, 0
+        self.buf.dirty = True
+        self.msg = f"hard wrapped at {width}"
+        return True
+
     def _toggle_comment(self, start, count):
         """Toggle line comments using opt_comment prefix."""
         prefix = self.opt_comment + " "
@@ -1036,6 +1091,8 @@ class EditingMixin:
             self._enter_insert(snapshot=not changes)
         elif op in (">", "<"):
             (self._indent_lines if op == ">" else self._dedent_lines)(sy, ty - sy + 1)
+        elif op == "gq":
+            self._hard_wrap_range(sy, ty)
         elif op in ("g~", "gU", "gu"):
             func = self._case_func(op)
             if linewise:

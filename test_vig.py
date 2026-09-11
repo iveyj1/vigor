@@ -5282,6 +5282,33 @@ def test_failed_leader_surround_preserves_redo():
     print("  PASS: failed and empty leader surrounds preserve redo")
 
 
+def test_gqq_hard_wraps_current_line_at_textwidth():
+    """gqq inserts real newlines at whitespace before textwidth."""
+    path = write_temp("alpha beta gamma delta\n")
+    _, content, code = run_vig(b":set textwidth=12\rgqq:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "alpha beta\ngamma delta\n", content
+    print("  PASS: gqq hard-wraps current line at textwidth")
+
+
+def test_gq_motion_and_undo_dot_repeat():
+    """gq accepts motions, creates one undo step, and dot-repeat reuses it."""
+    path = write_temp("one two three four\nfive six seven eight\n")
+    _, content, code = run_vig(b":set textwidth=9\rgqju.j.:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "one two\nthree\nfour\nfive six\nseven\neight\n", content
+    print("  PASS: gq motion supports undo and dot repeat")
+
+
+def test_visual_gq_and_long_word_split():
+    """Visual gq hard-wraps selected lines and hard-splits long words."""
+    path = write_temp("  abc def ghi\nsuperlongword\n")
+    _, content, code = run_vig(b":set textwidth=8\rVjgq:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "  abc\n  def\n  ghi\nsuperlon\ngword\n", content
+    print("  PASS: visual gq preserves indentation and splits long words")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -5872,6 +5899,11 @@ def main():
             test_leader_surround_supports_linewise_motions_and_counts,
             test_leader_surround_is_atomic_repeatable_and_preserves_register,
             test_failed_leader_surround_preserves_redo,
+        ]),
+        ("87", "Phase 87 — textwidth hard wrap", [
+            test_gqq_hard_wraps_current_line_at_textwidth,
+            test_gq_motion_and_undo_dot_repeat,
+            test_visual_gq_and_long_word_split,
         ]),
     ]
 

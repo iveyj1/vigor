@@ -28,11 +28,12 @@ J                   join with next line
 >> / <<             indent / dedent four spaces
 > / < + motion      indent / dedent touched lines
 gcc                 toggle line comment
+gq + motion / gqq   hard-wrap touched lines using textwidth
 ~ / g~ / gU / gu    toggle / toggle / upper / lower case
 .                   repeat last change
 u / Ctrl-R          undo / redo
 v V / gv            visual character / line; reselect last
-                    d y c x gc > < operate on selection
+                    d y c x gc gq > < operate on selection
 
 /pattern ?pattern   search forward / backward; typing previews matches
 * # / g* g#         word search; whole / partial
@@ -83,6 +84,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set list / :set nolist        show tabs as ›··· (default for make)
 :set wordwrap / :set nowordwrap
 :set wrapmove / :set nowrapmove
+:set textwidth=N       0 disables gq hard-wrap width
 :set number / :set nonumber
 :set relativenumber / :set norelativenumber
 :set autoindent / :set noautoindent

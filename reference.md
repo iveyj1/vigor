@@ -32,7 +32,8 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 | `d` `y` `c` + motion | delete / yank / change over motion |
 | `yd` + motion | delete and yank over motion (useful with `:set nodelcopy`) |
 | `>` `<` + motion or text object | indent / dedent every touched logical line by 4 spaces |
-| `dd` `yy` `cc` | linewise delete / yank / change |
+| `gq` + motion or text object | hard-wrap every touched logical line using `textwidth` |
+| `dd` `yy` `cc` / `gqq` | linewise delete / yank / change / hard-wrap |
 | `D` `C` | delete / change to end of line |
 | `Y` | yank from cursor to end of logical line |
 | `x` / Delete | delete char at cursor |
@@ -77,6 +78,7 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `c` | change selection |
 | `gc` | toggle comment on selected lines |
 | `>` `<` | indent / dedent every selected logical line, then return to Normal mode |
+| `gq` | hard-wrap every selected logical line using `textwidth`, then return to Normal mode |
 
 ### Syntax Highlighting
 
@@ -146,6 +148,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set list` / `nolist` | show literal tabs as visible `›···` cells while preserving source tabs; Makefiles default to visible tabs |
 | `:set wordwrap` / `nowordwrap` | with wrap on, prefer approximate whitespace breakpoints over hard display-column cuts |
 | `:set wrapmove` / `nowrapmove` | with wrap on, make `j`/`k`/Up/Down move by displayed rows |
+| `:set textwidth=<N>` | width for `gq` hard wrapping; `0` disables (`0` default) |
 | `:set number` / `nonumber` | toggle absolute line numbers |
 | `:set relativenumber` / `norelativenumber` | toggle relative line numbers |
 | `:set autoindent` / `noautoindent` | toggle autoindent |

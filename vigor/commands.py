@@ -19,6 +19,7 @@ OPTIONS = {
     "list": ("bool", "opt_list", False, None, None),
     "wordwrap": ("bool", "opt_wordwrap", False, None, "_ensure_scroll"),
     "wrapmove": ("bool", "opt_wrapmove", False, None, None),
+    "textwidth": ("int", "opt_textwidth", 0, (0, None), None),
     "number": ("bool", "opt_number", False, None, None),
     "relativenumber": ("bool", "opt_relnum", False, None, None),
     "autoindent": ("bool", "opt_autoindent", True, None, None),

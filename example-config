@@ -4,6 +4,7 @@ set wrapcol=0
 set nolist
 set nowordwrap
 set nowrapmove
+set textwidth=0
 set nonumber
 set norelativenumber
 set autoindent

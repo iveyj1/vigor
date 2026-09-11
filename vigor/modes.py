@@ -61,7 +61,7 @@ class ModeMixin:
                 self.pending_extra_n = None
                 self._pending_find_for_op = (cmd, key)
                 applied = self._exec_operator(op, cmd, find_n)
-                if applied and (op in ("d", "yd", ">", "<", "g~", "gU", "gu")
+                if applied and (op in ("d", "yd", ">", "<", "gq", "g~", "gU", "gu")
                                 or op in self._SURROUND_PAIRS):
                     self._save_dot()
                 elif not applied:
@@ -141,6 +141,9 @@ class ModeMixin:
             elif key == "c":
                 # gcc — toggle comment (enter pending for second c)
                 self._enter_op_pending("gc", n, extra_n)
+                return
+            elif key == "q":
+                self._enter_op_pending("gq", n, extra_n)
                 return
             elif key in ("~", "U", "u"):
                 self._enter_op_pending("g" + key, n, extra_n)
@@ -238,6 +241,9 @@ class ModeMixin:
                     elif op in (">", "<"):
                         (self._indent_lines if op == ">" else self._dedent_lines)(sy, ey - sy + 1)
                         self._save_dot()
+                    elif op == "gq":
+                        self._hard_wrap_range(sy, ey)
+                        self._save_dot()
                     elif op in self._SURROUND_PAIRS:
                         if self._surround_range(op, sy, sx, ey, ex):
                             self._save_dot()
@@ -258,8 +264,8 @@ class ModeMixin:
             self.pending_op = ""
             self.pending_count = 0
             self.pending_extra_n = None
-            # Doubled operator = line-wise (dd, yy, cc, >>, <<, g~~, gUU, guu)
-            if key == (op[-1] if op in ("g~", "gU", "gu") else op) or (op == "yd" and key == "d"):
+            # Doubled operator = line-wise (dd, yy, cc, >>, <<, gqq, g~~, gUU, guu)
+            if key == (op[-1] if op in ("gq", "g~", "gU", "gu") else op) or (op == "yd" and key == "d"):
                 if op == "d":
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
                     if self._range_changes(self.cy, 0, end, 0, linewise=True):
@@ -296,13 +302,16 @@ class ModeMixin:
                 elif op == "<":
                     self._dedent_lines(self.cy, op_n)
                     self._save_dot()
+                elif op == "gq":
+                    self._hard_wrap_range(self.cy, min(self.cy + op_n - 1, len(self.buf.lines) - 1))
+                    self._save_dot()
                 elif op in ("g~", "gU", "gu"):
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
                     self._change_case_range(self.cy, 0, end, len(self.buf.lines[end]), self._case_func(op))
                     self._save_dot()
             else:
                 applied = self._exec_operator(op, key, op_n * n, extra_n=extra_n)
-                if applied and (op in ("d", "yd", ">", "<", "g~", "gU", "gu")
+                if applied and (op in ("d", "yd", ">", "<", "gq", "g~", "gU", "gu")
                                 or op in self._SURROUND_PAIRS):
                     self._save_dot()
                 elif not applied:
@@ -627,13 +636,23 @@ class ModeMixin:
             self._clamp_cursor()
             self._ensure_scroll()
             return
-        # 'g' prefix for gg and gc
+        # 'g' prefix for gg, gc, and gq
         if self._pending_g:
             self._pending_g = False
             if key == "g":
                 key = "gg"
             elif key in ("0", "^", "$"):
                 key = "g" + key
+            elif key == "q":
+                sel = self._selection_range()
+                if sel:
+                    sy, _, ey, _ = sel
+                    self._remember_visual_selection()
+                    self._hard_wrap_range(sy, ey)
+                self.mode = Mode.NORMAL
+                self._clamp_cursor()
+                self._ensure_scroll()
+                return
             elif key == "c":
                 # gc in visual — toggle comment on selected lines
                 sel = self._selection_range()
