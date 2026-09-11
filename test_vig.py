@@ -5285,7 +5285,7 @@ def test_failed_leader_surround_preserves_redo():
 def test_gqq_hard_wraps_current_line_at_textwidth():
     """gqq inserts real newlines at whitespace before textwidth."""
     path = write_temp("alpha beta gamma delta\n")
-    _, content, code = run_vig(b":set textwidth=12\rgqq:wq\r", file_path=path)
+    _, content, code = run_vig(b":set textwidth=12\r:set wordwrap\rgqq:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "alpha beta\ngamma delta\n", content
     print("  PASS: gqq hard-wraps current line at textwidth")
@@ -5294,7 +5294,7 @@ def test_gqq_hard_wraps_current_line_at_textwidth():
 def test_bare_textwidth_uses_cursor_column():
     """Bare :set textwidth uses the current 1-based display column."""
     path = write_temp("alpha beta gamma delta\n")
-    _, content, code = run_vig(b"10l:set textwidth\rgqq:wq\r", file_path=path)
+    _, content, code = run_vig(b"10l:set textwidth\r:set wordwrap\rgqq:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "alpha beta\ngamma delta\n", content
     print("  PASS: bare textwidth uses cursor column")
@@ -5303,16 +5303,25 @@ def test_bare_textwidth_uses_cursor_column():
 def test_gq_motion_and_undo_dot_repeat():
     """gq accepts motions, creates one undo step, and dot-repeat reuses it."""
     path = write_temp("one two three four\nfive six seven eight\n")
-    _, content, code = run_vig(b":set textwidth=9\rgqju.j.:wq\r", file_path=path)
+    _, content, code = run_vig(b":set textwidth=9\r:set wordwrap\rgqju.j.:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "one two\nthree\nfour\nfive six\nseven\neight\n", content
     print("  PASS: gq motion supports undo and dot repeat")
 
 
+def test_nowordwrap_gq_hard_splits_at_textwidth():
+    """With nowordwrap, gq breaks at textwidth without seeking whitespace."""
+    path = write_temp("alpha beta gamma delta\n")
+    _, content, code = run_vig(b":set textwidth=12\rgqq:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "alpha beta g\namma delta\n", content
+    print("  PASS: nowordwrap gq hard-splits at textwidth")
+
+
 def test_visual_gq_and_long_word_split():
     """Visual gq hard-wraps selected lines and hard-splits long words."""
     path = write_temp("  abc def ghi\nsuperlongword\n")
-    _, content, code = run_vig(b":set textwidth=8\rVjgq:wq\r", file_path=path)
+    _, content, code = run_vig(b":set textwidth=8\r:set wordwrap\rVjgq:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "  abc\n  def\n  ghi\nsuperlon\ngword\n", content
     print("  PASS: visual gq preserves indentation and splits long words")
@@ -5913,6 +5922,7 @@ def main():
             test_gqq_hard_wraps_current_line_at_textwidth,
             test_bare_textwidth_uses_cursor_column,
             test_gq_motion_and_undo_dot_repeat,
+            test_nowordwrap_gq_hard_splits_at_textwidth,
             test_visual_gq_and_long_word_split,
         ]),
     ]

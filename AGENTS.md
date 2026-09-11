@@ -59,7 +59,7 @@ Commit at the end of each completed development phase. Do not leave partial or f
 
 **Modes**
 
-Add simplified Vim-compatible hard wrapping: `:set textwidth=N` (default `0`) supplies the hard-wrap width; bare `:set textwidth` uses the current 1-based cursor display column. `gq{motion}`, `gqq`, text-object forms, and Visual `gq` hard-wrap every touched logical line by inserting real newlines, preferring whitespace before the width and falling back to hard splits for long words. Existing short lines are not joined/reflowed.
+Add simplified Vim-compatible hard wrapping: `:set textwidth=N` (default `0`) supplies the hard-wrap width; bare `:set textwidth` uses the current 1-based cursor display column. `gq{motion}`, `gqq`, text-object forms, and Visual `gq` hard-wrap every touched logical line by inserting real newlines. With `wordwrap`, hard wrapping prefers whitespace before the width and falls back to hard splits for long words; with `nowordwrap`, it breaks at the textwidth regardless of word boundaries. Existing short lines are not joined/reflowed.
 
 `Mode` is defined in `vigor.state` so application and command dispatch share it without circular imports.
 
@@ -203,7 +203,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 402 test functions organized into 86 phase groups (selectors 1–87, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 403 test functions organized into 86 phase groups (selectors 1–87, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 ### Workflow for AI Agents
 

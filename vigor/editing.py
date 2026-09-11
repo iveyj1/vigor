@@ -676,7 +676,7 @@ class EditingMixin:
         return True
 
     def _hard_wrap_line(self, line, width):
-        """Return line split at real newlines, preferring whitespace before width."""
+        """Return line split at real newlines using textwidth."""
         if width <= 0 or display_col(line, len(line)) <= width:
             return [line]
         prefix = line[:len(line) - len(line.lstrip())]
@@ -688,18 +688,20 @@ class EditingMixin:
             if limit <= min_break:
                 limit = min(len(cur), min_break + 1)
             split = None
-            for i in range(min(limit, len(cur)) - 1, min_break, -1):
-                if cur[i].isspace():
-                    split = i
-                    break
+            if self.opt_wordwrap:
+                for i in range(min(limit, len(cur)) - 1, min_break, -1):
+                    if cur[i].isspace():
+                        split = i
+                        break
             if split is None:
                 split = min(len(cur), max(min_break + 1, limit))
-                head, tail = cur[:split].rstrip(), cur[split:].lstrip()
+                head = cur[:split].rstrip() if self.opt_wordwrap else cur[:split]
+                tail = cur[split:].lstrip() if self.opt_wordwrap else cur[split:]
             else:
                 head, tail = cur[:split].rstrip(), cur[split + 1:].lstrip()
             if not head and tail:
                 split = min(len(cur), max(1, display_index(cur, width)))
-                head, tail = cur[:split], cur[split:].lstrip()
+                head, tail = cur[:split], cur[split:].lstrip() if self.opt_wordwrap else cur[split:]
             out.append(head)
             cur = cont_prefix + tail if tail else ""
             if not cur:
