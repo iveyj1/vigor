@@ -486,7 +486,7 @@ def test_b_newline_is_word_boundary():
     """b should stop at current line word start before crossing lines."""
     path = write_temp("import sys\nimport os\n")
     # From 'os', b should land on current line 'import', not previous line 'sys'.
-    screen, content, code = run_vig(b"2G7lbiX\x1b:wq\r", file_path=path)
+    screen, content, code = run_vig(b"G7lbiX\x1b:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert content == "import sys\nXimport os\n", f"Expected b to land on current line, got: {content!r}"
@@ -495,7 +495,7 @@ def test_b_newline_is_word_boundary():
 def test_B_newline_is_word_boundary():
     """B should stop at current line WORD start before crossing lines."""
     path = write_temp("import sys\nimport os\n")
-    screen, content, code = run_vig(b"2G7lBiX\x1b:wq\r", file_path=path)
+    screen, content, code = run_vig(b"G7lBiX\x1b:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0
     assert content == "import sys\nXimport os\n", f"Expected B to land on current line, got: {content!r}"
@@ -1140,7 +1140,7 @@ def test_wrapmove_is_symmetric_at_exact_49_column_boundary():
 def test_wrapmove_crosses_logical_lines_symmetrically():
     """k to the previous line's last display row and j back preserve display column."""
     path = write_temp("abcdefghijklmnop\nabcdefghij\n")
-    _, content, code = run_vig(b":set wrap\r:set wrapmove\r2G0kjiX\x1b:wq\r", file_path=path, cols=10)
+    _, content, code = run_vig(b":set wrap\r:set wrapmove\rG0kjiX\x1b:wq\r", file_path=path, cols=10)
     os.unlink(path)
     assert code == 0
     assert content == "abcdefghijklmnop\nXabcdefghij\n", f"Asymmetric wrapped j/k: {content!r}"
@@ -1406,14 +1406,14 @@ def test_gg_scrolls_viewport_to_first_line():
 
 
 def test_count_G():
-    """3G goes to line 3."""
+    """3G goes to the third line from EOF."""
     path = write_temp("line1\nline2\nline3\nline4\n")
-    keys = b"3GA@@@\x1b:wq\r"  # 3G to line 3, A appends
+    keys = b"3GA@@@\x1b:wq\r"  # 3G to third line from EOF: line2
     screen, content, code = run_vig(keys, file_path=path)
     os.unlink(path)
     assert code == 0
-    assert "line3@@@" in content, f"3G did not go to line 3: {content!r}"
-    print("  PASS: count G")
+    assert "line2@@@" in content, f"3G did not go to third line from EOF: {content!r}"
+    print("  PASS: count G from EOF")
 
 def test_zero_goes_to_column_zero():
     """0 moves cursor to column 0."""
@@ -2065,6 +2065,16 @@ def test_caret_motion_first_nonblank():
     assert code == 0
     assert content == "    Xhello!\n", f"Expected first-nonblank insert, got {content!r}"
     print("  PASS: ^ moves to first non-blank")
+
+def test_counted_line_edge_motions_move_downward():
+    """Counts on $, 0, and ^ select the nth line below the cursor."""
+    path = write_temp("aa\n  bb\n  cc\ndd\n")
+    screen, content, code = run_vig(b"2$i!\x1bggl10i^\x1bgg2^iX\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "aa\n^  bb\n  Xcc!\ndd\n", content
+    print("  PASS: counted $, 0, and ^ move to lower lines")
+
 
 def test_home_end_normal_mode():
     """Home/End work as start/end motions in Normal mode."""
@@ -3083,8 +3093,8 @@ def test_hlsearch_config_file():
 def test_ctrl_e_scrolls_down_and_ctrl_y_scrolls_up():
     """Ctrl-E/Ctrl-Y move the viewport by logical display rows in nowrap mode."""
     path = write_temp("\n".join(f"line {i}" for i in range(20)) + "\n")
-    down, _, code = run_vig(b"4G\x05:q\r", file_path=path, rows=8, cols=30)
-    up, _, code2 = run_vig(b"10G\x19:q\r", file_path=path, rows=8, cols=30)
+    down, _, code = run_vig(b"jjj\x05:q\r", file_path=path, rows=8, cols=30)
+    up, _, code2 = run_vig(b"jjjjjjjjj\x19:q\r", file_path=path, rows=8, cols=30)
     os.unlink(path)
     assert code == code2 == 0
     assert "line 1\x1b[K\r\nline 2" in last_frame(down), last_frame(down)[:300]
@@ -3207,7 +3217,7 @@ def test_cursor_after_insert_with_leading_tab():
     """Cursor uses expanded display columns after inserting to the right of a tab."""
     line = "\t{ MODKEY,                       XK_Return, spawn,          {.v = termcmd } },\n"
     path = write_temp(line)
-    screen, _, code = run_vig(b"10liX", file_path=path, timeout=1.0, cols=100)
+    screen, _, code = run_vig(b"lllllllllliX", file_path=path, timeout=1.0, cols=100)
     os.unlink(path)
     frame = last_frame(screen)
     assert code == -99
@@ -5024,8 +5034,8 @@ def test_changed_dedent_and_case_have_one_undo_boundary():
 def test_wrapped_row_edge_motions():
     """g0/g^/g$ use the current display segment rather than the logical line."""
     cases = (
-        (b"10lg0rX", "abcdefgh  Xxyz\n"),
-        (b"10lg^rX", "abcdefgh   Xyz\n"),
+        (b"llllllllllg0rX", "abcdefgh  Xxyz\n"),
+        (b"llllllllllg^rX", "abcdefgh   Xyz\n"),
         (b"g$rX", "abcdefgh X xyz\n"),
     )
     for action, expected in cases:
@@ -5294,7 +5304,7 @@ def test_gqq_hard_wraps_current_line_at_textwidth():
 def test_bare_textwidth_uses_cursor_column():
     """Bare :set textwidth uses the current 1-based display column."""
     path = write_temp("alpha beta gamma delta\n")
-    _, content, code = run_vig(b"10l:set textwidth\r:set wordwrap\rgqq:wq\r", file_path=path)
+    _, content, code = run_vig(b"llllllllll:set textwidth\r:set wordwrap\rgqq:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "alpha beta\ngamma delta\n", content
     print("  PASS: bare textwidth uses cursor column")
@@ -5571,6 +5581,7 @@ def main():
         ]),
         ("30", "Phase 30 — ^/$ Home/End Tab/Delete", [
             test_caret_motion_first_nonblank,
+            test_counted_line_edge_motions_move_downward,
             test_home_end_normal_mode,
             test_home_end_ss3_sequences,
             test_home_end_csi_tilde_sequences,

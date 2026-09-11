@@ -74,7 +74,7 @@ class ModeMixin:
             return
 
         # Count prefix accumulation
-        if key.isdigit() and (self.count > 0 or key != "0"):
+        if key in "123456789" or self.count > 0 and key.isdigit() and key != "0":
             self.count = self.count * 10 + int(key)
             return
 

@@ -13,11 +13,11 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 |-----|--------|
 | `h` `j` `k` `l` | left / down / up / right |
 | `w` `W` `b` `B` `e` `E` | word motions (small / big WORD) |
-| `0` | column 0 |
-| `^` | first non-blank character |
-| `$` | end of logical line |
+| `0` | column 0; with count, same column on the Nth line below |
+| `^` | first non-blank character; with count, same target on the Nth line below |
+| `$` | end of logical line; with count, same target on the Nth line below |
 | `g0` / `g^` / `g$` | current wrapped-row start / first non-blank / last character |
-| `gg` / `G` | first / last line (with count: line N) |
+| `gg` / `G` | first / last line; count with `gg` selects line N, count with `G` selects the Nth line from EOF |
 | `f{c}` `t{c}` `F{c}` `T{c}` | find char forward / backward (`t`/`T` stop before) |
 | `;` `,` | repeat / reverse last find-char |
 | `%` | jump to matching bracket `()` `{}` `[]` |

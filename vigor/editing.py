@@ -464,7 +464,7 @@ class EditingMixin:
         self._motion_display_row(-1)
 
     def _motion_G_count(self, n, extra_n):
-        self.cy = min(n - 1, len(self.buf.lines) - 1) if extra_n is not None else len(self.buf.lines) - 1
+        self.cy = max(0, len(self.buf.lines) - n) if extra_n is not None else len(self.buf.lines) - 1
         self.cx = 0
 
     def _motion_gg_count(self, n, extra_n):
@@ -484,14 +484,21 @@ class EditingMixin:
             target = max(start, end - 1)
         self.cx = self._view_index(self.cy, target)
 
-    def _motion_zero(self):
+    def _motion_counted_line(self, n, extra_n):
+        if extra_n is not None:
+            self.cy = min(len(self.buf.lines) - 1, self.cy + n)
+
+    def _motion_zero(self, n=1, extra_n=None):
+        self._motion_counted_line(n, extra_n)
         self.cx = 0
 
-    def _motion_caret(self):
+    def _motion_caret(self, n=1, extra_n=None):
+        self._motion_counted_line(n, extra_n)
         line = self.buf.lines[self.cy]
         self.cx = len(line) - len(line.lstrip())
 
-    def _motion_dollar(self):
+    def _motion_dollar(self, n=1, extra_n=None):
+        self._motion_counted_line(n, extra_n)
         self.cx = len(self.buf.lines[self.cy])
 
     def _motion_home(self):
@@ -535,9 +542,9 @@ class EditingMixin:
             "g0": lambda: self._motion_display_edge("g0"),
             "g^": lambda: self._motion_display_edge("g^"),
             "g$": lambda: self._motion_display_edge("g$"),
-            "0": self._motion_zero,
-            "^": self._motion_caret,
-            "$": self._motion_dollar,
+            "0": lambda: self._motion_zero(n, extra_n),
+            "^": lambda: self._motion_caret(n, extra_n),
+            "$": lambda: self._motion_dollar(n, extra_n),
             "HOME": self._motion_home,
             "END": self._motion_end,
             "CTRL_D": self._motion_ctrl_d,
