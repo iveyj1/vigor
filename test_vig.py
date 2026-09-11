@@ -3769,7 +3769,36 @@ def test_wordwrap_wrapmove_crosses_breakpoint():
     )
     os.unlink(path)
     assert code == 0 and "2:1 \x1b[m" in last_frame(screen)
-    print("  PASS: wordwrap wrapmove crosses breakpoint")
+    from vigor.layout import ViewportLayout
+    from vigor.highlight import build_markdown_view
+    # A short header inherits wide padding from the table body. Tabs likewise
+    # create display cells with no source cursor; exercise both at narrow widths.
+    lines = ["| A | B |", "|---|---|", "| " + "x" * 220 + " | tail |", "after"]
+    for source in (lines, ["\t\ttext", "after"]):
+        view, maps, _ = build_markdown_view(source)
+        def index(y, col):
+            return max(i for i, value in enumerate(maps[y]) if value <= col)
+        for width in (1, 3, 10, 100, 185, 191):
+            for wordwrap in (False, True):
+                layout = ViewportLayout(len(source), lambda y: view[y],
+                                        lambda y, x: maps[y][x], index,
+                                        20, width, 0, True, 0, wordwrap, 0, 0)
+                position = (0, 0)
+                for _ in range(sum(map(len, maps)) + 1):
+                    target = layout.vertical_cursor(*position, 1, 0)
+                    if target is None:
+                        break
+                    assert target > position, (width, position, target)
+                    position = target
+                assert position[0] == len(source) - 1
+                for _ in range(sum(map(len, maps)) + 1):
+                    target = layout.vertical_cursor(*position, -1, 0)
+                    if target is None:
+                        break
+                    assert target < position, (width, position, target)
+                    position = target
+                assert position == (0, 0)
+    print("  PASS: wordwrap wrapmove crosses breakpoints and projection gaps")
 
 
 # ── Phase 60: markdown fence hiding ────────────────────────────────────────

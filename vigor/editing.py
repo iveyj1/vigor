@@ -452,31 +452,9 @@ class EditingMixin:
         row, local_col = layout.wrap_position(self.cy, display_x)
         if self._sticky_cx is None:
             self._sticky_cx = local_col
-        col = self._sticky_cx
-        current_rows = layout.line_rows(self.cy)
-        if current_rows == 0:
-            target_y = layout.next_visible(self.cy, delta)
-            if target_y is not None:
-                self.cy, self.cx = target_y, self._view_index(target_y, col)
-        elif delta > 0:
-            if row + 1 < current_rows:
-                start, end = layout.wrap_segments(self.cy)[row + 1]
-                self.cx = self._view_index(self.cy, min(start + col, end))
-            else:
-                target_y = layout.next_visible(self.cy, 1)
-                if target_y is not None:
-                    start, end = layout.wrap_segments(target_y)[0]
-                    self.cy, self.cx = target_y, self._view_index(target_y, min(start + col, end))
-        elif row > 0:
-            start, end = layout.wrap_segments(self.cy)[row - 1]
-            self.cx = self._view_index(self.cy, min(start + col, end))
-        else:
-            target_y = layout.next_visible(self.cy, -1)
-            if target_y is not None:
-                segments = layout.wrap_segments(target_y)
-                start, end = segments[-1]
-                self.cy = target_y
-                self.cx = self._view_index(target_y, min(start + col, end))
+        target = layout.vertical_cursor(self.cy, self.cx, delta, self._sticky_cx)
+        if target is not None:
+            self.cy, self.cx = target
         self._clamp_cursor()
 
     def _motion_j(self):

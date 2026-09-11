@@ -156,6 +156,33 @@ class ViewportLayout:
         i, (start, end) = len(segments) - 1, segments[-1]
         return i, max(0, min(display_x, end) - start)
 
+    def cursor_on_wrap_row(self, y, row, col):
+        """Choose a source cursor in this row, or None for virtual-only rows."""
+        segments = self.wrap_segments(y)
+        start, end = segments[row]
+        first = self.display_to_source(y, start)
+        if self.source_to_display(y, first) < start:
+            first += 1
+        last_col = end if row == len(segments) - 1 else end - 1
+        last = self.display_to_source(y, max(start, last_col))
+        if first > last or self.wrap_position(y, self.source_to_display(y, first))[0] != row:
+            return None
+        return max(first, min(last, self.display_to_source(y, min(start + col, last_col))))
+
+    def vertical_cursor(self, y, x, delta, col):
+        """Advance to a cursor-bearing row; projection gaps must not trap motion."""
+        row = self.wrap_position(y, self.source_to_display(y, x))[0]
+        while True:
+            row += delta
+            if not 0 <= row < self.line_rows(y):
+                y = self.next_visible(y, delta)
+                if y is None:
+                    return None
+                row = 0 if delta > 0 else self.line_rows(y) - 1
+            target = self.cursor_on_wrap_row(y, row, col)
+            if target is not None:
+                return y, target
+
     def next_visible(self, source_y, direction):
         """Return the next non-hidden source line strictly in one direction."""
         y = source_y + direction
