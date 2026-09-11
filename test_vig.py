@@ -2067,13 +2067,13 @@ def test_caret_motion_first_nonblank():
     print("  PASS: ^ moves to first non-blank")
 
 def test_counted_line_edge_motions_move_downward():
-    """Counts on $, 0, and ^ select the nth line below the cursor."""
+    """Counts on $ and ^ select the nth line below the cursor; N0 remains a count."""
     path = write_temp("aa\n  bb\n  cc\ndd\n")
-    screen, content, code = run_vig(b"2$i!\x1bggl10i^\x1bgg2^iX\x1b:wq\r", file_path=path)
+    screen, content, code = run_vig(b"2$i!\x1bgg2^iX\x1bgg10li^\x1b:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    assert content == "aa\n^  bb\n  Xcc!\ndd\n", content
-    print("  PASS: counted $, 0, and ^ move to lower lines")
+    assert content == "aa^\n  bb\n  Xcc!\ndd\n", content
+    print("  PASS: counted $/^ move to lower lines and N0 remains a count")
 
 
 def test_home_end_normal_mode():

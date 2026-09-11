@@ -488,8 +488,7 @@ class EditingMixin:
         if extra_n is not None:
             self.cy = min(len(self.buf.lines) - 1, self.cy + n)
 
-    def _motion_zero(self, n=1, extra_n=None):
-        self._motion_counted_line(n, extra_n)
+    def _motion_zero(self):
         self.cx = 0
 
     def _motion_caret(self, n=1, extra_n=None):
@@ -542,7 +541,7 @@ class EditingMixin:
             "g0": lambda: self._motion_display_edge("g0"),
             "g^": lambda: self._motion_display_edge("g^"),
             "g$": lambda: self._motion_display_edge("g$"),
-            "0": lambda: self._motion_zero(n, extra_n),
+            "0": self._motion_zero,
             "^": lambda: self._motion_caret(n, extra_n),
             "$": lambda: self._motion_dollar(n, extra_n),
             "HOME": self._motion_home,

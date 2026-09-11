@@ -13,7 +13,7 @@ Run `vig tutor` for an exercise-driven introduction. On invocation, file argumen
 |-----|--------|
 | `h` `j` `k` `l` | left / down / up / right |
 | `w` `W` `b` `B` `e` `E` | word motions (small / big WORD) |
-| `0` | column 0; with count, same column on the Nth line below |
+| `0` | column 0 |
 | `^` | first non-blank character; with count, same target on the Nth line below |
 | `$` | end of logical line; with count, same target on the Nth line below |
 | `g0` / `g^` / `g$` | current wrapped-row start / first non-blank / last character |
