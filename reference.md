@@ -148,7 +148,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set list` / `nolist` | show literal tabs as visible `›···` cells while preserving source tabs; Makefiles default to visible tabs |
 | `:set wordwrap` / `nowordwrap` | with wrap on, prefer approximate whitespace breakpoints over hard display-column cuts |
 | `:set wrapmove` / `nowrapmove` | with wrap on, make `j`/`k`/Up/Down move by displayed rows |
-| `:set textwidth=<N>` | width for `gq` hard wrapping; `0` disables (`0` default) |
+| `:set textwidth[=<N>]` | width for `gq` hard wrapping; bare form uses the current cursor column; `0` disables (`0` default) |
 | `:set number` / `nonumber` | toggle absolute line numbers |
 | `:set relativenumber` / `norelativenumber` | toggle relative line numbers |
 | `:set autoindent` / `noautoindent` | toggle autoindent |

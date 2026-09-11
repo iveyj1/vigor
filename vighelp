@@ -84,7 +84,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set list / :set nolist        show tabs as ›··· (default for make)
 :set wordwrap / :set nowordwrap
 :set wrapmove / :set nowrapmove
-:set textwidth=N       0 disables gq hard-wrap width
+:set textwidth[=N]     gq hard-wrap width; bare uses cursor column
 :set number / :set nonumber
 :set relativenumber / :set norelativenumber
 :set autoindent / :set noautoindent

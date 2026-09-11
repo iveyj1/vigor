@@ -734,8 +734,8 @@ class CommandMixin:
             self.msg = "Argument required"
             return
         opt = arg.strip()
-        if opt == "wrapcol":
-            opt = f"wrapcol={self._cursor_display_col() + 1}"
+        if opt in ("wrapcol", "textwidth"):
+            opt = f"{opt}={self._cursor_display_col() + 1}"
         name, sep, raw = opt.partition("=")
         enabled = True
         spec = OPTIONS.get(name)
