@@ -21,7 +21,7 @@ SPLASH = (
     "| |/ / / /_/ / /_/ / /    ",
     "|___/_/\\__, /\\____/_/     ",
     "      /____/",
-    "  -- markdown style -- ",
+    "            ",
 )
 SPLASH_BG = "\x1b[49m"
 SPLASH_FRAME = "\x1b[96m"
