@@ -120,7 +120,7 @@ Central artifacts use basename plus an absolute-path hash and contain no path me
 <space>(/{/[/"/' + motion/text object    surround range
 <space>j / k        next / previous quickfix item
 <space>c            switch to quickfix
-<space>s char label jump to visible char; Visual/d/y/c motion
+<space>s char label(s) jump to visible char; Visual/d/y/c motion
 <space>o            open quickfix location
 <space>n / N        next / previous buffer
 

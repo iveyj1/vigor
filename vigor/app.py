@@ -110,7 +110,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._pending_flash = None   # flash context waiting for leader/target char
         self._flash_context = None   # active flash action context
         self._flash_targets = []     # transient visible jump targets: (label, y, x)
-        self._flash_labels = {}      # rendered labels keyed by (source_y, display_col)
+        self._flash_labels = {}      # rendered label cells keyed by (source_y, display_col)
+        self._flash_pending_label = ""
         self._pending_mkdir_write = None  # (path, close_after) waiting for y/n
         self._mouse_anchor = None  # source position saved on a possible Visual drag
         self._mouse_dragged = False

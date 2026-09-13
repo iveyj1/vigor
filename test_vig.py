@@ -5309,6 +5309,16 @@ def test_space_s_flash_jumps_to_visible_label():
     print("  PASS: <space>s jumps to visible labeled target")
 
 
+def test_space_s_flash_two_letter_labels_reach_far_targets():
+    """Flash uses two-letter labels after nearby one-letter targets."""
+    path = write_temp("".join("axa\n" for _ in range(12)))
+    screen, content, code = run_vig(b" sxqai!\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    lines = content.splitlines()
+    assert code == 0 and lines[10] == "a!xa" and sum("!" in line for line in lines) == 1, content
+    print("  PASS: <space>s supports two-letter labels")
+
+
 def test_space_s_flash_single_match_jumps_immediately():
     """A single visible match jumps without waiting for a label."""
     path = write_temp("abc\ndef\n")
@@ -5992,6 +6002,7 @@ def main():
         ]),
         ("87", "Phase 87 — textwidth hard wrap and flash jump", [
             test_space_s_flash_jumps_to_visible_label,
+            test_space_s_flash_two_letter_labels_reach_far_targets,
             test_space_s_flash_single_match_jumps_immediately,
             test_space_s_flash_escape_cancels,
             test_visual_flash_extends_selection,

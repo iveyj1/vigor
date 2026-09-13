@@ -94,7 +94,9 @@ class EditingMixin:
     _SURROUND_PAIRS = {"s(": ("(", ")"), "s{": ("{", "}"), "s[": ("[", "]"),
                        's"': ('"', '"'), "s'": ("'", "'")}
     _OPEN_BRACKETS = frozenset("([{")
-    _FLASH_LABELS = "asdfghjklqwertyuiopzxcvbnm"
+    _FLASH_SINGLE_LABELS = "asdfghjkl"
+    _FLASH_DOUBLE_FIRST = "qwertyuiopzxcvbnm"
+    _FLASH_DOUBLE_SECOND = "asdfghjklqwertyuiopzxcvbnm"
 
     def _snapshot(self):
         """Save current state for undo. Call before any mutation."""
@@ -744,6 +746,7 @@ class EditingMixin:
         self._flash_context = None
         self._flash_targets = []
         self._flash_labels = {}
+        self._flash_pending_label = ""
 
     def _handle_flash_key(self, key):
         """Consume keys for an active or pending flash jump."""
@@ -751,7 +754,12 @@ class EditingMixin:
             if key == "ESC":
                 self._clear_flash()
             else:
-                self._finish_flash(key)
+                self._flash_pending_label += key
+                labels = [label for label, _y, _x in self._flash_targets]
+                if self._flash_pending_label in labels:
+                    self._finish_flash(self._flash_pending_label)
+                elif not any(label.startswith(self._flash_pending_label) for label in labels):
+                    self._clear_flash()
             return True
         if not self._pending_flash:
             return False
@@ -779,10 +787,12 @@ class EditingMixin:
         layout = self._viewport_layout()
         cursor_display_x = self._cursor_display_col()
         hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
-        labels = "".join(label for label in self._FLASH_LABELS if label != ch)
+        rows_by_y = {}
         matches = []
+        max_matches = 1 + len(self._FLASH_SINGLE_LABELS) + len(self._FLASH_DOUBLE_FIRST) * len(self._FLASH_DOUBLE_SECOND)
         for row in layout.visible_rows(hscroll):
-            if len(matches) >= len(labels) + 1:
+            rows_by_y[row.source_y] = row
+            if len(matches) >= max_matches:
                 break
             line = self.buf.lines[row.source_y]
             for source_x, c in enumerate(line):
@@ -791,18 +801,41 @@ class EditingMixin:
                 display_x = self._view_col(row.source_y, source_x)
                 if row.display_start <= display_x < row.display_start + len(row.text):
                     matches.append((row.source_y, source_x, display_x))
-                    if len(matches) >= len(labels) + 1:
+                    if len(matches) >= max_matches:
                         break
-        primary = next((i for i, (_y, _x, _d) in enumerate(matches) if (_y, _x) > (self.cy, self.cx)), None)
-        if primary is None:
-            primary = next((i for i in range(len(matches) - 1, -1, -1)
-                            if (matches[i][0], matches[i][1]) < (self.cy, self.cx)), 0)
-        targets = []
-        label_i = 0
-        for i, (y, x, display_x) in enumerate(matches):
-            label = ch if i == primary else labels[label_i]
-            label_i += i != primary
+        after = [m for m in matches if (m[0], m[1]) > (self.cy, self.cx)]
+        before = [m for m in matches if (m[0], m[1]) < (self.cy, self.cx)]
+        before.reverse()
+        ordered = []
+        if after:
+            ordered.append(after.pop(0))
+        elif before:
+            ordered.append(before.pop(0))
+        while after or before:
+            if after:
+                ordered.append(after.pop(0))
+            if before:
+                ordered.append(before.pop(0))
+        single_labels = [label for label in self._FLASH_SINGLE_LABELS if label != ch]
+        double_first = [label for label in self._FLASH_DOUBLE_FIRST if label != ch]
+        double_second = [label for label in self._FLASH_DOUBLE_SECOND]
+        labels = [ch] + single_labels + [a + b for a in double_first for b in double_second]
+        targets, rendered, occupied_targets = [], {}, set()
+        for label, (y, x, display_x) in zip(labels, ordered):
+            row = rows_by_y.get(y)
+            if row is None:
+                continue
+            cells = [(y, display_x + i) for i in range(len(label))]
+            if display_x + len(label) > row.display_start + len(row.text):
+                continue
+            if any(cell in rendered for cell in cells):
+                continue
+            if (y, display_x - 1) in occupied_targets or (y, display_x + 1) in occupied_targets:
+                continue
             targets.append((label, y, x, display_x))
+            occupied_targets.add((y, display_x))
+            for i, char in enumerate(label):
+                rendered[(y, display_x + i)] = char
         if not targets:
             self.msg = f"flash: no {ch}"
             return False
@@ -810,7 +843,7 @@ class EditingMixin:
             _, y, x, _ = targets[0]
             return self._accept_flash_target(y, x)
         self._flash_targets = [(label, y, x) for label, y, x, _ in targets]
-        self._flash_labels = {(y, display_x): label for label, y, _, display_x in targets}
+        self._flash_labels = rendered
         self.msg = "flash"
         return True
 
