@@ -779,7 +779,7 @@ class EditingMixin:
         layout = self._viewport_layout()
         cursor_display_x = self._cursor_display_col()
         hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
-        labels = self._FLASH_LABELS
+        labels = ch + "".join(label for label in self._FLASH_LABELS if label != ch)
         targets = []
         for row in layout.visible_rows(hscroll):
             if len(targets) >= len(labels):

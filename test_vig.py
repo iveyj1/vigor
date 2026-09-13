@@ -5295,9 +5295,13 @@ def test_failed_leader_surround_preserves_redo():
 def test_space_s_flash_jumps_to_visible_label():
     """<space>s labels visible characters and jumps to the selected label."""
     path = write_temp("ax\nbx\ncx\n")
-    screen, content, code = run_vig(b" sxsi!\x1b:wq\r", file_path=path)
+    screen, content, code = run_vig(b" sxai!\x1b:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "ax\nb!x\ncx\n", content
+    path = write_temp("xa\nya\n")
+    screen, content, code = run_vig(b" saai!\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "x!a\nya\n", content
     print("  PASS: <space>s jumps to visible labeled target")
 
 
@@ -5322,7 +5326,7 @@ def test_space_s_flash_escape_cancels():
 def test_visual_flash_extends_selection():
     """Visual <space>s moves the visual endpoint to a labeled visible target."""
     path = write_temp("ax\nbx\ncx\n")
-    screen, content, code = run_vig(b"v sxsd:wq\r", file_path=path)
+    screen, content, code = run_vig(b"v sxad:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "\ncx\n", content
     print("  PASS: visual flash extends selection")
@@ -5331,15 +5335,15 @@ def test_visual_flash_extends_selection():
 def test_delete_change_yank_flash_motions():
     """d/y/c accept <space>s as an inclusive visible flash motion."""
     path = write_temp("ax\nbx\ncx\n")
-    _, deleted, code = run_vig(b"d sxs:wq\r", file_path=path)
+    _, deleted, code = run_vig(b"d sxa:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and deleted == "\ncx\n", deleted
     path = write_temp("ax\nbx\n")
-    _, changed, code = run_vig(b"c sxsZ\x1b:wq\r", file_path=path)
+    _, changed, code = run_vig(b"c sxaZ\x1b:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and changed == "Z\n", changed
     path = write_temp("ax\nbx\n")
-    _, yanked, code = run_vig(b"y sxsp:wq\r", file_path=path)
+    _, yanked, code = run_vig(b"y sxap:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and yanked == "aax\nbxx\nbx\n", yanked
     print("  PASS: d/y/c accept flash motions")
