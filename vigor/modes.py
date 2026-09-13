@@ -26,17 +26,7 @@ class ModeMixin:
             self.msg = "^C"
             return
 
-        if self._flash_targets:
-            if key != "ESC":
-                self._finish_flash(key)
-            else:
-                self._clear_flash()
-            return
-
-        if self._pending_flash:
-            self._pending_flash = False
-            if key != "ESC":
-                self._start_flash(key)
+        if self._handle_flash_key(key):
             return
 
         # r{char}: replace character(s) under cursor. This must run before
@@ -138,7 +128,7 @@ class ModeMixin:
             elif key == "o":
                 self._open_quickfix_location()
             elif key == "s":
-                self._pending_flash = True
+                self._pending_flash = "normal"
                 self.msg = "flash: char"
             else:
                 # Unknown leader combination: Space is a no-op and this key
@@ -199,6 +189,13 @@ class ModeMixin:
             if op == "y" and key == "d":
                 self._start_dot(op_n, "yd")
                 self.pending_op = "yd"
+                return
+            if key == " " and op in ("d", "y", "c"):
+                self.pending_op = ""
+                self.pending_count = 0
+                self.pending_extra_n = None
+                self._pending_flash = ("operator-leader", op, op_n, op_extra_n, self.cy, self.cx)
+                self.msg = "flash: s"
                 return
             # Handle 'g' prefix in operator-pending (e.g. dgg)
             if self._pending_g_op:
@@ -640,6 +637,8 @@ class ModeMixin:
     def handle_visual(self, key):
         if key not in ("j", "k", "DOWN", "UP"):
             self._sticky_cx = None
+        if (self._flash_targets or self._pending_flash) and self._handle_flash_key(key):
+            return
         if key == "ESC":
             self._remember_visual_selection()
             self.mode = Mode.NORMAL
@@ -690,6 +689,10 @@ class ModeMixin:
                 return
         if key == "g":
             self._pending_g = True
+            return
+        if key == " ":
+            self._pending_flash = "visual-leader"
+            self.msg = "flash: s"
             return
         # f/t/F/T — wait for target char
         if key in ("f", "t", "F", "T"):

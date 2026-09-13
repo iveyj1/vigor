@@ -740,13 +740,40 @@ class EditingMixin:
         return True
 
     def _clear_flash(self):
-        self._pending_flash = False
+        self._pending_flash = None
+        self._flash_context = None
         self._flash_targets = []
         self._flash_labels = {}
 
-    def _start_flash(self, ch):
+    def _handle_flash_key(self, key):
+        """Consume keys for an active or pending flash jump."""
+        if self._flash_targets:
+            if key == "ESC":
+                self._clear_flash()
+            else:
+                self._finish_flash(key)
+            return True
+        if not self._pending_flash:
+            return False
+        context = self._pending_flash
+        self._pending_flash = None
+        if key == "ESC":
+            self._clear_flash()
+            return True
+        if context == "visual-leader" or isinstance(context, tuple) and context[0] == "operator-leader":
+            if key == "s":
+                self._pending_flash = "visual" if context == "visual-leader" else ("operator",) + context[1:]
+                self.msg = "flash: char"
+            else:
+                self._clear_flash()
+            return True
+        self._start_flash(key, context)
+        return True
+
+    def _start_flash(self, ch, context="normal"):
         """Label visible occurrences of ch for a one-key jump."""
         self._clear_flash()
+        self._flash_context = context
         if len(ch) != 1:
             return False
         layout = self._viewport_layout()
@@ -770,23 +797,34 @@ class EditingMixin:
             self.msg = f"flash: no {ch}"
             return False
         if len(targets) == 1:
-            _, self.cy, self.cx, _ = targets[0]
-            self._clamp_cursor()
-            self._ensure_scroll()
-            return True
+            _, y, x, _ = targets[0]
+            return self._accept_flash_target(y, x)
         self._flash_targets = [(label, y, x) for label, y, x, _ in targets]
         self._flash_labels = {(y, display_x): label for label, y, _, display_x in targets}
         self.msg = "flash"
         return True
 
+    def _accept_flash_target(self, y, x):
+        context = self._flash_context or "normal"
+        self._clear_flash()
+        if isinstance(context, tuple) and context[0] == "operator":
+            _, op, _op_n, op_extra_n, sy, sx = context
+            self.cy, self.cx = sy, sx
+            self._exec_operator_to_target(op, y, x, inclusive=True)
+            if op in ("d", "y"):
+                self.mode = Mode.NORMAL
+            self._recording = False
+            self._recording_keys = []
+        else:
+            self.cy, self.cx = y, x
+        self._clamp_cursor()
+        self._ensure_scroll()
+        return True
+
     def _finish_flash(self, label):
         for target_label, y, x in self._flash_targets:
             if label == target_label:
-                self.cy, self.cx = y, x
-                self._clear_flash()
-                self._clamp_cursor()
-                self._ensure_scroll()
-                return True
+                return self._accept_flash_target(y, x)
         self._clear_flash()
         return False
 
@@ -1111,23 +1149,15 @@ class EditingMixin:
         self.buf.dirty = True
         return True
 
-    def _exec_operator(self, op, motion_key, n, extra_n=None):
-        """Execute operator (d/y/c or case conversion) with a motion."""
-        linewise = self._is_linewise_motion(motion_key)
-        target = self._apply_motion(motion_key, n, extra_n=extra_n)
-        if target is None:
-            return False
-        ty, tx = target
+    def _exec_operator_to_target(self, op, ty, tx, linewise=False, motion_key=None, inclusive=False):
+        """Execute an operator from the current cursor to an already-resolved target."""
         sy, sx = self.cy, self.cx
-        # Normalize range
         if (sy, sx) > (ty, tx):
             sy, sx, ty, tx = ty, tx, sy, sx
-        # Inclusive motions include their end character.
-        if motion_key in ("e", "E", "f", "t", "g$"):
+        if inclusive or motion_key in ("e", "E", "f", "t", "g$"):
             tx += 1
             if not linewise and ty < len(self.buf.lines):
                 tx = min(tx, len(self.buf.lines[ty]))
-
         if not linewise and sy != ty and motion_key in ("w", "W"):
             ty = sy
             tx = len(self.buf.lines[sy])
@@ -1161,6 +1191,15 @@ class EditingMixin:
         elif op in self._SURROUND_PAIRS:
             return self._surround_range(op, sy, sx, ty, tx, linewise)
         return True
+
+    def _exec_operator(self, op, motion_key, n, extra_n=None):
+        """Execute operator (d/y/c or case conversion) with a motion."""
+        linewise = self._is_linewise_motion(motion_key)
+        target = self._apply_motion(motion_key, n, extra_n=extra_n)
+        if target is None:
+            return False
+        ty, tx = target
+        return self._exec_operator_to_target(op, ty, tx, linewise, motion_key)
 
     def _paste_after(self):
         self.cy, self.cx, changed = paste(

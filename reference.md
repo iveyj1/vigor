@@ -210,7 +210,7 @@ It executes arguments directly rather than through a shell; use `sh -c '...'` ex
 | `<space>(` / `{` / `[` / `"` / `'` + motion or text object | surround the range with the matching literal pair; counts and dot repeat work |
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |
-| `<space>s{char}{label}` | label visible occurrences of `{char}` and jump to the selected label |
+| `<space>s{char}{label}` | label visible occurrences of `{char}` and jump to the selected label; works in Visual and as a `d`/`y`/`c` motion |
 | `<space>o` | open `file:line:column:` location under cursor |
 | `<space>j` / `<space>k` | open next / previous remembered quickfix item without wrapping |
 

@@ -5319,6 +5319,32 @@ def test_space_s_flash_escape_cancels():
     print("  PASS: <space>s flash cancels with Esc")
 
 
+def test_visual_flash_extends_selection():
+    """Visual <space>s moves the visual endpoint to a labeled visible target."""
+    path = write_temp("ax\nbx\ncx\n")
+    screen, content, code = run_vig(b"v sxsd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "\ncx\n", content
+    print("  PASS: visual flash extends selection")
+
+
+def test_delete_change_yank_flash_motions():
+    """d/y/c accept <space>s as an inclusive visible flash motion."""
+    path = write_temp("ax\nbx\ncx\n")
+    _, deleted, code = run_vig(b"d sxs:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and deleted == "\ncx\n", deleted
+    path = write_temp("ax\nbx\n")
+    _, changed, code = run_vig(b"c sxsZ\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and changed == "Z\n", changed
+    path = write_temp("ax\nbx\n")
+    _, yanked, code = run_vig(b"y sxsp:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and yanked == "aax\nbxx\nbx\n", yanked
+    print("  PASS: d/y/c accept flash motions")
+
+
 def test_gqq_hard_wraps_current_line_at_textwidth():
     """gqq inserts real newlines at whitespace before textwidth."""
     path = write_temp("alpha beta gamma delta\n")
@@ -5960,6 +5986,8 @@ def main():
             test_space_s_flash_jumps_to_visible_label,
             test_space_s_flash_single_match_jumps_immediately,
             test_space_s_flash_escape_cancels,
+            test_visual_flash_extends_selection,
+            test_delete_change_yank_flash_motions,
             test_gqq_hard_wraps_current_line_at_textwidth,
             test_bare_textwidth_uses_cursor_column,
             test_gq_motion_and_undo_dot_repeat,
