@@ -156,3 +156,70 @@ Generated with `scripts/cloc.pl` against `vigor/*.py`, or the historical `vig.py
 | `389189b` | 3511 | 304 | 265 | 30 | Add mouse Visual drag selection |
 | `c17674f` | 3511 | 304 | 265 | 0 | Merge mouse cursor and Visual interaction |
 | `e917373` | 3511 | 304 | 265 | 0 | Restore phase commit workflow |
+| `0875e88` | 3511 | 304 | 265 | 0 | Update runtime cloc history |
+| `e5f136a` | 3536 | 310 | 271 | 25 | Collapse Markdown fence display rows |
+| `9014e67` | 3536 | 310 | 271 | 0 | Merge robust Markdown fence collapsing |
+| `45cb9a4` | 3608 | 319 | 273 | 72 | Expand line-local syntax highlighting |
+| `95f724e` | 3634 | 321 | 274 | 26 | Highlight Markdown fenced code |
+| `f547eb7` | 3634 | 321 | 274 | 0 | Merge enhanced syntax highlighting |
+| `436c1c9` | 3641 | 321 | 275 | 7 | Detect shell shebangs for highlighting |
+| `8c6f342` | 3641 | 321 | 275 | 0 | Merge extensionless shell highlighting |
+| `18485e4` | 3669 | 325 | 277 | 28 | Add per-buffer file type overrides |
+| `9f973ec` | 3699 | 326 | 278 | 30 | Add automatic file type detection policy |
+| `57fec11` | 3699 | 326 | 278 | 0 | Merge file type detection controls |
+| `ffcb899` | 3745 | 328 | 279 | 46 | Retain prior manual-save versions |
+| `71c54b6` | 3810 | 334 | 281 | 65 | Add idle autosave deadlines |
+| `8056154` | 3810 | 334 | 281 | 0 | Merge autosave and retained versions |
+| `efcdeb9` | 3810 | 334 | 281 | 0 | Audit default config and in-editor help |
+| `35265b6` | 3810 | 334 | 281 | 0 | Merge config and help audit |
+| `d1b74ff` | 3810 | 334 | 281 | 0 | Prevent installed package shadowing |
+| `e93dfb1` | 3810 | 334 | 281 | 0 | Merge installed launcher package fix |
+| `e4ed9d5` | 3810 | 334 | 281 | 0 | Add regex tips to in-editor help |
+| `27dc7ef` | 3810 | 334 | 281 | 0 | Merge regex help tips |
+| `230e65e` | 3810 | 334 | 281 | 0 | echo build_id when installing |
+| `4e7f7ad` | 3831 | 335 | 279 | 21 | Fix operator motion boundaries |
+| `be0ee0a` | 3842 | 335 | 279 | 11 | Fix viewport after gg jumps |
+| `e309246` | 3831 | 335 | 279 | -11 | todo update |
+| `ee849be` | 3846 | 335 | 279 | 15 | Add Visual indentation operators |
+| `cad1e82` | 3873 | 337 | 281 | 27 | Add gv Visual reselection |
+| `9132de9` | 3884 | 337 | 281 | 11 | Merge branch 'main' of github.com:iveyj1/vigor |
+| `f2e3cd2` | 3902 | 339 | 282 | 18 | Add visible tab list option |
+| `720aafa` | 3909 | 339 | 282 | 7 | Add Makefile tab insertion |
+| `9ff3a8f` | 3910 | 339 | 282 | 1 | Show tabs by default in Makefiles |
+| `152a462` | 3971 | 341 | 284 | 61 | Add wordwrap option |
+| `c630630` | 4029 | 346 | 286 | 58 | Add panic recovery backups |
+| `795891c` | 4031 | 346 | 286 | 2 | Mark buffers with recovery backups |
+| `8170789` | 4031 | 346 | 286 | 0 | Keep recovery marker visible |
+| `0aca6ca` | 4035 | 347 | 286 | 4 | Prefer startup recovery warning |
+| `94b3ab4` | 4043 | 348 | 287 | 8 | Touch marker on recovery detection |
+| `3da4c0b` | 4045 | 348 | 287 | 2 | Preserve recovery files during startup config |
+| `b2030c8` | 4037 | 347 | 286 | -8 | Remove recovery detection debug marker |
+| `b9d7b6d` | 4037 | 347 | 286 | 0 | Add state-coupling refactor plan |
+| `f05fd97` | 3897 | 350 | 287 | -140 | Centralize set option declarations |
+| `61ac7aa` | 3898 | 350 | 287 | 1 | Make recovery cleanup explicit |
+| `644bf06` | 3868 | 351 | 285 | -30 | Delegate editor state to focused buffer |
+| `a886001` | 3866 | 351 | 285 | -2 | Fix wordwrap vertical motion boundary |
+| `d5ff9ca` | 3873 | 350 | 285 | 7 | Reject line controls in substitute results |
+| `9608ee2` | 3919 | 352 | 284 | 46 | Remove no-op undo boundaries |
+| `02da180` | 3919 | 352 | 284 | 0 | Rank deferred work by implementation feasibility |
+| `8111023` | 3937 | 353 | 285 | 18 | Add wrapped-row edge motions |
+| `e5edf1f` | 3955 | 354 | 285 | 18 | Mark and warn on read-only buffers |
+| `f5b48ab` | 3949 | 355 | 283 | -6 | Add relative command ranges |
+| `83ce978` | 3955 | 355 | 283 | 6 | Filter command history by prefix |
+| `ed924a5` | 3955 | 355 | 283 | 0 | wording change |
+| `9bcdba1` | 4014 | 360 | 283 | 59 | Centralize recovery and version storage |
+| `f008cce` | 4014 | 360 | 283 | 0 | Install Bash-aware vig-diag helper |
+| `e3d0730` | 4011 | 360 | 283 | -3 | Keep empty command prompt active |
+| `14b66d5` | 4047 | 361 | 284 | 36 | Add leader surround operators |
+| `d1cfff3` | 4048 | 363 | 286 | 1 | Prevent wrapped motion traps in virtual padding |
+| `8f6a687` | 4121 | 365 | 288 | 73 | Add textwidth hard wrap operator |
+| `9c73342` | 4121 | 365 | 288 | 0 | Allow bare textwidth to use cursor column |
+| `ca13690` | 4123 | 365 | 288 | 2 | Make hard wrap honor wordwrap |
+| `d5f224f` | 4129 | 366 | 288 | 6 | Adjust counted line-edge motions |
+| `fc46a2b` | 4128 | 366 | 288 | -1 | Keep zero as count digit after counts |
+| `2353495` | 4201 | 371 | 289 | 73 | Add visible flash jump |
+| `5066019` | 4243 | 372 | 289 | 42 | Support flash in visual and operators |
+| `4f08c40` | 4243 | 372 | 289 | 0 | Prefer searched character as first flash label |
+| `72d37b0` | 4253 | 372 | 289 | 10 | Assign primary flash label by cursor position |
+| `ee75d37` | 4253 | 372 | 289 | 0 | remove markdown annotation from splash |
+| `6d7ca49` | 4287 | 372 | 289 | 34 | Add two-letter flash labels |
