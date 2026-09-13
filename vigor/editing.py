@@ -779,10 +779,10 @@ class EditingMixin:
         layout = self._viewport_layout()
         cursor_display_x = self._cursor_display_col()
         hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
-        labels = ch + "".join(label for label in self._FLASH_LABELS if label != ch)
-        targets = []
+        labels = "".join(label for label in self._FLASH_LABELS if label != ch)
+        matches = []
         for row in layout.visible_rows(hscroll):
-            if len(targets) >= len(labels):
+            if len(matches) >= len(labels) + 1:
                 break
             line = self.buf.lines[row.source_y]
             for source_x, c in enumerate(line):
@@ -790,9 +790,19 @@ class EditingMixin:
                     continue
                 display_x = self._view_col(row.source_y, source_x)
                 if row.display_start <= display_x < row.display_start + len(row.text):
-                    targets.append((labels[len(targets)], row.source_y, source_x, display_x))
-                    if len(targets) >= len(labels):
+                    matches.append((row.source_y, source_x, display_x))
+                    if len(matches) >= len(labels) + 1:
                         break
+        primary = next((i for i, (_y, _x, _d) in enumerate(matches) if (_y, _x) > (self.cy, self.cx)), None)
+        if primary is None:
+            primary = next((i for i in range(len(matches) - 1, -1, -1)
+                            if (matches[i][0], matches[i][1]) < (self.cy, self.cx)), 0)
+        targets = []
+        label_i = 0
+        for i, (y, x, display_x) in enumerate(matches):
+            label = ch if i == primary else labels[label_i]
+            label_i += i != primary
+            targets.append((label, y, x, display_x))
         if not targets:
             self.msg = f"flash: no {ch}"
             return False

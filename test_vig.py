@@ -5302,6 +5302,10 @@ def test_space_s_flash_jumps_to_visible_label():
     screen, content, code = run_vig(b" saai!\x1b:wq\r", file_path=path)
     os.unlink(path)
     assert code == 0 and content == "x!a\nya\n", content
+    path = write_temp("xa\nya\n")
+    screen, content, code = run_vig(b"G$ saai!\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "xa\ny!a\n", content
     print("  PASS: <space>s jumps to visible labeled target")
 
 
