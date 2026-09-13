@@ -26,6 +26,19 @@ class ModeMixin:
             self.msg = "^C"
             return
 
+        if self._flash_targets:
+            if key != "ESC":
+                self._finish_flash(key)
+            else:
+                self._clear_flash()
+            return
+
+        if self._pending_flash:
+            self._pending_flash = False
+            if key != "ESC":
+                self._start_flash(key)
+            return
+
         # r{char}: replace character(s) under cursor. This must run before
         # count-prefix parsing so digits can be replacement characters.
         if self._pending_replace:
@@ -124,11 +137,14 @@ class ModeMixin:
                     self.msg = "No quickfix buffer"
             elif key == "o":
                 self._open_quickfix_location()
+            elif key == "s":
+                self._pending_flash = True
+                self.msg = "flash: char"
             else:
                 # Unknown leader combination: Space is a no-op and this key
                 # continues through normal dispatch.
                 pass
-            if key in ("d", "j", "k", "w", "n", "N", "c", "o"):
+            if key in ("d", "j", "k", "w", "n", "N", "c", "o", "s"):
                 return
 
         # 'g' prefix: wait for second key

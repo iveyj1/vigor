@@ -94,6 +94,7 @@ class EditingMixin:
     _SURROUND_PAIRS = {"s(": ("(", ")"), "s{": ("{", "}"), "s[": ("[", "]"),
                        's"': ('"', '"'), "s'": ("'", "'")}
     _OPEN_BRACKETS = frozenset("([{")
+    _FLASH_LABELS = "asdfghjklqwertyuiopzxcvbnm"
 
     def _snapshot(self):
         """Save current state for undo. Call before any mutation."""
@@ -737,6 +738,57 @@ class EditingMixin:
         self.buf.dirty = True
         self.msg = f"hard wrapped at {width}"
         return True
+
+    def _clear_flash(self):
+        self._pending_flash = False
+        self._flash_targets = []
+        self._flash_labels = {}
+
+    def _start_flash(self, ch):
+        """Label visible occurrences of ch for a one-key jump."""
+        self._clear_flash()
+        if len(ch) != 1:
+            return False
+        layout = self._viewport_layout()
+        cursor_display_x = self._cursor_display_col()
+        hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
+        labels = self._FLASH_LABELS
+        targets = []
+        for row in layout.visible_rows(hscroll):
+            if len(targets) >= len(labels):
+                break
+            line = self.buf.lines[row.source_y]
+            for source_x, c in enumerate(line):
+                if c != ch:
+                    continue
+                display_x = self._view_col(row.source_y, source_x)
+                if row.display_start <= display_x < row.display_start + len(row.text):
+                    targets.append((labels[len(targets)], row.source_y, source_x, display_x))
+                    if len(targets) >= len(labels):
+                        break
+        if not targets:
+            self.msg = f"flash: no {ch}"
+            return False
+        if len(targets) == 1:
+            _, self.cy, self.cx, _ = targets[0]
+            self._clamp_cursor()
+            self._ensure_scroll()
+            return True
+        self._flash_targets = [(label, y, x) for label, y, x, _ in targets]
+        self._flash_labels = {(y, display_x): label for label, y, _, display_x in targets}
+        self.msg = "flash"
+        return True
+
+    def _finish_flash(self, label):
+        for target_label, y, x in self._flash_targets:
+            if label == target_label:
+                self.cy, self.cx = y, x
+                self._clear_flash()
+                self._clamp_cursor()
+                self._ensure_scroll()
+                return True
+        self._clear_flash()
+        return False
 
     def _toggle_comment(self, start, count):
         """Toggle line comments using opt_comment prefix."""

@@ -5292,6 +5292,33 @@ def test_failed_leader_surround_preserves_redo():
     print("  PASS: failed and empty leader surrounds preserve redo")
 
 
+def test_space_s_flash_jumps_to_visible_label():
+    """<space>s labels visible characters and jumps to the selected label."""
+    path = write_temp("ax\nbx\ncx\n")
+    screen, content, code = run_vig(b" sxsi!\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "ax\nb!x\ncx\n", content
+    print("  PASS: <space>s jumps to visible labeled target")
+
+
+def test_space_s_flash_single_match_jumps_immediately():
+    """A single visible match jumps without waiting for a label."""
+    path = write_temp("abc\ndef\n")
+    screen, content, code = run_vig(b" sfrX:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abc\ndeX\n", content
+    print("  PASS: <space>s jumps immediately for one target")
+
+
+def test_space_s_flash_escape_cancels():
+    """Esc cancels a pending visible jump without moving."""
+    path = write_temp("ax\nbx\n")
+    screen, content, code = run_vig(b" sx\x1bi!\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "!ax\nbx\n", content
+    print("  PASS: <space>s flash cancels with Esc")
+
+
 def test_gqq_hard_wraps_current_line_at_textwidth():
     """gqq inserts real newlines at whitespace before textwidth."""
     path = write_temp("alpha beta gamma delta\n")
@@ -5929,7 +5956,10 @@ def main():
             test_leader_surround_is_atomic_repeatable_and_preserves_register,
             test_failed_leader_surround_preserves_redo,
         ]),
-        ("87", "Phase 87 — textwidth hard wrap", [
+        ("87", "Phase 87 — textwidth hard wrap and flash jump", [
+            test_space_s_flash_jumps_to_visible_label,
+            test_space_s_flash_single_match_jumps_immediately,
+            test_space_s_flash_escape_cancels,
             test_gqq_hard_wraps_current_line_at_textwidth,
             test_bare_textwidth_uses_cursor_column,
             test_gq_motion_and_undo_dot_repeat,

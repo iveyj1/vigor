@@ -386,7 +386,11 @@ class RenderMixin:
                              for sx, ex in self._search_spans(line))
         cursor_col = self._view_col(buf_line, self.cx) if buf_line == self.cy else -1
         current_search = next(((sx, ex) for sx, ex in search_spans if sx <= cursor_col < ex), None)
+        labels = getattr(self, "_flash_labels", {})
         bounds = {start, end}
+        for (label_y, label_col), _label in labels.items():
+            if label_y == buf_line and start <= label_col < end:
+                bounds.update((label_col, min(end, label_col + 1)))
         for sx, ex, _ in spans:
             if sx < end and ex > start:
                 bounds.update((max(start, sx), min(end, ex)))
@@ -410,6 +414,10 @@ class RenderMixin:
             searched = any(sx <= left < ex for sx, ex in search_spans)
             current = current_search is not None and current_search[0] <= left < current_search[1]
             selected = select_start is not None and select_start <= left < select_end
+            label = labels.get((buf_line, left))
+            if label:
+                out.append("\x1b[45;97m" + label + "\x1b[m")
+                continue
             if color:
                 out.append(color)
             if searched:
