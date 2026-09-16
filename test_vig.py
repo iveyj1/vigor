@@ -5058,20 +5058,43 @@ def test_wrapped_edge_motions_work_in_operators_and_visual():
     print("  PASS: wrapped edge motions work in operators and Visual")
 
 
-# ── Phase 81: read-only buffer warning ─────────────────────────────────────
+# ── Phase 81: read-only buffer lock ────────────────────────────────────────
 
-def test_readonly_file_marks_status_and_warns_on_first_edit():
-    """Mode bits mark read-only buffers while edits remain allowed in memory."""
+def test_readonly_file_marks_status_and_blocks_edits_once():
+    """Mode bits mark read-only buffers and block mutations with one message."""
     path = write_temp("one\n")
     os.chmod(path, 0o444)
     try:
-        screen, content, code = run_vig(b"iX\x1b:q!\r", file_path=path)
+        screen, content, code = run_vig(b"xx:q\r", file_path=path)
     finally:
         os.chmod(path, 0o644)
         os.unlink(path)
     assert code == 0 and content == "one\n"
-    assert "[RO]" in screen and screen.count("Warning: editing a read-only file") == 1
-    print("  PASS: read-only file marks status and warns on first edit")
+    assert "[RO]" in screen and screen.count("Buffer is read-only") == 1
+    print("  PASS: read-only file marks status and blocks edits once")
+
+
+def test_readonly_write_as_unlocks_and_noreadonly_command_edits():
+    """Writing a read-only buffer to a new path retargets and unlocks; :noreadonly unlocks explicitly."""
+    src = write_temp("one\n")
+    dst = src + ".copy"
+    os.chmod(src, 0o444)
+    try:
+        _, src_content, code = run_vig(f":w {dst}\riX\x1b:wq\r".encode(), file_path=src)
+        with open(dst) as f:
+            dst_content = f.read()
+        os.unlink(dst)
+        dst2 = src + ".unlock"
+        screen, content, code2 = run_vig(f":noreadonly\riY\x1b:w {dst2}\r:q\r".encode(), file_path=src)
+        with open(dst2) as f:
+            unlocked_content = f.read()
+        os.unlink(dst2)
+    finally:
+        os.chmod(src, 0o644)
+        os.unlink(src)
+    assert code == code2 == 0 and src_content == "one\n" and dst_content == "Xone\n"
+    assert unlocked_content == "Yone\n" and "readonly off" in screen
+    print("  PASS: read-only write-as unlocks and :noreadonly allows editing")
 
 
 def test_writable_file_has_no_readonly_marker():
@@ -5972,8 +5995,9 @@ def main():
             test_wrapped_row_edge_motions,
             test_wrapped_edge_motions_work_in_operators_and_visual,
         ]),
-        ("81", "Phase 81 — read-only buffer warning", [
-            test_readonly_file_marks_status_and_warns_on_first_edit,
+        ("81", "Phase 81 — read-only buffer lock", [
+            test_readonly_file_marks_status_and_blocks_edits_once,
+            test_readonly_write_as_unlocks_and_noreadonly_command_edits,
             test_writable_file_has_no_readonly_marker,
         ]),
         ("82", "Phase 82 — relative command ranges", [

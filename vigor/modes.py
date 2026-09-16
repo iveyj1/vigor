@@ -39,6 +39,10 @@ class ModeMixin:
                 self._recording_keys = []
                 return
             if len(key) == 1 and self.cx < len(self.buf.lines[self.cy]):
+                if self._readonly_blocked():
+                    self._recording = False
+                    self._recording_keys = []
+                    return
                 line = self.buf.lines[self.cy]
                 end = min(self.cx + repl_n, len(line))
                 replacement = key * (end - self.cx)
@@ -297,6 +301,12 @@ class ModeMixin:
                     self.msg = f"{op_n} line(s) yanked"
                 elif op == "c":
                     # cc: yank lines, clear to single empty line, insert
+                    if self._readonly_blocked():
+                        self._recording = False
+                        self._recording_keys = []
+                        self._clamp_cursor()
+                        self._ensure_scroll()
+                        return
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
                     changed = end > self.cy or bool(self.buf.lines[self.cy])
                     if changed:
@@ -378,6 +388,8 @@ class ModeMixin:
             self._yank_range(self.cy, self.cx, self.cy, len(self.buf.lines[self.cy]))
             self.msg = "yanked"
         elif key == "C":
+            if self._readonly_blocked():
+                return
             self._start_dot(n, "C")
             changed = self.cx < len(self.buf.lines[self.cy])
             if changed:
@@ -419,6 +431,8 @@ class ModeMixin:
             self._pending_replace = n
             return
         elif key == "s":
+            if self._readonly_blocked():
+                return
             self._start_dot(n, "s")
             line = self.buf.lines[self.cy]
             changed = self.cx < len(line)
@@ -452,18 +466,26 @@ class ModeMixin:
             self.cmd = ""
             self.cmd_cx = 0
         elif key == "i":
+            if self._readonly_blocked():
+                return
             self._start_dot(n, "i")
             self._enter_insert(snapshot=True)
         elif key == "a":
+            if self._readonly_blocked():
+                return
             self._start_dot(n, "a")
             self.cx += 1
             self._enter_insert(snapshot=True)
         elif key == "I":
+            if self._readonly_blocked():
+                return
             self._start_dot(n, "I")
             line = self.buf.lines[self.cy]
             self.cx = len(line) - len(line.lstrip())
             self._enter_insert(snapshot=True)
         elif key == "A":
+            if self._readonly_blocked():
+                return
             self._start_dot(n, "A")
             self.cx = len(self.buf.lines[self.cy])
             self._enter_insert(snapshot=True)
@@ -515,6 +537,8 @@ class ModeMixin:
         if self.mode == Mode.INSERT:
             if not text:
                 return
+            if self._readonly_blocked():
+                return
             self._prepare_insert_change()
             line = self.buf.lines[self.cy]
             before, after = line[:self.cx], line[self.cx:]
@@ -541,6 +565,12 @@ class ModeMixin:
 
     def handle_insert(self, key):
         # Dot repeat recording in insert mode
+        if key != "ESC" and key not in ("LEFT", "RIGHT", "UP", "DOWN", "HOME", "END") and self._readonly_blocked():
+            self._save_dot()
+            self._insert_snapshot_pending = False
+            self.mode = Mode.NORMAL
+            self._clamp_cursor()
+            return
         if self._recording and not self._replaying_dot:
             self._recording_keys.append(key)
         if key not in ("UP", "DOWN"):
@@ -716,6 +746,9 @@ class ModeMixin:
             self._visual_yank()
             return
         if key == "c":
+            if self._readonly_blocked():
+                self.mode = Mode.NORMAL
+                return
             self._remember_visual_selection()
             changed = self._visual_delete()
             self._enter_insert(snapshot=not changed)
@@ -748,6 +781,9 @@ class ModeMixin:
 
     def _visual_delete(self):
         """Delete the visual selection."""
+        if self._readonly_blocked():
+            self.mode = Mode.NORMAL
+            return False
         sel = self._selection_range()
         if not sel:
             return

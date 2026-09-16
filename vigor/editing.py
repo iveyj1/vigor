@@ -98,8 +98,20 @@ class EditingMixin:
     _FLASH_DOUBLE_FIRST = "qwertyuiopzxcvbnm"
     _FLASH_DOUBLE_SECOND = "asdfghjklqwertyuiopzxcvbnm"
 
+    def _readonly_blocked(self):
+        """Return True when the current buffer refuses mutations."""
+        state = self.buffers[self.buf_idx]
+        if not state.readonly:
+            return False
+        if not state.readonly_warned:
+            state.readonly_warned = True
+            self.msg = "Buffer is read-only; use :w PATH or :noreadonly to edit"
+        return True
+
     def _snapshot(self):
         """Save current state for undo. Call before any mutation."""
+        if self.buffers[self.buf_idx].readonly:
+            return False
         self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
         current_depth = len(self._undo_stack)
         self._undo_stack.append((self.buf.lines[:], self.cx, self.cy))
@@ -160,6 +172,8 @@ class EditingMixin:
 
     def _open_line(self, below=True):
         """Open a new line below (o) or above (O) and enter insert mode."""
+        if self._readonly_blocked():
+            return False
         indent = ""
         if self.opt_autoindent:
             line = self.buf.lines[self.cy]
@@ -172,9 +186,12 @@ class EditingMixin:
         self.cx = len(indent)
         self.buf.dirty = True
         self._enter_insert()
+        return True
 
     def _join_lines(self, count=2):
         """Join current line with the next (count-1) lines."""
+        if self._readonly_blocked():
+            return False
         joins = max(1, count - 1)
         did_join = False
         for _ in range(joins):
@@ -667,12 +684,17 @@ class EditingMixin:
 
     def _indent_lines(self, start, count):
         """Add 4 spaces to beginning of count lines starting at start."""
+        if self._readonly_blocked():
+            return False
         for i in range(start, min(start + count, len(self.buf.lines))):
             self.buf.lines[i] = "    " + self.buf.lines[i]
         self.buf.dirty = True
+        return True
 
     def _dedent_lines(self, start, count):
         """Remove up to 4 leading spaces, creating undo only when needed."""
+        if self._readonly_blocked():
+            return False
         end = min(start + count, len(self.buf.lines))
         if not any(self.buf.lines[i].startswith(" ") for i in range(start, end)):
             return False
@@ -720,6 +742,8 @@ class EditingMixin:
 
     def _hard_wrap_range(self, start, end, width=None):
         """Hard-wrap logical lines in [start, end] using textwidth-style width."""
+        if self._readonly_blocked():
+            return False
         width = self.opt_textwidth if width is None else width
         if width <= 0:
             self.msg = "textwidth=0"
@@ -873,6 +897,8 @@ class EditingMixin:
 
     def _toggle_comment(self, start, count):
         """Toggle line comments using opt_comment prefix."""
+        if self._readonly_blocked():
+            return False
         prefix = self.opt_comment + " "
         end = min(start + count, len(self.buf.lines))
         lines = self.buf.lines[start:end]
@@ -1126,6 +1152,8 @@ class EditingMixin:
 
     def _surround_range(self, op, sy, sx, ey, ex, linewise=False):
         """Insert a delimiter pair around a nonempty operator range."""
+        if self._readonly_blocked():
+            return False
         if linewise:
             sx, ex = 0, len(self.buf.lines[ey])
         if not self._range_changes(sy, sx, ey, ex, linewise):
@@ -1140,6 +1168,8 @@ class EditingMixin:
 
     def _delete_range(self, sy, sx, ey, ex, linewise=False, copy=True):
         """Delete text from (sy,sx) to (ey,ex). Returns deleted text."""
+        if self._readonly_blocked():
+            return ""
         text, self.cy, self.cx, changed = delete_range(
             self.buf.lines, sy, sx, ey, ex, linewise,
         )
@@ -1168,6 +1198,8 @@ class EditingMixin:
 
     def _delete_to_eol(self):
         """Delete from cursor to end of line, store in register."""
+        if self._readonly_blocked():
+            return ""
         line = self.buf.lines[self.cy]
         text = line[self.cx:]
         if not text:
@@ -1183,6 +1215,8 @@ class EditingMixin:
 
     def _change_case_range(self, sy, sx, ey, ex, func):
         """Apply a case transform, creating undo only when content changes."""
+        if self._readonly_blocked():
+            return False
         parts = (self.buf.lines[y][sx if y == sy else 0:ex if y == ey else len(self.buf.lines[y])]
                  for y in range(sy, ey + 1))
         if all(func(part) == part for part in parts):
@@ -1194,6 +1228,8 @@ class EditingMixin:
 
     def _exec_operator_to_target(self, op, ty, tx, linewise=False, motion_key=None, inclusive=False):
         """Execute an operator from the current cursor to an already-resolved target."""
+        if op != "y" and self._readonly_blocked():
+            return False
         sy, sx = self.cy, self.cx
         if (sy, sx) > (ty, tx):
             sy, sx, ty, tx = ty, tx, sy, sx
@@ -1245,6 +1281,8 @@ class EditingMixin:
         return self._exec_operator_to_target(op, ty, tx, linewise, motion_key)
 
     def _paste_after(self):
+        if self._readonly_blocked():
+            return False
         self.cy, self.cx, changed = paste(
             self.buf.lines, self.cy, self.cx, self.register, self.reg_linewise,
         )
@@ -1253,6 +1291,8 @@ class EditingMixin:
         return changed
 
     def _paste_before(self):
+        if self._readonly_blocked():
+            return False
         self.cy, self.cx, changed = paste(
             self.buf.lines, self.cy, self.cx, self.register, self.reg_linewise, before=True,
         )

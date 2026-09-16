@@ -466,10 +466,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         bs.readonly_warned = False
 
     def _dirty_changed(self, bs, dirty):
-        """Schedule protectors and warn once when editing a read-only file."""
-        if dirty and bs.readonly and not bs.readonly_warned:
-            bs.readonly_warned = True
-            self.msg = "Warning: editing a read-only file"
+        """Schedule autosave and recovery deadlines for dirty buffers."""
         if dirty and bs.buf.path:
             now = time.monotonic()
             bs.autosave_deadline = now + self.opt_autosavedelay / 1000 if self.opt_autosave else None

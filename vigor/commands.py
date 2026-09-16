@@ -295,6 +295,16 @@ class CommandMixin:
             self._set_markdown_view(enabled)
             self.msg = "markdown view on" if enabled else "markdown view off"
             self.mode = Mode.NORMAL
+        elif cmd in ("readonly", "ro"):
+            self.buffers[self.buf_idx].readonly = True
+            self.buffers[self.buf_idx].readonly_warned = False
+            self.msg = "readonly on"
+            self.mode = Mode.NORMAL
+        elif cmd in ("noreadonly", "noro"):
+            self.buffers[self.buf_idx].readonly = False
+            self.buffers[self.buf_idx].readonly_warned = False
+            self.msg = "readonly off"
+            self.mode = Mode.NORMAL
         elif cmd in ("filetype", "ft"):
             if arg is None:
                 source = ("forced" if self.filetype_override else
@@ -449,6 +459,8 @@ class CommandMixin:
 
     def _exec_filter(self, range_spec, cmd, new_buffer=False):
         """Pipe a line range through a shell command, replacing it or opening output."""
+        if not new_buffer and self._readonly_blocked():
+            return
         if not cmd:
             self.msg = "Shell command required"
             return
@@ -674,6 +686,8 @@ class CommandMixin:
 
     def _exec_read(self, arg):
         """Handle :read [file] and :read ![command]."""
+        if self._readonly_blocked():
+            return
         if not arg:
             self.msg = "Argument required"
             return
@@ -817,6 +831,9 @@ class CommandMixin:
             return
 
         if total_subs:
+            if self._readonly_blocked():
+                self.mode = Mode.NORMAL
+                return
             self._snapshot()
             for line_idx, new_line in changes:
                 self.buf.lines[line_idx] = new_line

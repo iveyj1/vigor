@@ -2,7 +2,7 @@ VIGOR HELP
 
 Run `vig tutor` for an exercise-driven introduction.
 See `reference.md` for detailed semantics and deliberate vi divergences.
-[RO] marks files without write mode bits; their first in-memory edit warns once.
+[RO] marks buffers locked read-only; blocked edits report once per buffer.
 
 KEY / COMMAND       ACTION
 
@@ -106,6 +106,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set recovery / :set norecovery    write idle panic-recovery snapshots
 :set recoverydelay=N      idle milliseconds
 :set makeprg=COMMAND
+:readonly / :noreadonly lock or unlock current buffer editing
 
 Mouse visual mode combines wheel scrolling, click positioning, and drag selection.
 .py, C/C++ extensions, and .sh/.bash use line-local language highlighting.
