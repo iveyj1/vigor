@@ -134,7 +134,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:p` / `:prev` / `:bp` | previous buffer |
 | `:ls` | list buffers |
 | `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
-| `:readonly` / `:noreadonly` | lock or unlock current buffer editing; write-as to another path also retargets and unlocks when writable |
+| `:set readonly` / `:set noreadonly` | lock or unlock current buffer editing; write-as to another path also retargets and unlocks when writable |
 | `:make [args]` | run configured `makeprg` and capture merged output in quickfix |
 | `:qf !<cmd>` | run a generic diagnostic producer and capture output in quickfix |
 | `:rg <pattern> [path]` | run `rg -n --column` into quickfix buffer |

@@ -5074,8 +5074,8 @@ def test_readonly_file_marks_status_and_blocks_edits_once():
     print("  PASS: read-only file marks status and blocks edits once")
 
 
-def test_readonly_write_as_unlocks_and_noreadonly_command_edits():
-    """Writing a read-only buffer to a new path retargets and unlocks; :noreadonly unlocks explicitly."""
+def test_readonly_write_as_unlocks_and_set_noreadonly_edits():
+    """Writing a read-only buffer to a new path retargets and unlocks; :set noreadonly unlocks."""
     src = write_temp("one\n")
     dst = src + ".copy"
     os.chmod(src, 0o444)
@@ -5085,7 +5085,7 @@ def test_readonly_write_as_unlocks_and_noreadonly_command_edits():
             dst_content = f.read()
         os.unlink(dst)
         dst2 = src + ".unlock"
-        screen, content, code2 = run_vig(f":noreadonly\riY\x1b:w {dst2}\r:q\r".encode(), file_path=src)
+        screen, content, code2 = run_vig(f":set noreadonly\riY\x1b:w {dst2}\r:q\r".encode(), file_path=src)
         with open(dst2) as f:
             unlocked_content = f.read()
         os.unlink(dst2)
@@ -5094,7 +5094,7 @@ def test_readonly_write_as_unlocks_and_noreadonly_command_edits():
         os.unlink(src)
     assert code == code2 == 0 and src_content == "one\n" and dst_content == "Xone\n"
     assert unlocked_content == "Yone\n" and "readonly off" in screen
-    print("  PASS: read-only write-as unlocks and :noreadonly allows editing")
+    print("  PASS: read-only write-as unlocks and :set noreadonly allows editing")
 
 
 def test_writable_file_has_no_readonly_marker():
@@ -5997,7 +5997,7 @@ def main():
         ]),
         ("81", "Phase 81 — read-only buffer lock", [
             test_readonly_file_marks_status_and_blocks_edits_once,
-            test_readonly_write_as_unlocks_and_noreadonly_command_edits,
+            test_readonly_write_as_unlocks_and_set_noreadonly_edits,
             test_writable_file_has_no_readonly_marker,
         ]),
         ("82", "Phase 82 — relative command ranges", [

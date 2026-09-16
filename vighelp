@@ -106,7 +106,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set recovery / :set norecovery    write idle panic-recovery snapshots
 :set recoverydelay=N      idle milliseconds
 :set makeprg=COMMAND
-:readonly / :noreadonly lock or unlock current buffer editing
+:set readonly / :set noreadonly lock or unlock current buffer editing
 
 Mouse visual mode combines wheel scrolling, click positioning, and drag selection.
 .py, C/C++ extensions, and .sh/.bash use line-local language highlighting.

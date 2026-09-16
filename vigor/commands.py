@@ -295,16 +295,6 @@ class CommandMixin:
             self._set_markdown_view(enabled)
             self.msg = "markdown view on" if enabled else "markdown view off"
             self.mode = Mode.NORMAL
-        elif cmd in ("readonly", "ro"):
-            self.buffers[self.buf_idx].readonly = True
-            self.buffers[self.buf_idx].readonly_warned = False
-            self.msg = "readonly on"
-            self.mode = Mode.NORMAL
-        elif cmd in ("noreadonly", "noro"):
-            self.buffers[self.buf_idx].readonly = False
-            self.buffers[self.buf_idx].readonly_warned = False
-            self.msg = "readonly off"
-            self.mode = Mode.NORMAL
         elif cmd in ("filetype", "ft"):
             if arg is None:
                 source = ("forced" if self.filetype_override else
@@ -748,6 +738,11 @@ class CommandMixin:
             self.msg = "Argument required"
             return
         opt = arg.strip()
+        if opt in ("readonly", "noreadonly"):
+            self.buffers[self.buf_idx].readonly = opt == "readonly"
+            self.buffers[self.buf_idx].readonly_warned = False
+            self.msg = "readonly on" if opt == "readonly" else "readonly off"
+            return
         if opt in ("wrapcol", "textwidth"):
             opt = f"{opt}={self._cursor_display_col() + 1}"
         name, sep, raw = opt.partition("=")
