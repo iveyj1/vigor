@@ -39,6 +39,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Add `:vigfiles` common-files list opening with Enter/`<space>o` entry selection.
 1. Add Insert-mode `Ctrl-V Tab` literal-tab insertion.
 1. Add `:set <variable>?` query output in reusable `:set` syntax.
 1. Add `<space>ec` to edit the loaded effective config file.

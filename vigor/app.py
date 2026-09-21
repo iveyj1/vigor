@@ -353,6 +353,13 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             os.path.join(xdg, "vigor", "config"),
         ]
 
+    def _vigfiles_path(self):
+        explicit = os.environ.get("VIGFILES")
+        if explicit:
+            return os.path.abspath(os.path.expanduser(explicit))
+        xdg = os.environ.get("XDG_CONFIG_HOME") or os.path.join(os.path.expanduser("~"), ".config")
+        return os.path.join(xdg, "vigor", "files")
+
     def _source_config_lines(self, lines, source="config"):
         """Interpret set-style config lines. Return True if all commands succeed."""
         ok = True

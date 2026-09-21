@@ -123,6 +123,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
 | `:help` | open `vighelp` beside the vigor executable |
+| `:vigfiles` | open the common-files list; Enter or `<space>o` on an entry opens that file |
 | `:source` / `:so` | interpret the current buffer as startup-config settings |
 | `:md` / `:markdown` | toggle non-destructive Markdown presentation for the current buffer |
 | `:nomd` | return the current buffer to literal source display |
@@ -242,6 +243,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 - Unless `VIG_NO_CONFIG` is set, vig reads `~/.vigrc` then `$XDG_CONFIG_HOME/vig/config`.
 - `VIG_CONFIG=/path/to/file` reads only that file.
 - `<space>ec` edits the loaded effective config file: the explicit `VIG_CONFIG` file, or otherwise the highest-precedence default config file that existed at launch.
+- `:vigfiles` opens `VIGFILES`, or `$XDG_CONFIG_HOME/vigor/files` when unset. Blank lines and `#` comments are ignored for selection; relative entries resolve from the vigfiles directory, and missing selected files open as new buffers with a warning.
 - Lines are simple set-style options: `set number`, `relativenumber`, `scrolloff=3`, etc.
 - Blank lines and lines starting with `#` are ignored.
 

@@ -2571,6 +2571,36 @@ def test_space_ec_edits_loaded_config_file():
     assert "vigrc" in screen and "set nowrap" in screen, f"Expected config buffer: {screen[-800:]}"
     print("  PASS: space-ec edits loaded config file")
 
+def test_vigfiles_opens_listed_file():
+    """:vigfiles opens the common-files list, and Enter opens an entry."""
+    path = write_temp("alpha\n")
+    with tempfile.TemporaryDirectory() as d:
+        target = os.path.join(d, "target.txt")
+        with open(target, "w") as f:
+            f.write("common file\n")
+        vf = os.path.join(d, "files")
+        with open(vf, "w") as f:
+            f.write("# common\n" + target + "\n")
+        screen, _, code = run_vig(b":vigfiles\rj\r:q\r:q\r:q\r", file_path=path, env={"VIGFILES": vf, "VIG_NO_CONFIG": "1"})
+    os.unlink(path)
+    assert code == 0
+    assert "common file" in screen, f"Expected listed file to open: {screen[-800:]}"
+    print("  PASS: vigfiles opens listed file")
+
+def test_vigfiles_missing_entry_opens_new_file_with_warning():
+    """Selecting a missing vigfiles entry opens an empty named buffer with a warning."""
+    path = write_temp("alpha\n")
+    with tempfile.TemporaryDirectory() as d:
+        vf = os.path.join(d, "files")
+        missing = os.path.join(d, "missing.txt")
+        with open(vf, "w") as f:
+            f.write("missing.txt\n")
+        screen, _, code = run_vig(b":vigfiles\r\r:q\r:q\r:q\r", file_path=path, env={"VIGFILES": vf, "VIG_NO_CONFIG": "1"})
+    os.unlink(path)
+    assert code == 0
+    assert os.path.basename(missing) in screen and "New file from vigfiles" in screen, f"Expected new-file warning: {screen[-800:]}"
+    print("  PASS: vigfiles missing entry opens new file")
+
 # ── Phase 38: ripgrep quickfix ─────────────────────────────────────────────
 
 def test_rg_creates_quickfix_buffer():
@@ -5773,6 +5803,8 @@ def main():
             test_set_query_reports_reusable_syntax,
             test_source_current_buffer_sets_options,
             test_space_ec_edits_loaded_config_file,
+            test_vigfiles_opens_listed_file,
+            test_vigfiles_missing_entry_opens_new_file_with_warning,
         ]),
         ("38", "Phase 38 — ripgrep quickfix", [
             test_rg_creates_quickfix_buffer,

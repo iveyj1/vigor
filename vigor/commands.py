@@ -321,6 +321,14 @@ class CommandMixin:
                 self._add_buffer(BufferState(path))
                 self.msg = '"vighelp"'
             self.mode = Mode.NORMAL
+        elif cmd == "vigfiles":
+            path = self._vigfiles_path()
+            if not os.path.isfile(path):
+                self.msg = f'vigfiles not found: "{path}"'
+            else:
+                self._add_buffer(BufferState(path))
+                self.msg = '"vigfiles"; Enter or <space>o opens a listed file'
+            self.mode = Mode.NORMAL
         elif cmd in ("e", "edit"):
             if arg:
                 # Add new buffer and switch to it
@@ -629,11 +637,30 @@ class CommandMixin:
         m = re.match(r"^(.+?):(\d+):(\d+):", line)
         return (m.group(1), int(m.group(2)), int(m.group(3))) if m and m.group(1) else None
 
+    def _in_vigfiles_buffer(self):
+        return bool(self.buf.path and os.path.abspath(self.buf.path) == self._vigfiles_path())
+
+    def _open_vigfiles_line(self):
+        raw = self.buf.lines[self.cy].strip()
+        if not raw or raw.startswith("#"):
+            self.msg = "No vigfiles entry"
+            return
+        path = os.path.expandvars(os.path.expanduser(raw))
+        if not os.path.isabs(path):
+            path = os.path.join(os.path.dirname(self._vigfiles_path()), path)
+        existed = os.path.exists(path)
+        if self._goto_file_location(path):
+            if not existed:
+                self.msg = f'New file from vigfiles: "{os.path.abspath(path)}"'
+
     def _open_quickfix_location(self):
         """Open the file:line:column location under the cursor, if present."""
         location = self._quickfix_location(self.buf.lines[self.cy])
         if not location:
-            self.msg = "No quickfix location"
+            if self._in_vigfiles_buffer():
+                self._open_vigfiles_line()
+            else:
+                self.msg = "No quickfix location"
             return
         text = self.buf.lines[self.cy]
         path, line, col = location

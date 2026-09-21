@@ -50,6 +50,7 @@ n N                 repeat search / reverse
 :ls                 list buffers
 :k / :k!            delete buffer / force delete buffer
 :help               open this help buffer
+:vigfiles           open common-files list; Enter/<space>o opens an entry
 :source / :so       interpret current buffer as config settings
 :md / :markdown     toggle Markdown presentation; .md opens in it automatically
 :nomd               show literal Markdown source

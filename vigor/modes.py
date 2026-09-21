@@ -470,6 +470,8 @@ class ModeMixin:
             self._start_dot(n, "O")
             self._snapshot()
             self._open_line(below=False)
+        elif key == "ENTER" and self._in_vigfiles_buffer():
+            self._open_vigfiles_line()
         elif key == ":":
             self.mode = Mode.COMMAND
             self.cmd = ""
