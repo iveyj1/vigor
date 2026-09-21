@@ -94,6 +94,13 @@ class ModeMixin:
             self._recording_keys.append(key)
 
         # Space leader: wait for next key
+        if self._pending_space_e:
+            self._pending_space_e = False
+            if key == "c":
+                self._edit_config_file()
+                return
+            self.handle_normal("e")
+
         if self._pending_space:
             self._pending_space = False
             leader_n, leader_extra = self._pending_space_count, self._pending_space_extra
@@ -134,11 +141,13 @@ class ModeMixin:
             elif key == "s":
                 self._pending_flash = "normal"
                 self.msg = "flash: char"
+            elif key == "e":
+                self._pending_space_e = True
             else:
                 # Unknown leader combination: Space is a no-op and this key
                 # continues through normal dispatch.
                 pass
-            if key in ("d", "j", "k", "w", "n", "N", "c", "o", "s"):
+            if key in ("d", "j", "k", "w", "n", "N", "c", "o", "s", "e"):
                 return
 
         # 'g' prefix: wait for second key
@@ -575,6 +584,22 @@ class ModeMixin:
             self._recording_keys.append(key)
         if key not in ("UP", "DOWN"):
             self._sticky_cx = None
+        if self._insert_literal:
+            self._insert_literal = False
+            if key == "TAB":
+                self._prepare_insert_change()
+                line = self.buf.lines[self.cy]
+                self.buf.lines[self.cy] = line[:self.cx] + "\t" + line[self.cx:]
+                self.cx += 1
+                self.buf.dirty = True
+            else:
+                self.msg = "Ctrl-V only literalizes Tab"
+            self._clamp_cursor()
+            self._ensure_scroll()
+            return
+        if key == "CTRL_V":
+            self._insert_literal = True
+            return
         if key == "ESC":
             # Save dot recording if active
             self._save_dot()

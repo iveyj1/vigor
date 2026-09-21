@@ -101,6 +101,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._pending_space = False # space-leader: waiting for next key
         self._pending_space_count = 1
         self._pending_space_extra = None
+        self._pending_space_e = False
         self._pending_g_op = False  # 'g' prefix inside operator-pending
         self._pending_find = None   # (cmd, count) for 'f'/'t'/'F'/'T' waiting for char
         self._pending_find_for_op = None  # (cmd, ch) find for operator
@@ -113,6 +114,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._flash_labels = {}      # rendered label cells keyed by (source_y, display_col)
         self._flash_pending_label = ""
         self._pending_mkdir_write = None  # (path, close_after) waiting for y/n
+        self._insert_literal = False       # Ctrl-V literal insertion prefix
+        self._loaded_config_path = None
         self._mouse_anchor = None  # source position saved on a possible Visual drag
         self._mouse_dragged = False
         self._yank_flash = None     # (expires, sy, sx, ey, ex, linewise)
@@ -350,10 +353,24 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             os.path.join(xdg, "vigor", "config"),
         ]
 
+    def _source_config_lines(self, lines, source="config"):
+        """Interpret set-style config lines. Return True if all commands succeed."""
+        ok = True
+        for lineno, raw in enumerate(lines, 1):
+            line = raw.strip()
+            if not line or line.startswith("#"):
+                continue
+            if line.startswith(":"):
+                line = line[1:].lstrip()
+            if line.startswith("set "):
+                line = line[4:].strip()
+            if not self._exec_set(line):
+                self.msg = f"{source}:{lineno}: {self.msg}"
+                ok = False
+        return ok
+
     def _load_config(self):
-        """Load simple startup settings from ~/.vigrc or XDG config.
-        Each non-empty, non-comment line is either `set <option>` or `<option>`.
-        """
+        """Load startup settings from config files, tracking the last one used."""
         if os.environ.get("VIG_NO_CONFIG"):
             return
         for path in self._config_paths():
@@ -365,15 +382,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             except OSError as e:
                 self.msg = f"Config error {path}: {e.strerror or str(e)}"
                 continue
-            for raw in lines:
-                line = raw.strip()
-                if not line or line.startswith("#"):
-                    continue
-                if line.startswith(":"):
-                    line = line[1:].lstrip()
-                if line.startswith("set "):
-                    line = line[4:].strip()
-                self._exec_set(line)
+            self._loaded_config_path = path
+            self._source_config_lines(lines, path)
 
     def _suspend(self):
         """Suspend vig with Ctrl-Z, then restore raw mode on foreground."""
@@ -415,10 +425,12 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.pending_extra_n = None
         self._pending_g = self._pending_space = self._pending_g_op = False
         self._pending_space_count, self._pending_space_extra = 1, None
+        self._pending_space_e = False
         self._pending_find = self._pending_find_for_op = self._pending_textobj = None
         self._pending_replace = 0
         self._pending_ctrl_c = False
         self._pending_mkdir_write = None
+        self._insert_literal = False
         self._mouse_anchor = None
         self._mouse_dragged = False
 

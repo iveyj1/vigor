@@ -50,6 +50,7 @@ n N                 repeat search / reverse
 :ls                 list buffers
 :k / :k!            delete buffer / force delete buffer
 :help               open this help buffer
+:source / :so       interpret current buffer as config settings
 :md / :markdown     toggle Markdown presentation; .md opens in it automatically
 :nomd               show literal Markdown source
 :ft [TYPE]          report/force auto,text,bash,c,cpp,python,markdown,make
@@ -80,6 +81,7 @@ Substitute rejects CR/LF replacements; use :[range]! for multiline transforms.
 
 OPTIONS (shown with available forms; defaults are in example-config)
 
+:set option?        print current value as reusable set syntax
 :set wrap / :set nowrap
 :set wrapcol=N
 :set list / :set nolist        show tabs as ›··· (default for make)
@@ -117,6 +119,7 @@ Recovery and manual versions use protectdir; autosave still writes the original.
 Central artifacts use basename plus an absolute-path hash and contain no path metadata.
 
 <space>d            delete current buffer
+<space>ec           edit loaded startup config file
 <space>w            toggle line wrapping
 <space>(/{/[/"/' + motion/text object    surround range
 <space>j / k        next / previous quickfix item
@@ -125,6 +128,7 @@ Central artifacts use basename plus an absolute-path hash and contain no path me
 <space>o            open quickfix location
 <space>n / N        next / previous buffer
 
+Ctrl-V Tab          in Insert mode, insert a literal tab character
 Esc                 return to Normal / cancel prompt
 Ctrl-C              cancel pending state and return to Normal
 Ctrl-C Ctrl-C       quit all buffers

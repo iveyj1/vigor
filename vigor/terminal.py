@@ -140,6 +140,8 @@ class Terminal:
             return "CTRL_Y"
         if ch == 18:
             return "CTRL_R"
+        if ch == 22:
+            return "CTRL_V"
         if ch == 26:
             return "CTRL_Z"
         if ch < 32:

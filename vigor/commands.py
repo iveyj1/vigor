@@ -398,6 +398,10 @@ class CommandMixin:
         elif cmd == "set":
             self._exec_set(arg)
             self.mode = Mode.NORMAL
+        elif cmd in ("source", "so"):
+            if self._source_config_lines(self.buf.lines, self.buf.path or "[No Name]"):
+                self.msg = "source complete"
+            self.mode = Mode.NORMAL
         elif cmd == "qf":
             if not arg or not arg.startswith("!"):
                 self.msg = "Usage: qf !<command>"
@@ -732,17 +736,47 @@ class CommandMixin:
         if term:
             term.set_mouse(self.opt_mouse)
 
+    def _edit_config_file(self):
+        path = self._loaded_config_path
+        if not path or not os.path.exists(path):
+            self.msg = "No loaded config file"
+            return
+        try:
+            self._add_buffer(BufferState(path))
+        except OSError as e:
+            self.msg = f'Cannot edit "{path}": {e.strerror or str(e)}'
+        else:
+            self.msg = f'"{path}"'
+
+    def _set_query_value(self, name, kind, attr):
+        if name == "readonly":
+            self.msg = "readonly" if self.buffers[self.buf_idx].readonly else "noreadonly"
+            return
+        value = getattr(self, attr)
+        self.msg = (name if value else "no" + name) if kind == "bool" else f"{name}={value}"
+
     def _exec_set(self, arg):
         """Handle :set <option> commands from the declarative option table."""
         if not arg:
             self.msg = "Argument required"
-            return
+            return False
         opt = arg.strip()
+        if opt.endswith("?"):
+            qname = opt[:-1]
+            if qname == "readonly":
+                self._set_query_value(qname, "bool", "")
+                return True
+            spec = OPTIONS.get(qname)
+            if not spec:
+                self.msg = f"Unknown option: {qname}"
+                return False
+            self._set_query_value(qname, spec[0], spec[1])
+            return True
         if opt in ("readonly", "noreadonly"):
             self.buffers[self.buf_idx].readonly = opt == "readonly"
             self.buffers[self.buf_idx].readonly_warned = False
             self.msg = "readonly on" if opt == "readonly" else "readonly off"
-            return
+            return True
         if opt in ("wrapcol", "textwidth"):
             opt = f"{opt}={self._cursor_display_col() + 1}"
         name, sep, raw = opt.partition("=")
@@ -753,7 +787,7 @@ class CommandMixin:
             spec = OPTIONS.get(name)
         if not spec or (spec[0] == "bool") != (not sep):
             self.msg = f"Unknown option: {opt}"
-            return
+            return False
         kind, attr, _, valid, hook = spec
         if kind == "bool":
             value = enabled
@@ -762,12 +796,12 @@ class CommandMixin:
         elif kind == "path":
             if not raw:
                 self.msg = f"{name} requires auto, file, or a path"
-                return
+                return False
             value = raw if raw in ("auto", "file") else os.path.abspath(os.path.expanduser(raw))
         elif kind == "enum":
             if raw not in valid:
                 self.msg = f"{name} must be {', '.join(valid[:-1])}, or {valid[-1]}"
-                return
+                return False
             value = raw
         else:
             try:
@@ -778,11 +812,12 @@ class CommandMixin:
             except ValueError:
                 limit = f">= {valid[0]}" if valid[1] is None else f"{valid[0]}..{valid[1]}"
                 self.msg = f"{name} must be {limit}"
-                return
+                return False
         setattr(self, attr, value)
         if hook:
             getattr(self, hook)()
         self.msg = f"{name} {'on' if value else 'off'}" if kind == "bool" else f"{name}={value}"
+        return True
 
     def _exec_substitute(self, m):
         """Execute :[range]s/pat/repl/[g] substitute command."""

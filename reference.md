@@ -123,6 +123,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
 | `:help` | open `vighelp` beside the vigor executable |
+| `:source` / `:so` | interpret the current buffer as startup-config settings |
 | `:md` / `:markdown` | toggle non-destructive Markdown presentation for the current buffer |
 | `:nomd` | return the current buffer to literal source display |
 | `:filetype` / `:ft` | report the current effective file type and whether it is automatic or forced |
@@ -135,6 +136,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:ls` | list buffers |
 | `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
 | `:set readonly` / `:set noreadonly` | lock or unlock current buffer editing; write-as to another path also retargets and unlocks when writable |
+| `:set option?` | print the current value as reusable set syntax, e.g. `nowrap` or `textwidth=72` |
 | `:make [args]` | run configured `makeprg` and capture merged output in quickfix |
 | `:qf !<cmd>` | run a generic diagnostic producer and capture output in quickfix |
 | `:rg <pattern> [path]` | run `rg -n --column` into quickfix buffer |
@@ -208,6 +210,7 @@ It executes arguments directly rather than through a shell; use `sh -c '...'` ex
 | `:ls` | list all buffers |
 | `<space>d` | close current buffer, refusing dirty or last buffers |
 | `<space>w` | toggle `wrap` / `nowrap` |
+| `<space>ec` | edit the loaded effective config file, if any |
 | `<space>(` / `{` / `[` / `"` / `'` + motion or text object | surround the range with the matching literal pair; counts and dot repeat work |
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |
@@ -227,6 +230,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 | Printable chars | insert at cursor |
 | Bracketed paste | insert pasted text literally; tabs/newlines are not treated as typed keys |
 | Tab | insert spaces to the next 4-column tab stop |
+| Ctrl-V Tab | insert a literal tab character |
 | Enter | split line (copies indent if autoindent) |
 | Backspace | delete char / join with previous line |
 | Delete | delete char at cursor |
@@ -237,6 +241,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 ### Startup Config
 - Unless `VIG_NO_CONFIG` is set, vig reads `~/.vigrc` then `$XDG_CONFIG_HOME/vig/config`.
 - `VIG_CONFIG=/path/to/file` reads only that file.
+- `<space>ec` edits the loaded effective config file: the explicit `VIG_CONFIG` file, or otherwise the highest-precedence default config file that existed at launch.
 - Lines are simple set-style options: `set number`, `relativenumber`, `scrolloff=3`, etc.
 - Blank lines and lines starting with `#` are ignored.
 

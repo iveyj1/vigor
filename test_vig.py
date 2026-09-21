@@ -2124,6 +2124,15 @@ def test_insert_delete_key():
     assert content == "ac\n", f"Expected 'ac', got {content!r}"
     print("  PASS: insert Delete key")
 
+def test_ctrl_v_tab_inserts_literal_tab():
+    """Insert-mode Ctrl-V Tab inserts a true tab character."""
+    path = write_temp("abc\n")
+    screen, content, code = run_vig(b"i\x16\tabc\x1b:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert content == "\tabcabc\n", f"Expected literal tab insertion, got {content!r}"
+    print("  PASS: Ctrl-V Tab inserts literal tab")
+
 # ── Phase 31: J join + visual ^/$ motions ─────────────────────────────────
 
 def test_J_joins_lines():
@@ -2528,6 +2537,39 @@ def test_config_file_sets_options():
     frame = last_frame(screen)
     assert "1     alpha" in frame, f"Expected relative-number cursor layout: {frame[-500:]}"
     print("  PASS: config file sets options")
+
+def test_set_query_reports_reusable_syntax():
+    """:set name? reports the current option value as set syntax."""
+    path = write_temp("alpha\n")
+    screen, _, code = run_vig(b":set nowrap\r:set wrap?\r:set textwidth=33\r:set textwidth?\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "nowrap" in screen, f"Expected bool query output: {screen[-500:]}"
+    assert "textwidth=33" in screen, f"Expected value query output: {screen[-500:]}"
+    print("  PASS: set query reports reusable syntax")
+
+def test_source_current_buffer_sets_options():
+    """:source interprets the current buffer as config."""
+    path = write_temp("set number\nset textwidth=12\n")
+    screen, _, code = run_vig(b":source\r:set textwidth?\r:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "textwidth=12" in screen, f"Expected sourced textwidth: {screen[-500:]}"
+    assert "    1 set number" in last_frame(screen), "Expected sourced number option"
+    print("  PASS: source current buffer sets options")
+
+def test_space_ec_edits_loaded_config_file():
+    """<space>ec opens the config file loaded at startup."""
+    path = write_temp("alpha\n")
+    with tempfile.TemporaryDirectory() as d:
+        cfg = os.path.join(d, "vigrc")
+        with open(cfg, "w") as f:
+            f.write("set nowrap\n")
+        screen, _, code = run_vig(b" ec:q\r:q\r", file_path=path, env={"VIG_CONFIG": cfg})
+    os.unlink(path)
+    assert code == 0
+    assert "vigrc" in screen and "set nowrap" in screen, f"Expected config buffer: {screen[-800:]}"
+    print("  PASS: space-ec edits loaded config file")
 
 # ── Phase 38: ripgrep quickfix ─────────────────────────────────────────────
 
@@ -5681,6 +5723,7 @@ def main():
             test_home_end_csi_tilde_sequences,
             test_insert_home_end_tab,
             test_insert_delete_key,
+            test_ctrl_v_tab_inserts_literal_tab,
         ]),
         ("31", "Phase 31 — J join and visual ^/$", [
             test_J_joins_lines,
@@ -5727,6 +5770,9 @@ def main():
             test_ctrl_c_q_force_quit_all,
             test_ctrl_c_ctrl_c_dirty_refuses,
             test_config_file_sets_options,
+            test_set_query_reports_reusable_syntax,
+            test_source_current_buffer_sets_options,
+            test_space_ec_edits_loaded_config_file,
         ]),
         ("38", "Phase 38 — ripgrep quickfix", [
             test_rg_creates_quickfix_buffer,

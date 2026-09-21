@@ -39,6 +39,10 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Add Insert-mode `Ctrl-V Tab` literal-tab insertion.
+1. Add `:set <variable>?` query output in reusable `:set` syntax.
+1. Add `<space>ec` to edit the loaded effective config file.
+1. Add `:source` / `:so` to interpret the current buffer as config settings.
 1. Add `<space>(` / `{` / `[` / `"` / `'` surround operators for motions and text objects, with counts, inline linewise ranges, atomic undo, dot repeat, and unchanged registers.
 1. Keep excess Backspaces at the start of the `:` prompt in Command mode so they cannot reach Normal-mode buffer deletion.
 1. Install the optional diagnostic producer beside `vig` as `vig-diag` and normalize Bash `path: line N:` errors into absolute quickfix locations.
