@@ -659,6 +659,13 @@ class CommandMixin:
             self.msg = f"Undefined environment variable: {missing}"
             return
         path = re.sub(variable, lambda m: os.environ[m[1] or m[2]], os.path.expanduser(raw))
+        if os.path.isdir(path):
+            directory = os.path.abspath(path).rstrip(os.sep) + os.sep
+            self.mode = Mode.COMMAND
+            self.cmd = "edit " + directory
+            self.cmd_cx = len(self.cmd)
+            self._start_completion()
+            return
         if not path or not os.path.isfile(path):
             self.msg = f'Not an existing file: "{path}"'
             return

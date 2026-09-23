@@ -2599,7 +2599,6 @@ def test_gf_rejects_invalid_paths():
     for raw, message in (("$VIG_GF_UNDEFINED_9847/file", "Undefined environment variable"),
                          ("${HOME:-fallback}/file", "Unsupported path expansion"),
                          ("$(touch nope)", "Unsupported path expansion"),
-                         ("/", "Not an existing file"),
                          ("/nonexistent-vigor-gf-9847", "Not an existing file"),
                          ("   ", "No path under cursor")):
         path = write_temp(raw + "\n")
@@ -2608,6 +2607,19 @@ def test_gf_rejects_invalid_paths():
         assert code == 0 and message in screen, raw
         assert content == raw + "\n"
     print("  PASS: gf rejects invalid paths")
+
+
+def test_gf_directory_opens_edit_completion():
+    """gf on a directory opens the existing edit completion prompt rooted there."""
+    with tempfile.TemporaryDirectory() as d:
+        target = os.path.join(d, "only.txt")
+        with open(target, "w") as f:
+            f.write("directory target\n")
+        path = write_temp(d + "\n")
+        screen, _, code = run_vig(b"gf\r:qa\r", file_path=path)
+        os.unlink(path)
+    assert code == 0 and "directory target" in screen, f"Expected gf directory completion: {screen[-800:]}"
+    print("  PASS: gf directory opens edit completion")
 
 
 def test_gf_reuses_dirty_buffer():
@@ -5904,6 +5916,7 @@ def main():
             test_space_ec_edits_loaded_config_file,
             test_gf_opens_paths,
             test_gf_rejects_invalid_paths,
+            test_gf_directory_opens_edit_completion,
             test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
             test_vigfiles_missing_entry_opens_new_file_with_warning,
