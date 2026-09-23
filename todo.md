@@ -7,12 +7,12 @@
 None
 
 ### Implement
-1. Add optional incremental-search scrolling when no preview hit is visible.
 
 ### On Hold
+1. Add ability for :rg to specify a context range to include.  Make quickfix navigation move from one entry to the next rather than one line to the next.
 
-Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies.
-
+(Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies)
+1. Add optional incremental-search scrolling when no preview hit is visible.
    **Moderate feasibility; 30–50 lines.** Existing preview spans and `ViewportLayout` make finding/centering practical, but Search must save and restore the original viewport on Esc or a failed pattern. Add it as an option only after defining that cancellation behavior.
 1. Add a `\v` search modifier.
    **Small implementation after specification; 15–35 lines.** Python regex syntax is already close to Vim's “very magic” mode, so first define exactly which vigor escapes and metacharacters `\v` changes; avoid a modifier that is merely ignored.
