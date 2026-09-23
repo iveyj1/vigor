@@ -512,7 +512,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
     def _refresh_readonly(self, bs):
         try:
             bs.readonly = bool(bs.buf.path and os.path.exists(bs.buf.path)
-                               and not os.stat(bs.buf.path).st_mode & 0o222)
+                               and (not os.stat(bs.buf.path).st_mode & 0o222
+                                    or not os.access(bs.buf.path, os.W_OK, effective_ids=True)))
         except OSError:
             bs.readonly = False
         bs.readonly_warned = False

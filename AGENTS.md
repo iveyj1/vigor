@@ -188,7 +188,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Cursor shape** — DECSCUSR escape sequences switch cursor appearance per mode: `\x1b[2 q` (steady block) in Normal/Visual/Command, `\x1b[6 q` (steady bar) in Insert. On exit, `\x1b[0 q` resets to the terminal's default cursor.
 
-**Status bar** — reverse-video full-width bar showing mode, filename, dirty flag, `[RO]` for read-only locked buffers, pending count, and cursor position. Files with no write mode bits open locked read-only; blocked edits report once per buffer. `:set noreadonly` unlocks explicitly, and writing to a different path retargets the buffer and unlocks when the target is writable. When multiple buffers are open, shows `[N/M]` indicator (current/total). Built as a padded string exactly `cols` characters wide.
+**Status bar** — reverse-video full-width bar showing mode, filename, dirty flag, `[RO]` for read-only locked buffers, pending count, and cursor position. Files with no write mode bits or no write access for the process's effective user open locked read-only; blocked edits report once per buffer. `:set noreadonly` unlocks explicitly, and writing to a different path retargets the buffer and unlocks when the target is writable. When multiple buffers are open, shows `[N/M]` indicator (current/total). Built as a padded string exactly `cols` characters wide.
 
 **Resize** — `SIGWINCH` triggers `_handle_resize`, which re-queries `shutil.get_terminal_size()`, re-clamps cursor and scroll, and calls `render()` immediately.
 

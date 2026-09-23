@@ -5247,6 +5247,27 @@ def test_readonly_write_as_unlocks_and_set_noreadonly_edits():
     print("  PASS: read-only write-as unlocks and :set noreadonly allows editing")
 
 
+def test_readonly_detection_checks_current_user_access():
+    """Write bits for other users must not mask denied access at startup or gf."""
+    target = write_temp("protected\n")
+    source = write_temp(target + "\n")
+    os.chmod(target, 0o466)  # Owner cannot write, although group/other can.
+    denied = not os.access(target, os.W_OK, effective_ids=True)
+    try:
+        for path, prefix in ((target, b""), (source, b"gf")):
+            screen, _, code = run_vig(prefix + b"x:qa!\r", file_path=path)
+            assert code == 0
+            assert ("[RO]" in screen) == denied
+            assert ("Buffer is read-only" in screen) == denied
+        with open(target) as f:
+            assert f.read() == "protected\n"
+    finally:
+        os.chmod(target, 0o644)
+        os.unlink(target)
+        os.unlink(source)
+    print("  PASS: read-only detection checks current-user access at startup and gf")
+
+
 def test_writable_file_has_no_readonly_marker():
     """Ordinary writable files do not show read-only state or warnings."""
     path = write_temp("one\n")
@@ -6160,6 +6181,7 @@ def main():
             test_readonly_file_marks_status_and_blocks_edits_once,
             test_readonly_write_as_unlocks_and_set_noreadonly_edits,
             test_writable_file_has_no_readonly_marker,
+            test_readonly_detection_checks_current_user_access,
         ]),
         ("82", "Phase 82 — relative command ranges", [
             test_relative_ranges_work_for_substitute_and_filter,
