@@ -7,15 +7,12 @@
 None
 
 ### Implement
-None
+1. Add optional incremental-search scrolling when no preview hit is visible.
 
 ### On Hold
 
 Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies.
 
-1. Detect when a named file changed on disk after it was opened or written.
-   **Moderate feasibility; 35–60 lines.** Store a per-buffer disk signature and check on buffer focus and before writes. Specify whether detection only warns, blocks writes, or offers reload; account for deletion, replacement, autosave, and vigor's own writes.
-1. Add optional incremental-search scrolling when no preview hit is visible.
    **Moderate feasibility; 30–50 lines.** Existing preview spans and `ViewportLayout` make finding/centering practical, but Search must save and restore the original viewport on Esc or a failed pattern. Add it as an option only after defining that cancellation behavior.
 1. Add a `\v` search modifier.
    **Small implementation after specification; 15–35 lines.** Python regex syntax is already close to Vim's “very magic” mode, so first define exactly which vigor escapes and metacharacters `\v` changes; avoid a modifier that is merely ignored.
@@ -39,6 +36,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Detect when a named file changed on disk after it was opened or written; warn on focus, block the first write, skip autosave, and allow a repeated write to overwrite intentionally.
 1. Add `:vigfiles` common-files list opening with Enter/`<space>o` entry selection.
 1. Add Insert-mode `Ctrl-V Tab` literal-tab insertion.
 1. Add `:set <variable>?` query output in reusable `:set` syntax.

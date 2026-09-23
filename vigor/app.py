@@ -264,8 +264,16 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 self.mode = Mode.NORMAL
                 return False
         old_path = self.buf.path
+        same_path = old_path and os.path.abspath(path) == os.path.abspath(old_path)
+        if manual and same_path and self._disk_changed(self.buffers[self.buf_idx]):
+            if not self.buffers[self.buf_idx].disk_warned:
+                self.buffers[self.buf_idx].disk_warned = True
+                self.msg = "File changed on disk; write again to overwrite"
+                self.mode = Mode.NORMAL
+                return False
         try:
             if self.buf.save(path):
+                self._record_disk_signature(self.buffers[self.buf_idx])
                 self._undo_save_depth = len(self._undo_stack)
                 self._undo_branched = False
                 if old_path:
@@ -324,6 +332,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 self.mode = Mode.NORMAL
                 return
         self.buf.dirty = False
+        self._record_disk_signature(self.buffers[self.buf_idx])
         self._delete_recovery(self.buffers[self.buf_idx])
         self._refresh_readonly(self.buffers[self.buf_idx])
         self.md_view, self.md_lines, self.md_maps, self.md_languages = False, None, None, None
@@ -476,6 +485,30 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if bs.buf.path:
             self._delete_recovery_path(bs.buf.path)
 
+    @staticmethod
+    def _disk_signature(path):
+        try:
+            st = os.stat(path)
+            return st.st_dev, st.st_ino, st.st_mtime_ns, st.st_size
+        except FileNotFoundError:
+            return "missing"
+        except OSError:
+            return None
+
+    def _record_disk_signature(self, bs):
+        bs.disk_signature = self._disk_signature(bs.buf.path) if bs.buf.path else None
+        bs.disk_warned = False
+
+    def _disk_changed(self, bs):
+        return bool(bs.buf.path and self._disk_signature(bs.buf.path) != bs.disk_signature)
+
+    def _warn_disk_changed(self, bs):
+        if self._disk_changed(bs) and not bs.disk_warned:
+            bs.disk_warned = True
+            self.msg = f'File changed on disk: "{bs.buf.path}"'
+            return True
+        return False
+
     def _refresh_readonly(self, bs):
         try:
             bs.readonly = bool(bs.buf.path and os.path.exists(bs.buf.path)
@@ -509,8 +542,16 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         bs.autosave_deadline = None
         if not (self.opt_autosave and bs.buf.dirty and bs.buf.path):
             return
+        sig = self._disk_signature(bs.buf.path)
+        parent_missing = sig == "missing" and not os.path.isdir(os.path.dirname(bs.buf.path) or ".")
+        if sig != bs.disk_signature and not parent_missing:
+            if not bs.disk_warned:
+                bs.disk_warned = True
+                self.msg = f'Autosave skipped; file changed on disk: "{bs.buf.path}"'
+            return
         try:
             bs.buf.save()
+            self._record_disk_signature(bs)
             self._delete_recovery(bs)
             self._refresh_readonly(bs)
             depth = len(bs._undo_stack)
@@ -549,6 +590,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         """Capture file policies and prepare automatic Markdown view."""
         bs.buf.dirty_callback = lambda dirty, state=bs: self._dirty_changed(state, dirty)
         self._refresh_readonly(bs)
+        if bs.disk_signature is None:
+            self._record_disk_signature(bs)
         if bs.autodetect is not None:
             return
         recovery = self._existing_recovery(bs.buf.path) if bs.buf.path else None
@@ -576,6 +619,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if idx < 0 or idx >= len(self.buffers):
             return
         self.buf_idx = idx
+        self._warn_disk_changed(self.buffers[self.buf_idx])
         self._sticky_cx = None
         self._clamp_cursor()
         self._ensure_scroll()

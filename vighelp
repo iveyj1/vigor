@@ -3,6 +3,7 @@ VIGOR HELP
 Run `vig tutor` for an exercise-driven introduction.
 See `reference.md` for detailed semantics and deliberate vi divergences.
 [RO] marks buffers locked read-only; blocked edits report once per buffer.
+Changed-on-disk files warn on focus; first :w is blocked, repeat :w overwrites.
 
 KEY / COMMAND       ACTION
 

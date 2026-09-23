@@ -239,6 +239,12 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 | Home / End | start / end of line |
 | Escape | return to Normal mode |
 
+### Disk Change Detection
+- Named buffers remember their disk signature after open, reload, autosave, and explicit write.
+- If the file changes or disappears on disk, focusing that buffer reports a warning.
+- An explicit write to that same path is blocked once with `File changed on disk; write again to overwrite`; repeating `:w` overwrites intentionally and records the new signature.
+- Autosave skips changed-on-disk files instead of overwriting them.
+
 ### Startup Config
 - Unless `VIG_NO_CONFIG` is set, vig reads `~/.vigrc` then `$XDG_CONFIG_HOME/vig/config`.
 - `VIG_CONFIG=/path/to/file` reads only that file.

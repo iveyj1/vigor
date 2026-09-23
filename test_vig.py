@@ -2601,6 +2601,27 @@ def test_vigfiles_missing_entry_opens_new_file_with_warning():
     assert os.path.basename(missing) in screen and "New file from vigfiles" in screen, f"Expected new-file warning: {screen[-800:]}"
     print("  PASS: vigfiles missing entry opens new file")
 
+def test_external_file_change_blocks_first_write():
+    """A changed-on-disk file reports the conflict and requires a second write."""
+    path = write_temp("orig\n")
+    keys = f"iX\x1b:!printf 'external\\n' > {path}\r:w\r:q!\r".encode()
+    screen, content, code = run_vig(keys, file_path=path, timeout=5.0)
+    os.unlink(path)
+    assert code == 0
+    assert content == "external\n", f"First write should be blocked, got {content!r}"
+    assert "File changed on disk" in screen, f"Expected disk-change warning: {screen[-800:]}"
+    print("  PASS: external file change blocks first write")
+
+def test_external_file_change_second_write_overwrites():
+    """Repeating :w after a disk-change warning overwrites intentionally."""
+    path = write_temp("orig\n")
+    keys = f"iX\x1b:!printf 'external\\n' > {path}\r:w\r:w\r:q\r".encode()
+    screen, content, code = run_vig(keys, file_path=path, timeout=5.0)
+    os.unlink(path)
+    assert code == 0
+    assert content == "Xorig\n", f"Second write should overwrite, got {content!r}"
+    print("  PASS: external file change second write overwrites")
+
 # ── Phase 38: ripgrep quickfix ─────────────────────────────────────────────
 
 def test_rg_creates_quickfix_buffer():
@@ -5805,6 +5826,8 @@ def main():
             test_space_ec_edits_loaded_config_file,
             test_vigfiles_opens_listed_file,
             test_vigfiles_missing_entry_opens_new_file_with_warning,
+            test_external_file_change_blocks_first_write,
+            test_external_file_change_second_write_overwrites,
         ]),
         ("38", "Phase 38 — ripgrep quickfix", [
             test_rg_creates_quickfix_buffer,
