@@ -637,6 +637,33 @@ class CommandMixin:
         m = re.match(r"^(.+?):(\d+):(\d+):", line)
         return (m.group(1), int(m.group(2)), int(m.group(3))) if m and m.group(1) else None
 
+    def _edit_path_under_cursor(self):
+        """Open a bare or quoted path, without invoking a shell."""
+        line = self.buf.lines[self.cy]
+        for match in re.finditer(r'''"[^"]*"|'[^']*'|[^\s"']+''', line):
+            if match.start() <= self.cx < match.end():
+                raw = match.group()
+                if raw[0] in "\"'":
+                    raw = raw[1:-1]
+                break
+        else:
+            self.msg = "No path under cursor"
+            return
+        variable = r'\$(?:([A-Za-z_][A-Za-z_0-9]*)|\{([A-Za-z_][A-Za-z_0-9]*)\})'
+        if "$" in re.sub(variable, "", raw) or "`" in raw:
+            self.msg = "Unsupported path expansion"
+            return
+        names = [a or b for a, b in re.findall(variable, raw)]
+        missing = next((name for name in names if name not in os.environ), None)
+        if missing is not None:
+            self.msg = f"Undefined environment variable: {missing}"
+            return
+        path = re.sub(variable, lambda m: os.environ[m[1] or m[2]], os.path.expanduser(raw))
+        if not path or not os.path.isfile(path):
+            self.msg = f'Not an existing file: "{path}"'
+            return
+        self._goto_file_location(path)
+
     def _in_vigfiles_buffer(self):
         return bool(self.buf.path and os.path.abspath(self.buf.path) == self._vigfiles_path())
 

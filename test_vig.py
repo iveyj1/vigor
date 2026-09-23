@@ -2571,6 +2571,60 @@ def test_space_ec_edits_loaded_config_file():
     assert "vigrc" in screen and "set nowrap" in screen, f"Expected config buffer: {screen[-800:]}"
     print("  PASS: space-ec edits loaded config file")
 
+def test_gf_opens_paths():
+    """gf expands environment/tilde and resolves quoted paths from cwd."""
+    with tempfile.TemporaryDirectory() as d:
+        target = os.path.join(d, "target file.txt")
+        with open(target, "w") as f:
+            f.write("GF target contents\n")
+        for raw in ('"$GF_ROOT/target file.txt"', "'${GF_ROOT}/target file.txt'",
+                    '"~/target file.txt"', '"target file.txt"'):
+            path = write_temp(raw + "\n")
+            screen, _, code = run_vig(
+                (":cd " + d + "\rlgf:qa\r").encode(), file_path=path,
+                env={"GF_ROOT": d, "HOME": d, "VIG_NO_CONFIG": "1"})
+            os.unlink(path)
+            assert code == 0 and "GF target contents" in screen, raw
+        path = write_temp(target.replace("target file.txt", "plain.txt") + "\n")
+        with open(os.path.join(d, "plain.txt"), "w") as f:
+            f.write("GF bare contents\n")
+        screen, _, code = run_vig(b"gf:qa\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and "GF bare contents" in screen
+    print("  PASS: gf opens bare and quoted expanded paths")
+
+
+def test_gf_rejects_invalid_paths():
+    """Invalid paths leave the source buffer unchanged and never run a shell."""
+    for raw, message in (("$VIG_GF_UNDEFINED_9847/file", "Undefined environment variable"),
+                         ("${HOME:-fallback}/file", "Unsupported path expansion"),
+                         ("$(touch nope)", "Unsupported path expansion"),
+                         ("/", "Not an existing file"),
+                         ("/nonexistent-vigor-gf-9847", "Not an existing file"),
+                         ("   ", "No path under cursor")):
+        path = write_temp(raw + "\n")
+        screen, content, code = run_vig(b"gf:qa\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and message in screen, raw
+        assert content == raw + "\n"
+    print("  PASS: gf rejects invalid paths")
+
+
+def test_gf_reuses_dirty_buffer():
+    """gf switches to an existing dirty buffer without reloading it."""
+    with tempfile.TemporaryDirectory() as d:
+        target = os.path.join(d, "target")
+        source = os.path.join(d, "source")
+        with open(target, "w") as f:
+            f.write("original\n")
+        with open(source, "w") as f:
+            f.write(target + "\n")
+        keys = ("iCHANGED\x1b:e " + source + "\rgf:w\r:qa\r").encode()
+        screen, content, code = run_vig(keys, file_path=target)
+        assert code == 0 and content == "CHANGEDoriginal\n"
+    print("  PASS: gf reuses dirty buffer")
+
+
 def test_vigfiles_opens_listed_file():
     """:vigfiles opens the common-files list, and Enter opens an entry."""
     path = write_temp("alpha\n")
@@ -5827,6 +5881,9 @@ def main():
             test_set_query_reports_reusable_syntax,
             test_source_current_buffer_sets_options,
             test_space_ec_edits_loaded_config_file,
+            test_gf_opens_paths,
+            test_gf_rejects_invalid_paths,
+            test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
             test_vigfiles_missing_entry_opens_new_file_with_warning,
             test_external_file_change_blocks_first_write,

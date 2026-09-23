@@ -36,6 +36,7 @@ Ordered by recommended implementation sequence, balancing feasibility, effort, a
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Add Normal `gf` to open bare/quoted paths under the cursor, with environment/tilde expansion, cwd-relative resolution, existing-file checks, and buffer reuse. Full suite passed.
 1. Detect when a named file changed on disk after it was opened or written; warn on focus, block the first write, skip autosave, and allow a repeated write to overwrite intentionally.
 1. Add `:vigfiles` common-files list opening with Enter/`<space>o` entry selection.
 1. Add Insert-mode `Ctrl-V Tab` literal-tab insertion.

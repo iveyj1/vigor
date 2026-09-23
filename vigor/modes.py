@@ -170,6 +170,9 @@ class ModeMixin:
             elif key in ("*", "#"):
                 self._search_word_under_cursor(1 if key == "*" else -1, whole=False)
                 return
+            elif key == "f":
+                self._edit_path_under_cursor()
+                return
             elif key == "v":
                 self._restore_visual_selection()
                 return

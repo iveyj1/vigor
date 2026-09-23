@@ -29,6 +29,8 @@ p P                 paste after / before
 J                   join with next line
 >> / <<             indent / dedent four spaces
 > / < + motion      indent / dedent touched lines
+gf                  open bare/quoted path under cursor (cwd-relative)
+                    expands ~, $VAR, ${VAR}; existing files only; no shell
 gcc                 toggle line comment
 gq + motion / gqq   hard-wrap touched lines using textwidth
 ~ / g~ / gU / gu    toggle / toggle / upper / lower case
