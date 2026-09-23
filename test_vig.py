@@ -4992,12 +4992,15 @@ def test_word_operators_share_eof_boundary():
     _, c2, code2 = run_vig(b"2lgUw:wq\r", file_path=p2)
     p3 = write_temp("final\n")
     _, c3, code3 = run_vig(b":set clipboard=off\r2lyw$p:wq\r", file_path=p3)
-    for path in (p1, p2, p3):
+    p4 = write_temp("one\ntwo\n\n")
+    _, c4, code4 = run_vig(b"jdW:wq\r", file_path=p4)
+    for path in (p1, p2, p3, p4):
         os.unlink(path)
-    assert code1 == code2 == code3 == 0
+    assert code1 == code2 == code3 == code4 == 0
     assert c1 == "fi\n", c1
     assert c2 == "fiNAL\n", c2
     assert c3 == "finalnal\n", c3
+    assert c4 == "one\n\n\n", c4
     print("  PASS: word operators share EOF boundary")
 
 

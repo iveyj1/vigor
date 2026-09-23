@@ -1130,7 +1130,7 @@ class EditingMixin:
                 before = (self.cy, self.cx)
                 self.motion_w(big=motion_key == "W")
                 if (self.cy, self.cx) == before:
-                    if self.cy == len(self.buf.lines) - 1 and self.cx < len(self.buf.lines[self.cy]):
+                    if self.cx < len(self.buf.lines[self.cy]):
                         self.cx = len(self.buf.lines[self.cy])
                     break
         elif not self._exec_motion(motion_key, n, extra_n=extra_n):
