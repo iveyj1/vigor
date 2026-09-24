@@ -147,9 +147,16 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:rgf [path]` | open optional `fzf` live ripgrep picker; Enter sends all filtered rows to quickfix |
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
-| `:! <cmd>` / `:!<cmd>` | run shell command and show one-line truncated output in message bar |
+| `:! <cmd>` / `:!<cmd>` | run noninteractive shell command with empty stdin; show one-line truncated output |
 | `:[range]!<cmd>` | pipe lines to shell command stdin and replace the range (`%`; endpoints `N`, `.`, `$`, `+N`, `-N`) |
 | `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
+
+`:!` and `:read !` receive EOF on stdin, never editor keystrokes. To process buffer text, use a filter such as `:%!sed '/foo/d'`. These commands and filters have a 10-second timeout; timeout terminates their shell process group, including ordinary child processes.
+
+### Options
+
+| Command | Action |
+|---------|--------|
 | `:set wrap` / `nowrap` | toggle line wrapping |
 | `:set wrapcol[=<N>]` | wrap at most N content display columns; bare `wrapcol` uses the current cursor column; `0` uses terminal width |
 | `:set list` / `nolist` | show literal tabs as visible `›···` cells while preserving source tabs; Makefiles default to visible tabs |

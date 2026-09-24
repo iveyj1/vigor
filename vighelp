@@ -63,7 +63,9 @@ n N                 repeat search / reverse
 :pwd                show working directory
 :read file          insert file below cursor
 :read !command      insert command output below cursor
-:!command           run shell command; show one-line output
+:!command           noninteractive shell; empty stdin, one-line output
+:%!command          filter buffer text through command stdin
+:! / :read ! / filters time out after 10s and kill their shell process group
 :[range]!command    replace lines with command output
 :[range]!!command   open command output in a new buffer
 :[range]s/pat/repl/g substitute; endpoints: N, ., $, +N, -N

@@ -471,9 +471,8 @@ class CommandMixin:
             return
         sy, ey = rng
         text = "\n".join(self.buf.lines[sy:ey + 1]) + "\n"
-        import subprocess
         try:
-            result = subprocess.run(cmd, input=text, capture_output=True, text=True, shell=True, timeout=10)
+            result = self._run_shell(cmd, input=text)
         except Exception as e:
             self.msg = f"filter: {e}"
             return
@@ -516,8 +515,9 @@ class CommandMixin:
             return
         import subprocess
         try:
-            result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, text=True)
+            result = subprocess.run(cmd, shell=True, stdin=subprocess.DEVNULL,
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, start_new_session=True)
         except Exception as e:
             self.msg = f"{source}: {e}"
             return
@@ -553,7 +553,8 @@ class CommandMixin:
         import subprocess
         try:
             result = subprocess.run(
-                cmd, capture_output=True, text=True, timeout=10, cwd=os.getcwd()
+                cmd, stdin=subprocess.DEVNULL, capture_output=True,
+                text=True, timeout=10, cwd=os.getcwd()
             )
         except FileNotFoundError:
             self.msg = "rg: command not found"
@@ -720,14 +721,32 @@ class CommandMixin:
             target += delta
         self.msg = "No next quickfix item" if delta > 0 else "No previous quickfix item"
 
+    @staticmethod
+    def _run_shell(cmd, input="", timeout=10):
+        """Capture noninteractive commands without exposing the editor's tty."""
+        import signal
+        import subprocess
+        with subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                              text=True, start_new_session=True) as proc:
+            try:
+                stdout, stderr = proc.communicate(input, timeout=timeout)
+            except BaseException:
+                # Killing only the shell can leave descendants alive, holding
+                # pipes open or competing with the editor for terminal input.
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                proc.communicate()
+                raise
+            return subprocess.CompletedProcess(cmd, proc.returncode, stdout, stderr)
+
     def _exec_bang(self, arg):
         """Run a shell command and show compact output in the message bar."""
         if arg:
-            import subprocess
             try:
-                result = subprocess.run(
-                    arg, shell=True, capture_output=True, text=True, timeout=10
-                )
+                result = self._run_shell(arg)
                 output = result.stdout + result.stderr
                 if output.strip():
                     lines = output.replace("\r\n", "\n").replace("\r", "\n").splitlines()
@@ -753,11 +772,8 @@ class CommandMixin:
             if not shell_cmd:
                 self.msg = "No command given"
                 return
-            import subprocess
             try:
-                result = subprocess.run(
-                    shell_cmd, shell=True, capture_output=True, text=True, timeout=10
-                )
+                result = self._run_shell(shell_cmd)
                 output = result.stdout
                 if output:
                     self._snapshot()

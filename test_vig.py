@@ -5626,6 +5626,41 @@ def test_visual_gq_and_long_word_split():
     print("  PASS: visual gq preserves indentation and splits long words")
 
 
+def test_shell_stdin_is_eof_and_typing_survives():
+    """Commands without file arguments cannot consume editor keystrokes."""
+    path = write_temp("original\n")
+    try:
+        screen, content, code = run_vig(
+            b':!sed "/foo/d"\r:r !cat\rA123456789\x1b:wq\r', file_path=path)
+        assert code == 0 and content == "original123456789\n", (code, content)
+        assert "timed out" not in screen
+    finally:
+        os.unlink(path)
+    print("  PASS: shell stdin is EOF and typing survives")
+
+
+def test_shell_timeout_kills_descendants():
+    """Timeout kills the shell's process group, not just its leader."""
+    import shlex
+    import subprocess
+    from vigor.commands import CommandMixin
+    with tempfile.TemporaryDirectory() as d:
+        marker = os.path.join(d, "survivor")
+        script = "import time; time.sleep(0.6); open(%r, 'w').write('alive')" % marker
+        cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} & wait"
+        try:
+            CommandMixin._run_shell(cmd, timeout=0.1)
+        except subprocess.TimeoutExpired:
+            pass
+        else:
+            raise AssertionError("Expected timeout")
+        time.sleep(0.7)
+        assert not os.path.exists(marker), "Child survived shell timeout"
+        result = CommandMixin._run_shell("cat")
+        assert result.returncode == 0 and result.stdout == ""
+    print("  PASS: shell timeout kills descendants")
+
+
 # ── Runner ─────────────────────────────────────────────────────────────────
 
 def run_phase(name, tests):
@@ -6232,6 +6267,10 @@ def main():
             test_leader_surround_supports_linewise_motions_and_counts,
             test_leader_surround_is_atomic_repeatable_and_preserves_register,
             test_failed_leader_surround_preserves_redo,
+        ]),
+        ("88", "Phase 88 — subprocess input isolation", [
+            test_shell_stdin_is_eof_and_typing_survives,
+            test_shell_timeout_kills_descendants,
         ]),
         ("87", "Phase 87 — textwidth hard wrap and flash jump", [
             test_space_s_flash_jumps_to_visible_label,
