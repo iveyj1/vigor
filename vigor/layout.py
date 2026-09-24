@@ -545,7 +545,9 @@ class RenderMixin:
         count_str = str(self.count) if self.count > 0 else ""
         buf_info = f"[{self.buf_idx + 1}/{len(self.buffers)}] " if len(self.buffers) > 1 else ""
         left = f" {mode_str}{markers} | {buf_info}{fname}{dirty}"
-        right = f" {count_str} {self.cy + 1}:{self.cx + 1} "
+        line_count = len(self.buf.lines)
+        pct = 100 if self.cy >= line_count - 1 else max(1, int((self.cy + 1) * 100 / line_count))
+        right = f" {count_str} {self.cy + 1}/{line_count}:{self.cx + 1} {pct}% "
         pad = self.cols - len(left) - len(right)
         if pad < 0:
             pad = 0

@@ -564,7 +564,7 @@ def test_visual_motion_extends():
 # ── Phase 5: Polish ───────────────────────────────────────────────────────
 
 def test_status_bar_shown():
-    """Status bar shows filename."""
+    """Status bar shows filename and line/percent position."""
     path = write_temp("test content\n")
     screen, _, code = run_vig(b":q\r", file_path=path)
     # Check filename appears in status bar
@@ -572,7 +572,19 @@ def test_status_bar_shown():
     os.unlink(path)
     assert code == 0
     assert basename in screen or path in screen, f"Expected filename in status bar"
+    assert "1/1:1 100%" in screen, f"Expected line count and percent in status bar: {screen[-500:]}"
     print("  PASS: status bar shown")
+
+
+def test_status_bar_position_percent_top_bottom():
+    """Status bar percent shows 1% on first line and 100% on last line."""
+    path = write_temp("".join(f"line {i}\n" for i in range(1, 101)))
+    screen, _, code = run_vig(b"G:q\r", file_path=path)
+    os.unlink(path)
+    assert code == 0
+    assert "1/100:1 1%" in screen, "Expected top-line 1% before G"
+    assert "100/100:1 100%" in screen, "Expected bottom-line 100% after G"
+    print("  PASS: status bar position percent top/bottom")
 
 def test_wq_command():
     """:wq writes and quits."""
@@ -3937,7 +3949,7 @@ def test_wordwrap_wrapmove_crosses_breakpoint():
         file_path=path, cols=80, rows=8,
     )
     os.unlink(path)
-    assert code == 0 and "2:1 \x1b[m" in last_frame(screen)
+    assert code == 0 and "2/2:1 100% \x1b[m" in last_frame(screen)
     from vigor.layout import ViewportLayout
     from vigor.highlight import build_markdown_view
     # A short header inherits wide padding from the table body. Tabs likewise
@@ -5683,6 +5695,7 @@ def main():
         ]),
         ("5", "Phase 5 — Polish", [
             test_status_bar_shown,
+            test_status_bar_position_percent_top_bottom,
             test_wq_command,
             test_q_bang_forces,
             test_empty_file,

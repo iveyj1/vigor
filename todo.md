@@ -36,6 +36,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Show cursor line/total lines, column, and file percent in the status bar.
 1. Make `gf` on a directory open the existing `:edit` filename-completion prompt rooted at that directory.
 1. Detect read-only files using effective-user write access as well as mode bits, including files opened through `gf`; focused and full suites passed.
 1. Add Normal `gf` to open bare/quoted paths under the cursor, with environment/tilde expansion, cwd-relative resolution, existing-file checks, and buffer reuse. Full suite passed.
