@@ -40,6 +40,7 @@ OPTIONS = {
     "recovery": ("bool", "opt_recovery", False, None, "_reschedule_recovery"),
     "recoverydelay": ("int", "opt_recoverydelay", 1000, (0, None), "_reschedule_recovery"),
     "makeprg": ("str", "opt_makeprg", "make", None, None),
+    "shelltimeout": ("int", "opt_shelltimeout", 10, (1, None), None),
 }
 
 
@@ -472,7 +473,7 @@ class CommandMixin:
         sy, ey = rng
         text = "\n".join(self.buf.lines[sy:ey + 1]) + "\n"
         try:
-            result = self._run_shell(cmd, input=text)
+            result = self._run_shell(cmd, input=text, timeout=self.opt_shelltimeout, cancel_fd=self.term.fd)
         except Exception as e:
             self.msg = f"filter: {e}"
             return
@@ -722,15 +723,29 @@ class CommandMixin:
         self.msg = "No next quickfix item" if delta > 0 else "No previous quickfix item"
 
     @staticmethod
-    def _run_shell(cmd, input="", timeout=10):
+    def _run_shell(cmd, input="", timeout=10, cancel_fd=None):
         """Capture noninteractive commands without exposing the editor's tty."""
         import signal
         import subprocess
+        import select
+        import time
+        deadline = time.monotonic() + timeout
         with subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE,
                               stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                               text=True, start_new_session=True) as proc:
             try:
-                stdout, stderr = proc.communicate(input, timeout=timeout)
+                while True:
+                    if cancel_fd is not None and select.select([cancel_fd], [], [], 0)[0]:
+                        if b"\x03" in os.read(cancel_fd, 4096):
+                            raise InterruptedError("Shell command cancelled")
+                    remaining = deadline - time.monotonic()
+                    if remaining <= 0:
+                        raise subprocess.TimeoutExpired(cmd, timeout)
+                    try:
+                        stdout, stderr = proc.communicate(input, timeout=min(0.05, remaining))
+                        break
+                    except subprocess.TimeoutExpired:
+                        input = None  # communicate retains pending input across retries
             except BaseException:
                 # Killing only the shell can leave descendants alive, holding
                 # pipes open or competing with the editor for terminal input.
@@ -746,7 +761,7 @@ class CommandMixin:
         """Run a shell command and show compact output in the message bar."""
         if arg:
             try:
-                result = self._run_shell(arg)
+                result = self._run_shell(arg, timeout=self.opt_shelltimeout, cancel_fd=self.term.fd)
                 output = result.stdout + result.stderr
                 if output.strip():
                     lines = output.replace("\r\n", "\n").replace("\r", "\n").splitlines()
@@ -773,7 +788,7 @@ class CommandMixin:
                 self.msg = "No command given"
                 return
             try:
-                result = self._run_shell(shell_cmd)
+                result = self._run_shell(shell_cmd, timeout=self.opt_shelltimeout, cancel_fd=self.term.fd)
                 output = result.stdout
                 if output:
                     self._snapshot()

@@ -65,7 +65,8 @@ n N                 repeat search / reverse
 :read !command      insert command output below cursor
 :!command           noninteractive shell; empty stdin, one-line output
 :%!command          filter buffer text through command stdin
-:! / :read ! / filters time out after 10s and kill their shell process group
+:! / :read ! / filters use shelltimeout (10s default); Ctrl-C cancels
+Timeout/cancel kills their shell process group; other typed keys are discarded.
 :[range]!command    replace lines with command output
 :[range]!!command   open command output in a new buffer
 :[range]s/pat/repl/g substitute; endpoints: N, ., $, +N, -N
@@ -114,6 +115,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set autosavedelay=N      idle milliseconds
 :set recovery / :set norecovery    write idle panic-recovery snapshots
 :set recoverydelay=N      idle milliseconds
+:set shelltimeout=N  shell timeout seconds, positive integer; default 10
 :set makeprg=COMMAND
 :set readonly / :set noreadonly lock or unlock current buffer editing
 

@@ -26,3 +26,5 @@ set autosavedelay=1000
 set norecovery
 set recoverydelay=1000
 set makeprg=make
+# Captured shell command timeout, seconds (positive integer).
+set shelltimeout=10

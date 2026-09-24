@@ -151,7 +151,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:[range]!<cmd>` | pipe lines to shell command stdin and replace the range (`%`; endpoints `N`, `.`, `$`, `+N`, `-N`) |
 | `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
 
-`:!` and `:read !` receive EOF on stdin, never editor keystrokes. To process buffer text, use a filter such as `:%!sed '/foo/d'`. These commands and filters have a 10-second timeout; timeout terminates their shell process group, including ordinary child processes.
+`:!` and `:read !` receive EOF on stdin, never editor keystrokes. To process buffer text, use a filter such as `:%!sed '/foo/d'`. These commands and filters use `shelltimeout` seconds (default 10); timeout terminates their shell process group, including ordinary child processes. Ctrl-C cancels them and terminates their shell process group without applying partial output. Other keys typed while they run are discarded. This option does not change `:make`, `:qf`, or ripgrep timeouts.
 
 ### Options
 
@@ -183,6 +183,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set recovery` / `norecovery` | toggle panic snapshots for dirty named buffers under `protectdir` (default off) |
 | `:set recoverydelay=<N>` | idle milliseconds after the last mutation before writing a panic backup (default 1000) |
 | `:set makeprg=<cmd>` | shell command used by `:make` (default `make`) |
+| `:set shelltimeout=<N>` | timeout in seconds for `:!`, `:read !`, and filters (positive integer; default `10`) |
 
 Line numbers use a five-column field that expands for files over 99,999 lines, followed by one separator space. Absolute numbers are right-aligned. With `relativenumber`, the cursor row shows its absolute number flush left and other rows show right-aligned relative distances.
 

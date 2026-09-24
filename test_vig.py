@@ -5639,6 +5639,56 @@ def test_shell_stdin_is_eof_and_typing_survives():
     print("  PASS: shell stdin is EOF and typing survives")
 
 
+def test_shelltimeout_config_and_validation():
+    """Config controls all captured shell timeouts; rejected values preserve it."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "source.txt")
+        cfg = os.path.join(d, "config")
+        with open(path, "w") as f:
+            f.write("original\n")
+        with open(cfg, "w") as f:
+            f.write("set shelltimeout=1\n")
+        keys = (b":set shelltimeout=0\r:set shelltimeout=bad\r"
+                b":!sleep 2\r:r !sleep 2\r:%!sleep 2\r"
+                b"Aok\x1b:wq\r")
+        screen, content, code = run_vig(keys, file_path=path,
+                                       env={"VIG_CONFIG": cfg}, timeout=15)
+        assert code == 0 and content == "originalok\n", (code, content)
+        assert "timed out after 1 seconds" in screen, screen[-2000:]
+        assert "filter:" in screen, "Filter did not use configured timeout"
+    print("  PASS: shelltimeout config and validation")
+
+
+def test_shell_ctrl_c_cancels_and_cleans_up():
+    """Ctrl-C is polled during capture and kills ordinary descendants."""
+    import threading
+    import shlex
+    from vigor.commands import CommandMixin
+    with tempfile.TemporaryDirectory() as d:
+        marker = os.path.join(d, "survivor")
+        script = "import time; time.sleep(0.6); open(%r, 'w').write('alive')" % marker
+        cmd = f"{shlex.quote(sys.executable)} -c {shlex.quote(script)} & wait"
+        reader, writer = os.pipe()
+        timer = threading.Timer(0.1, lambda: os.write(writer, b"ignored\x03"))
+        timer.start()
+        started = time.monotonic()
+        try:
+            try:
+                CommandMixin._run_shell(cmd, timeout=10, cancel_fd=reader)
+            except InterruptedError as e:
+                assert "cancelled" in str(e)
+            else:
+                raise AssertionError("Ctrl-C did not cancel command")
+            assert time.monotonic() - started < 2
+            time.sleep(0.7)
+            assert not os.path.exists(marker)
+        finally:
+            timer.join()
+            os.close(reader)
+            os.close(writer)
+    print("  PASS: shell Ctrl-C cancels and cleans up")
+
+
 def test_shell_timeout_kills_descendants():
     """Timeout kills the shell's process group, not just its leader."""
     import shlex
@@ -6271,6 +6321,8 @@ def main():
         ("88", "Phase 88 — subprocess input isolation", [
             test_shell_stdin_is_eof_and_typing_survives,
             test_shell_timeout_kills_descendants,
+            test_shelltimeout_config_and_validation,
+            test_shell_ctrl_c_cancels_and_cleans_up,
         ]),
         ("87", "Phase 87 — textwidth hard wrap and flash jump", [
             test_space_s_flash_jumps_to_visible_label,
