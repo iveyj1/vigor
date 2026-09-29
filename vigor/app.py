@@ -113,6 +113,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._flash_targets = []     # transient visible jump targets: (label, y, x)
         self._flash_labels = {}      # rendered label cells keyed by (source_y, display_col)
         self._flash_pending_label = ""
+        self._disk_dialog = None  # (path, close_after, observed signature)
+        self._disk_reload_confirm = False
         self._pending_mkdir_write = None  # (path, close_after) waiting for y/n
         self._insert_literal = False       # Ctrl-V literal insertion prefix
         self._loaded_config_path = None
@@ -247,8 +249,18 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             raise
         return notice
 
-    def _write_buffer_to_path(self, path, close_after=False, manual=True):
-        """Write current buffer, prompting first if parent directories are missing."""
+    def _write_buffer_to_path(self, path, close_after=False, manual=True, approved_signature=None):
+        """Write only after explicit approval of an external disk change."""
+        old_path = self.buf.path
+        same_path = old_path and os.path.abspath(path) == os.path.abspath(old_path)
+        if manual and same_path and self._disk_changed(self.buffers[self.buf_idx]):
+            signature = self._disk_signature(path)
+            if signature is None or signature != approved_signature:
+                self._disk_dialog = (path, close_after, signature)
+                self._disk_reload_confirm = False
+                self.mode = Mode.NORMAL
+                self.msg = "File changed on disk; choose a save action"
+                return False
         parent = os.path.dirname(path) or "."
         if parent and not os.path.isdir(parent):
             self._pending_mkdir_write = (path, close_after)
@@ -261,14 +273,6 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                 version_fallback = self._preserve_version(path)
             except OSError as e:
                 self.msg = f"Can't preserve prior version: {e.strerror or str(e)}"
-                self.mode = Mode.NORMAL
-                return False
-        old_path = self.buf.path
-        same_path = old_path and os.path.abspath(path) == os.path.abspath(old_path)
-        if manual and same_path and self._disk_changed(self.buffers[self.buf_idx]):
-            if not self.buffers[self.buf_idx].disk_warned:
-                self.buffers[self.buf_idx].disk_warned = True
-                self.msg = "File changed on disk; write again to overwrite"
                 self.mode = Mode.NORMAL
                 return False
         try:
@@ -295,6 +299,35 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self.msg = f"Can't write \"{path}\": {e.strerror or str(e)}"
         self.mode = Mode.NORMAL
         return True
+
+    def _answer_disk_dialog(self, key):
+        path, close_after, signature = self._disk_dialog
+        if key in ("ENTER", "ESC", "CTRL_C", "c"):
+            self._disk_dialog = None
+            self.msg = "Write cancelled"
+            return
+        if self._disk_reload_confirm:
+            if key == "y":
+                self._disk_dialog = None
+                self._reload_current_buffer()
+            return
+        if key == "o":
+            self._disk_dialog = None
+            self._write_buffer_to_path(path, close_after, approved_signature=signature)
+        elif key == "r":
+            if self.buf.dirty:
+                self._disk_reload_confirm = True
+            else:
+                self._disk_dialog = None
+                self._reload_current_buffer()
+        elif key == "s":
+            self._disk_dialog = None
+            self._reset_history_nav()
+            self._clear_completion()
+            self.mode = Mode.COMMAND
+            self.cmd = "wq " if close_after else "w "
+            self.cmd_cx = len(self.cmd)
+            self.msg = "Enter a different filename"
 
     def _answer_mkdir_prompt(self, key):
         """Handle y/n answer for missing-directory write prompt."""
@@ -544,8 +577,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if not (self.opt_autosave and bs.buf.dirty and bs.buf.path):
             return
         sig = self._disk_signature(bs.buf.path)
-        parent_missing = sig == "missing" and not os.path.isdir(os.path.dirname(bs.buf.path) or ".")
-        if sig != bs.disk_signature and not parent_missing:
+        if sig != bs.disk_signature:
             if not bs.disk_warned:
                 bs.disk_warned = True
                 self.msg = f'Autosave skipped; file changed on disk: "{bs.buf.path}"'
@@ -847,6 +879,10 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     self._splash = False
                 key = self.term.read_key()
                 if not key:
+                    continue
+                if self._disk_dialog and key != "CTRL_Z":
+                    if isinstance(key, str):
+                        self._answer_disk_dialog(key)
                     continue
                 if isinstance(key, tuple):
                     if key[0] == "PASTE":

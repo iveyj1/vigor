@@ -460,6 +460,28 @@ class RenderMixin:
             out.append(f"\x1b[{bottom_pad_top + i};{left}H│" + " " * inner_w + "│")
         out.append(f"\x1b[{top + box_h - 1};{left}H╰" + "─" * inner_w + "╯")
 
+    def _append_disk_dialog(self, out):
+        if not self._disk_dialog:
+            return
+        path, _, signature = self._disk_dialog
+        reason = "File deleted on disk" if signature == "missing" else (
+            "Cannot check file on disk" if signature is None else "File changed on disk")
+        lines = [reason, path, "Unsaved buffer edits" if self.buf.dirty else "No unsaved buffer edits"]
+        if self._disk_reload_confirm:
+            lines += ["Reload discards buffer edits. y: confirm", "Enter / Esc: Cancel"]
+        else:
+            lines += ["o: Overwrite disk    r: Reload from disk",
+                      "s: Save elsewhere    c: Cancel", "Enter / Esc: Cancel"]
+        width = max(1, min(max(map(len, lines)), self.cols - 4))
+        top = max(1, (self.rows - len(lines) - 2) // 2 + 1)
+        left = max(1, (self.cols - width - 2) // 2 + 1)
+        rows = ["╭" + "─" * width + "╮"]
+        rows += ["│" + line[:width].ljust(width) + "│" for line in lines]
+        rows += ["╰" + "─" * width + "╯"]
+        for y, row in enumerate(rows, top):
+            if y <= self.rows:
+                out.append(f"\x1b[{y};{left}H\x1b[7m{row}\x1b[m")
+
     def _append_splash(self, out):
         """Overlay a centered framed logo on the completed editor frame."""
         total_rows = self.rows + 2
@@ -530,6 +552,7 @@ class RenderMixin:
             screen_rows_used += 1
 
         self._append_completion_box(out)
+        self._append_disk_dialog(out)
         out.append(f"\x1b[{self.rows + 1};1H")
 
         # Status bar (reverse video)
@@ -537,6 +560,8 @@ class RenderMixin:
         fname = self.buf.path or "[No Name]"
         dirty = " [+]" if self.buf.dirty else ""
         markers = " [MD]" if self.md_view else ""
+        if self._disk_changed(self.buffers[self.buf_idx]):
+            markers += " [DISK CHANGED]"
         if self.buffers[self.buf_idx].readonly:
             markers += " [RO]"
         if self.buf.path and self._existing_recovery(self.buf.path):

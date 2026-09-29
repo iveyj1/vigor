@@ -87,6 +87,11 @@ Substitute accepts any punctuation delimiter: :%s|/old/path|/new/path|g
 A selected substitute delimiter cannot be backslash-escaped; choose another delimiter.
 Substitute rejects CR/LF replacements; use :[range]! for multiline transforms.
 
+DISK CHANGES
+[DISK CHANGED]       persistent warning; autosave pauses for this file
+Saving opens a dialog: o overwrite, r reload, s save elsewhere, c cancel.
+Enter/Esc/Ctrl-C cancel. Reload of unsaved edits requires y confirmation.
+
 OPTIONS (shown with available forms; defaults are in example-config)
 
 :set option?        print current value as reusable set syntax

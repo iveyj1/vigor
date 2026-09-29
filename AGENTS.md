@@ -25,7 +25,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — concise in-editor command and option help opened by `:help`
 - `example-config` — every supported startup option shown at its runtime default
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 415 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 417 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -188,6 +188,8 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Cursor shape** — DECSCUSR escape sequences switch cursor appearance per mode: `\x1b[2 q` (steady block) in Normal/Visual/Command, `\x1b[6 q` (steady bar) in Insert. On exit, `\x1b[0 q` resets to the terminal's default cursor.
 
+**External changes** — `[DISK CHANGED]` persists on redraw until resolved. A same-path explicit write opens a centered Overwrite/Reload/Save-elsewhere/Cancel dialog; Enter/Esc/Ctrl-C cancel, and dirty reload needs `y` confirmation. Notification never authorizes writing. Overwrite approval is checked against the observed disk signature before backups rotate or the file is written. Autosave skips changed/deleted files. Dialog input cannot edit the buffer or switch it through mouse/paste events.
+
 **Status bar** — reverse-video full-width bar showing mode, filename, dirty flag, `[RO]` for read-only locked buffers, pending count, and cursor position as `line/total:column percent` with top/bottom lines shown as `1%`/`100%`. Files with no write mode bits or no write access for the process's effective user open locked read-only; blocked edits report once per buffer. `:set noreadonly` unlocks explicitly, and writing to a different path retargets the buffer and unlocks when the target is writable. When multiple buffers are open, shows `[N/M]` indicator (current/total). Built as a padded string exactly `cols` characters wide.
 
 **Resize** — `SIGWINCH` triggers `_handle_resize`, which re-queries `shutil.get_terminal_size()`, re-clamps cursor and scroll, and calls `render()` immediately.
@@ -205,7 +207,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 415 test functions organized into 87 phase groups (selectors 1–88, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 417 test functions organized into 87 phase groups (selectors 1–88, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 ### Workflow for AI Agents
 

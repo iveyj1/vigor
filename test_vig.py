@@ -2680,9 +2680,9 @@ def test_vigfiles_missing_entry_opens_new_file_with_warning():
     print("  PASS: vigfiles missing entry opens new file")
 
 def test_external_file_change_blocks_first_write():
-    """A changed-on-disk file reports the conflict and requires a second write."""
+    """Enter cancels a conflicting write; seeing the warning grants no approval."""
     path = write_temp("orig\n")
-    keys = f"iX\x1b:!printf 'external\\n' > {path}\r:w\r:q!\r".encode()
+    keys = f"iX\x1b:!printf 'external\\n' > {path}\r:w\r\r:q!\r".encode()
     screen, content, code = run_vig(keys, file_path=path, timeout=5.0)
     os.unlink(path)
     assert code == 0
@@ -2690,17 +2690,59 @@ def test_external_file_change_blocks_first_write():
     assert "File changed on disk" in screen, f"Expected disk-change warning: {screen[-800:]}"
     print("  PASS: external file change blocks first write")
 
-def test_external_file_change_second_write_overwrites():
-    """Repeating :w after a disk-change warning overwrites intentionally."""
+def test_external_file_change_explicit_overwrite():
+    """Only the dialog's explicit overwrite action approves a write."""
     path = write_temp("orig\n")
-    keys = f"iX\x1b:!printf 'external\\n' > {path}\r:w\r:w\r:q\r".encode()
+    keys = f"iX\x1b:!printf 'external\\n' > {path}\r:w\r\x1b:w\ro:q\r".encode()
     screen, content, code = run_vig(keys, file_path=path, timeout=5.0)
     os.unlink(path)
     assert code == 0
-    assert content == "Xorig\n", f"Second write should overwrite, got {content!r}"
-    print("  PASS: external file change second write overwrites")
+    assert content == "Xorig\n", f"Explicit approval should overwrite, got {content!r}"
+    print("  PASS: external file change explicitly overwritten")
 
 # ── Phase 38: ripgrep quickfix ─────────────────────────────────────────────
+
+def test_disk_dialog_deleted_file_and_wq():
+    """Deleted files require approval; :wq quits only after approved save."""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "source.txt")
+        with open(path, "w") as f:
+            f.write("orig\n")
+        screen, content, code = run_vig(
+            f"iX\x1b:!rm {path}\r:wq\r\r:wq\ro".encode(), file_path=path)
+        assert code == 0 and content == "Xorig\n"
+        assert "File deleted on disk" in screen
+        assert "Write cancelled" in screen
+    print("  PASS: deleted file and wq require approval")
+
+
+def test_disk_dialog_reload_cancel_save_elsewhere():
+    """Reload confirms dirty loss; save-as and cancellation preserve originals."""
+    import shlex
+    for action in ("reload", "cancel_reload", "save_as", "cancel_twice"):
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "source.txt")
+            other = os.path.join(d, "other.txt")
+            with open(path, "w") as f:
+                f.write("orig\n")
+            prefix = f"iX\x1b:!printf 'external\\n' > {shlex.quote(path)}\r:w\r"
+            suffix = {"reload": "ry:q\r",
+                      "cancel_reload": "r\r:w\ro:q\r",
+                      "save_as": f"s{other}\r:q\r",
+                      "cancel_twice": "\r:w\r\x1b:q!\r"}[action]
+            screen, content, code = run_vig((prefix + suffix).encode(), file_path=path)
+            assert code == 0, (action, screen[-1000:])
+            assert "[DISK CHANGED]" in screen
+            assert "Overwrite disk" in screen and "Save elsewhere" in screen
+            assert content == ("Xorig\n" if action == "cancel_reload" else "external\n")
+            if action == "save_as":
+                with open(other) as f:
+                    assert f.read() == "Xorig\n"
+            if action == "reload":
+                assert "Reload discards buffer edits" in screen
+                assert "[DISK CHANGED]" not in last_frame(screen)
+    print("  PASS: disk dialog reload, cancel, and save elsewhere")
+
 
 def test_rg_creates_quickfix_buffer():
     """:rg captures ripgrep output in a quickfix buffer."""
@@ -4865,7 +4907,7 @@ def test_explicit_write_clears_pending_autosave():
 
 
 def test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit():
-    """A failed autosave reports once and does not spin until another mutation."""
+    """Externally deleted files pause autosave without clearing unsaved edits."""
     with tempfile.TemporaryDirectory() as root:
         directory = os.path.join(root, "gone")
         os.mkdir(directory)
@@ -4874,9 +4916,10 @@ def test_autosave_error_leaves_dirty_buffer_and_waits_for_new_edit():
         keys = (f":set autosavedelay=30\r:set autosave\r"
                 f":!rm -rf {directory}\riX").encode()
         screen, _, code = run_vig(keys, file_path=path, timeout=0.5)
-    assert code == -99 and "Can't autosave" in screen
-    assert screen.count("Can't autosave") == 1 and "[+]" in last_frame(screen)
-    print("  PASS: autosave error leaves dirty buffer without spinning")
+    assert code == -99 and "Autosave skipped" in screen
+    assert screen.count("Autosave skipped") == 1 and "[+]" in last_frame(screen)
+    assert "[DISK CHANGED]" in last_frame(screen)
+    print("  PASS: external deletion pauses autosave without spinning")
 
 
 def test_autosave_options_validate_and_load_from_config():
@@ -6019,7 +6062,9 @@ def main():
             test_vigfiles_opens_listed_file,
             test_vigfiles_missing_entry_opens_new_file_with_warning,
             test_external_file_change_blocks_first_write,
-            test_external_file_change_second_write_overwrites,
+            test_external_file_change_explicit_overwrite,
+            test_disk_dialog_reload_cancel_save_elsewhere,
+            test_disk_dialog_deleted_file_and_wq,
         ]),
         ("38", "Phase 38 — ripgrep quickfix", [
             test_rg_creates_quickfix_buffer,

@@ -36,6 +36,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Add persistent disk-change status and explicit save-time Overwrite/Reload/Save-elsewhere/Cancel dialog, with safe default cancellation and dirty-reload confirmation. Remove repeat-write overwrite approval.
 1. Add configurable `shelltimeout` (positive seconds, default 10) and Ctrl-C cancellation for captured `:!`, `:read !`, and filter commands, cleaning up their process groups.
 1. Isolate captured shell commands from editor stdin and kill their process groups on timeout; preserve typing after stdin-reading commands such as `:!sed '/foo/d'`.
 1. Show cursor line/total lines, column, and file percent in the status bar.

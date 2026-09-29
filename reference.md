@@ -253,9 +253,11 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 
 ### Disk Change Detection
 - Named buffers remember their disk signature after open, reload, autosave, and explicit write.
-- If the file changes or disappears on disk, focusing that buffer reports a warning.
-- An explicit write to that same path is blocked once with `File changed on disk; write again to overwrite`; repeating `:w` overwrites intentionally and records the new signature.
-- Autosave skips changed-on-disk files instead of overwriting them.
+- A persistent `[DISK CHANGED]` status marker identifies unresolved disk changes on redraw. Merely seeing a warning never authorizes an overwrite.
+- Saving to that same path (`:w` or `:wq`) opens a centered dialog: `o` overwrites disk, `r` reloads disk, `s` starts a save-to-another-filename prompt, and `c`, Enter, Esc, or Ctrl-C cancels safely. Repeating `:w` asks again.
+- Reloading a dirty buffer requires a second `y` confirmation to discard its edits. Enter/Esc cancels. Reload returns to editing, even after `:wq`; an approved write retains the requested quit behavior.
+- The dialog distinguishes changed, deleted, and uncheckable files. Overwrite approval applies to the observed disk revision; another detected change asks again. Backups are rotated only after approval, not on cancellation.
+- Autosave skips changed-on-disk files instead of overwriting them. Reloading or successfully saving resolves the warning; saving elsewhere preserves the external file.
 
 ### Startup Config
 - Unless `VIG_NO_CONFIG` is set, vig reads `~/.vigrc` then `$XDG_CONFIG_HOME/vig/config`.
