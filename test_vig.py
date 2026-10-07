@@ -1812,6 +1812,27 @@ def test_dot_repeat_insert():
     assert "bbb!!!" in content, f"dot insert repeat failed: {content!r}"
     print("  PASS: dot repeat insert")
 
+def test_dot_repeat_character_targets():
+    """Early-dispatched find/replace targets, including digits, survive dot replay."""
+    cases = (
+        ('abc"tail\ndef"tail\n', b'dt"j0.:wq\r', '"tail\n"tail\n'),
+        ('abc"tail\ndef"tail\n', b'df"j0.:wq\r', 'tail\ntail\n'),
+        ('head"abc\nhead"def\n', b'$hdT"j$h.:wq\r', 'head"c\nhead"f\n'),
+        ('head"abc\nhead"def\n', b'$hdF"j$h.:wq\r', 'headc\nheadf\n'),
+        ('abc3tail\ndef3tail\n', b'dt3j0.:wq\r', '3tail\n3tail\n'),
+        ('abc"tail\ndef"tail\n', b'ct"X\x1bj0.:wq\r', 'X"tail\nX"tail\n'),
+        ('abc\ndef\n', b'r3j0.:wq\r', '3bc\n3ef\n'),
+    )
+    for text, keys, expected in cases:
+        path = write_temp(text)
+        try:
+            _, content, code = run_vig(keys, file_path=path)
+            assert code == 0 and content == expected, (keys, content, expected)
+        finally:
+            os.unlink(path)
+    print("  PASS: dot repeat character targets")
+
+
 def test_dot_repeat_indent():
     """. repeats >>."""
     path = write_temp("hello\nworld\n")
@@ -5969,6 +5990,7 @@ def main():
             test_dot_repeat_dd,
             test_dot_repeat_insert,
             test_dot_repeat_indent,
+            test_dot_repeat_character_targets,
         ]),
         ("27", "Phase 27 — :read :! :read !", [
             test_read_file,

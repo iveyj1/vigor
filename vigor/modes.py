@@ -29,6 +29,10 @@ class ModeMixin:
         if self._handle_flash_key(key):
             return
 
+        # Target handlers return before ordinary dot recording below.
+        if (self._pending_replace or self._pending_find) and self._recording and not self._replaying_dot:
+            self._recording_keys.append(key)
+
         # r{char}: replace character(s) under cursor. This must run before
         # count-prefix parsing so digits can be replacement characters.
         if self._pending_replace:
