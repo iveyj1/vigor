@@ -35,7 +35,8 @@ gf                  open path under cursor; directories start :edit completion
 gcc                 toggle line comment
 gq + motion / gqq   hard-wrap touched lines using textwidth
 ~ / g~ / gU / gu    toggle / toggle / upper / lower case
-.                   repeat last change
+.                   repeat last change; retains counts inside action
+[count].            replace leading count (d2w then 2. deletes 4 words)
 u / Ctrl-R          undo / redo
 v V / gv            visual character / line; reselect last
                     d y c x gc gq > < operate on selection

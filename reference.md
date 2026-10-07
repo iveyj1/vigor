@@ -65,7 +65,7 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `Ctrl-R` | redo |
 | `Ctrl-C Ctrl-C` | quit all buffers (`:qall`) |
 | `Ctrl-C q` | force quit all buffers (`:qall!`) |
-| `.` | dot-repeat last change |
+| `.` | dot-repeat last change, retaining internal counts; a count on `.` replaces the leading count (`d2w` then `2.` deletes four words) |
 
 ### Visual Mode
 | Key | Action |

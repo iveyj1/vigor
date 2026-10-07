@@ -86,6 +86,8 @@ class ModeMixin:
 
         # Count prefix accumulation
         if key.isdigit() and (self.count > 0 or key != "0"):
+            if self._recording and not self._replaying_dot:
+                self._recording_keys.append(key)
             self.count = self.count * 10 + int(key)
             return
 
@@ -93,7 +95,7 @@ class ModeMixin:
         extra_n = self.count if self.count > 0 else None
         self.count = 0  # reset after consuming
 
-        # Dot repeat recording — record keys (not count digits) while active
+        # Dot repeat recording — count digits are recorded above while active
         if self._recording and not self._replaying_dot:
             self._recording_keys.append(key)
 
@@ -299,6 +301,7 @@ class ModeMixin:
             self.pending_extra_n = None
             # Doubled operator = line-wise (dd, yy, cc, >>, <<, gqq, g~~, gUU, guu)
             if key == (op[-1] if op in ("gq", "g~", "gU", "gu") else op) or (op == "yd" and key == "d"):
+                op_n *= n
                 if op == "d":
                     end = min(self.cy + op_n - 1, len(self.buf.lines) - 1)
                     if self._range_changes(self.cy, 0, end, 0, linewise=True):

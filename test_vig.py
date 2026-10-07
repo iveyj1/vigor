@@ -1812,6 +1812,29 @@ def test_dot_repeat_insert():
     assert "bbb!!!" in content, f"dot insert repeat failed: {content!r}"
     print("  PASS: dot repeat insert")
 
+def test_dot_repeat_operator_counts():
+    """Dot retains internal counts, independently of the leading repeat count."""
+    cases = (
+        ("one two three four\n" * 2, b"d2wj0.", "three four\n" * 2),
+        ("one two three four five\n" * 2, b"2d2wj0.", "five\n" * 2),
+        ("one two three four five\n" * 2, b"d2wj02.", "three four five\nfive\n"),
+        (("word " * 10 + "tail\n") * 2, b"d10wj0.", "tail\n" * 2),
+        ('a"b"tail\n' * 2, b'd2t"j0.', '"tail\n' * 2),
+        ("a3b3tail\n" * 2, b"d2f3j0.", "tail\n" * 2),
+        ("one two three\n" * 2, b"c2wX\x1bj0.", "Xthree\n" * 2),
+        ("a\nb\nc\nd\ne\n", b"d2d.", "e\n"),
+        ("abc\ndef\n", b"ld0j$.", "bc\n\n"),
+    )
+    for text, keys, expected in cases:
+        path = write_temp(text)
+        try:
+            _, content, code = run_vig(keys + b":wq\r", file_path=path)
+            assert code == 0 and content == expected, (keys, content, expected)
+        finally:
+            os.unlink(path)
+    print("  PASS: dot repeat operator counts")
+
+
 def test_dot_repeat_character_targets():
     """Early-dispatched find/replace targets, including digits, survive dot replay."""
     cases = (
@@ -5991,6 +6014,7 @@ def main():
             test_dot_repeat_insert,
             test_dot_repeat_indent,
             test_dot_repeat_character_targets,
+            test_dot_repeat_operator_counts,
         ]),
         ("27", "Phase 27 — :read :! :read !", [
             test_read_file,

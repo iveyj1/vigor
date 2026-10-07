@@ -37,6 +37,7 @@ None
 
 ### Completed
 1. Add persistent disk-change status and explicit save-time Overwrite/Reload/Save-elsewhere/Cancel dialog, with safe default cancellation and dirty-reload confirmation. Remove repeat-write overwrite approval.
+1. Preserve operator-internal counts during dot repeat and apply them to doubled operators; leading dot counts remain independent. Focused and full suites passed.
 1. Fix dot repeat for `f/t/F/T` operator targets and `r` replacement characters, including digit targets; focused and full suites passed.
 1. Add configurable `shelltimeout` (positive seconds, default 10) and Ctrl-C cancellation for captured `:!`, `:read !`, and filter commands, cleaning up their process groups.
 1. Isolate captured shell commands from editor stdin and kill their process groups on timeout; preserve typing after stdin-reading commands such as `:!sed '/foo/d'`.
