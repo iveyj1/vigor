@@ -121,6 +121,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._mouse_anchor = None  # source position saved on a possible Visual drag
         self._mouse_dragged = False
         self._yank_flash = None     # (expires, sy, sx, ey, ex, linewise)
+        self.mru_state = None
         self.quickfix_state = None  # BufferState holding last quickfix results
         self.quickfix_cwd = os.getcwd()
         self.last_key = ""  # last decoded key read from terminal
@@ -128,6 +129,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._load_config()
         for state in self.buffers:
             self._initialize_buffer_detection(state)
+            self._remember_file(state.buf.path)
         recovery = self._existing_recovery(self.buf.path) if self.buf.path else None
         if recovery:
             self.msg = self._recovery_message(self.buf.path, recovery)
@@ -638,6 +640,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
     def _add_buffer(self, bs):
         """Add and switch to bs, replacing an untouched initial buffer."""
         self._initialize_buffer_detection(bs)
+        self._remember_file(bs.buf.path)
         if (len(self.buffers) == 1 and self.buf.path is None
                 and self.buf.lines == [""] and not self.buf.dirty):
             self.buffers[0] = bs
@@ -694,6 +697,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             self._add_buffer(bs)
         else:
             self._switch_buffer(idx)
+            self._remember_file(path)
         self.cy = max(0, line - 1)
         self.cx = max(0, col - 1)
         self._clamp_cursor()

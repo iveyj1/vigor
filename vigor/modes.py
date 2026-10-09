@@ -105,6 +105,9 @@ class ModeMixin:
             if key == "c":
                 self._edit_config_file()
                 return
+            if key in ("v", "m"):
+                self._exec_command("vigfiles" if key == "v" else "mru")
+                return
             self.handle_normal("e")
 
         if self._pending_space:
@@ -480,6 +483,8 @@ class ModeMixin:
             self._start_dot(n, "O")
             self._snapshot()
             self._open_line(below=False)
+        elif key == "ENTER" and self.buffers[self.buf_idx] is self.mru_state:
+            self._open_mru_line()
         elif key == "ENTER" and self._in_vigfiles_buffer():
             self._open_vigfiles_line()
         elif key == ":":

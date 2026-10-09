@@ -126,7 +126,8 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
 | `:help` | open `vighelp` beside the vigor executable |
-| `:vigfiles` | open the common-files list; Enter or `<space>o` on an entry opens that file |
+| `:vigfiles` / `<space>ev` | open the common-files list; Enter or `<space>o` on an entry opens that file |
+| `:mru` / `<space>em` | open the persistent recent-files list; Enter or `<space>o` opens an entry |
 | `:source` / `:so` | interpret the current buffer as startup-config settings |
 | `:md` / `:markdown` | toggle non-destructive Markdown presentation for the current buffer |
 | `:nomd` | return the current buffer to literal source display |
@@ -263,6 +264,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 - Unless `VIG_NO_CONFIG` is set, vig reads `~/.vigrc` then `$XDG_CONFIG_HOME/vig/config`.
 - `VIG_CONFIG=/path/to/file` reads only that file.
 - `<space>ec` edits the loaded effective config file: the explicit `VIG_CONFIG` file, or otherwise the highest-precedence default config file that existed at launch.
+- `:mru` / `<space>em` shows up to 100 distinct existing files, most recently opened first, in a reusable read-only `[MRU]` buffer. Enter or `<space>o` opens the selected absolute path, reusing an existing buffer without discarding edits. History persists in `$XDG_STATE_HOME/vigor/mru` (default `~/.local/state/vigor/mru`). Startup and explicit opens update it; ordinary buffer switching does not. Help, common-files and MRU lists, and quickfix buffers are excluded. Missing files are omitted; newline-containing paths are not stored. Persistence is best-effort, with atomic file replacement; simultaneous writers may lose a concurrent update.
 - `:vigfiles` opens `VIGFILES`, or `$XDG_CONFIG_HOME/vigor/files` when unset. Blank lines and `#` comments are ignored for selection; relative entries resolve from the vigfiles directory, and missing selected files open as new buffers with a warning.
 - Lines are simple set-style options: `set number`, `relativenumber`, `scrolloff=3`, etc.
 - Blank lines and lines starting with `#` are ignored.

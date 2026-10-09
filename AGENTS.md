@@ -25,7 +25,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — concise in-editor command and option help opened by `:help`
 - `example-config` — every supported startup option shown at its runtime default
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 431 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 433 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -68,6 +68,8 @@ Add simplified Vim-compatible hard wrapping: `:set textwidth=N` (default `0`) su
 - COMMAND — `:` prefix, Enter executes, Esc cancels
 - VISUAL / VISUAL LINE — selection with reverse video highlight
 - SEARCH — `/` or `?` prompt for pattern input, Enter executes
+
+**Recent files** — `<space>ev` aliases `:vigfiles`; `<space>em` aliases `:mru`. MRU is a reusable read-only list selected with Enter or `<space>o`. Keep up to 100 unique existing absolute paths, most recently opened first, persisted at `$XDG_STATE_HOME/vigor/mru` (fallback `~/.local/state/vigor/mru`). Record startup and explicit opens, not ordinary buffer switches; exclude help, quickfix, and list buffers. Omit missing files and newline-containing paths. Reuse existing buffers without discarding edits. Persistence is best-effort with atomic replacement, not cross-process locking.
 
 **Path navigation** — Normal `gf` opens the bare or single/double-quoted path under the cursor, reusing existing buffers without discarding edits. Expand `~`, `$NAME`, and `${NAME}` from the environment in either quoting form; resolve relative paths against the global cwd (unlike `:vigfiles`, whose entries use the list's directory). Require an existing file; report undefined variables, missing files, and directories. No shell execution, parameter operators, glob expansion, escaped quotes, Markdown-link parsing, or location suffixes.
 
@@ -207,7 +209,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 431 test functions organized into 87 phase groups (selectors 1–88, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 433 test functions organized into 87 phase groups (selectors 1–88, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 ### Workflow for AI Agents
 

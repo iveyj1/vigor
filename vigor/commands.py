@@ -322,6 +322,8 @@ class CommandMixin:
                 self._add_buffer(BufferState(path))
                 self.msg = '"vighelp"'
             self.mode = Mode.NORMAL
+        elif cmd == "mru":
+            self._show_mru()
         elif cmd == "vigfiles":
             path = self._vigfiles_path()
             if not os.path.isfile(path):
@@ -673,6 +675,63 @@ class CommandMixin:
             return
         self._goto_file_location(path)
 
+    @staticmethod
+    def _mru_path():
+        root = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+        return os.path.join(root, "vigor", "mru")
+
+    def _mru_entries(self):
+        try:
+            with open(self._mru_path()) as f:
+                entries = dict.fromkeys(f.read().splitlines())
+        except (OSError, UnicodeError):
+            return []
+        return [p for p in entries if os.path.isabs(p) and os.path.isfile(p)][:100]
+
+    def _remember_file(self, path):
+        if not path or not os.path.isfile(path):
+            return
+        path = os.path.abspath(path)
+        help_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "vighelp")
+        if path in (help_path, self._vigfiles_path(), os.path.abspath(self._mru_path())) or "\n" in path or "\r" in path:
+            return
+        entries = [path] + [p for p in self._mru_entries() if p != path]
+        target = self._mru_path()
+        temporary = target + f".{os.getpid()}.tmp"
+        try:
+            os.makedirs(os.path.dirname(target), mode=0o700, exist_ok=True)
+            with os.fdopen(os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+                f.write("\n".join(entries[:100]) + "\n")
+            os.replace(temporary, target)
+        except OSError as e:
+            self.msg = f"Cannot save MRU: {e}"
+        finally:
+            try:
+                os.unlink(temporary)
+            except OSError:
+                pass
+
+    def _show_mru(self):
+        entries = self._mru_entries()
+        if self.mru_state in self.buffers:
+            self._switch_buffer(self.buffers.index(self.mru_state))
+        else:
+            self.mru_state = BufferState()
+            self._add_buffer(self.mru_state)
+        self.buf.lines = entries or [""]
+        self.buf.dirty = False
+        self.mru_state.readonly = True
+        self.cy = self.cx = self.scroll = self._wrap_skip = 0
+        self.mode = Mode.NORMAL
+        self.msg = "MRU: Enter or <space>o opens a file" if entries else "No recent files"
+
+    def _open_mru_line(self):
+        path = self.buf.lines[self.cy]
+        if not os.path.isfile(path):
+            self.msg = "MRU file no longer exists" if path else "No recent files"
+            return
+        self._goto_file_location(path)
+
     def _in_vigfiles_buffer(self):
         return bool(self.buf.path and os.path.abspath(self.buf.path) == self._vigfiles_path())
 
@@ -690,6 +749,9 @@ class CommandMixin:
                 self.msg = f'New file from vigfiles: "{os.path.abspath(path)}"'
 
     def _open_quickfix_location(self):
+        if self.buffers[self.buf_idx] is self.mru_state:
+            self._open_mru_line()
+            return
         """Open the file:line:column location under the cursor, if present."""
         location = self._quickfix_location(self.buf.lines[self.cy])
         if not location:

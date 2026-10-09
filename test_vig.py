@@ -2693,6 +2693,54 @@ def test_gf_reuses_dirty_buffer():
     print("  PASS: gf reuses dirty buffer")
 
 
+def test_mru_persistence_and_shortcuts():
+    """MRU persists order, reuses buffers, and supports both list shortcuts."""
+    with tempfile.TemporaryDirectory() as d:
+        a, b, vf = [os.path.join(d, name) for name in ("a", "b", "files")]
+        for path, text in ((a, "alpha\n"), (b, "beta\n"), (vf, a + "\n")):
+            with open(path, "w") as f:
+                f.write(text)
+        env = {"XDG_STATE_HOME": d, "VIGFILES": vf}
+        _, _, code = run_vig(f":e {b}\r:help\r ev:qa\r".encode(), file_path=a, env=env)
+        assert code == 0
+        store = os.path.join(d, "vigor", "mru")
+        with open(store) as f:
+            assert f.read().splitlines() == [b, a]
+        screen, _, code = run_vig(b" em\riCHANGED\x1b:mru\r oj0:qa!\r", env=env, file_paths=[])
+        assert code == 0 and "[MRU]" in screen and "CHANGEDbeta" in screen
+        with open(store) as f:
+            assert f.read().splitlines() == [b, a]
+        os.unlink(b)
+        screen, _, code = run_vig(b":mru\r\r:qa\r", env=env, file_paths=[])
+        assert code == 0 and "alpha" in screen
+        with open(store) as f:
+            assert f.read().splitlines() == [a]
+    print("  PASS: MRU persistence and shortcuts")
+
+
+def test_mru_limit_empty_and_storage_failure():
+    """MRU caps at 100, handles empty lists, and tolerates unwritable storage."""
+    with tempfile.TemporaryDirectory() as d:
+        env = {"XDG_STATE_HOME": d}
+        screen, _, code = run_vig(b" em\r:qa\r", env=env, file_paths=[])
+        assert code == 0 and "No recent files" in screen
+        paths = [os.path.join(d, str(i)) for i in range(102)]
+        for path in paths:
+            with open(path, "w") as f:
+                f.write("text\n")
+        os.makedirs(os.path.join(d, "vigor"))
+        store = os.path.join(d, "vigor", "mru")
+        with open(store, "w") as f:
+            f.write("\n".join(paths[1:] + [paths[1]]) + "\n")
+        _, _, code = run_vig(b":qa\r", file_path=paths[0], env=env)
+        with open(store) as f:
+            entries = f.read().splitlines()
+        assert code == 0 and entries == paths[:100]
+        _, _, code = run_vig(b":qa\r", file_path=paths[1], env={"XDG_STATE_HOME": paths[0]})
+        assert code == 0
+    print("  PASS: MRU limit, empty list, and storage failure")
+
+
 def test_vigfiles_opens_listed_file():
     """:vigfiles opens the common-files list, and Enter opens an entry."""
     path = write_temp("alpha\n")
@@ -6106,6 +6154,8 @@ def main():
             test_gf_directory_opens_edit_completion,
             test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
+            test_mru_persistence_and_shortcuts,
+            test_mru_limit_empty_and_storage_failure,
             test_vigfiles_missing_entry_opens_new_file_with_warning,
             test_external_file_change_blocks_first_write,
             test_external_file_change_explicit_overwrite,

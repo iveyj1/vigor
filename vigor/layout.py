@@ -557,7 +557,7 @@ class RenderMixin:
 
         # Status bar (reverse video)
         out.append("\x1b[7m")
-        fname = self.buf.path or "[No Name]"
+        fname = "[MRU]" if self.buffers[self.buf_idx] is self.mru_state else self.buf.path or "[No Name]"
         dirty = " [+]" if self.buf.dirty else ""
         markers = " [MD]" if self.md_view else ""
         if self._disk_changed(self.buffers[self.buf_idx]):
