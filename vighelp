@@ -145,6 +145,9 @@ Central artifacts use basename plus an absolute-path hash and contain no path me
 <space>n / N        next / previous buffer
 
 Ctrl-V Tab          in Insert mode, insert a literal tab character
+Ctrl-P              in Insert, complete path before cursor; bare paths use cwd
+                    inserts common prefix; Tab/Shift-Tab or arrows select
+                    Enter accepts; Esc hides menu, stays in Insert
 Esc                 return to Normal / cancel prompt
 Ctrl-C              cancel pending state and return to Normal
 Ctrl-C Ctrl-C       quit all buffers

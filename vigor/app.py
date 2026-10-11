@@ -889,6 +889,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                         self._answer_disk_dialog(key)
                     continue
                 if isinstance(key, tuple):
+                    if self.mode == Mode.INSERT:
+                        self._clear_completion()
                     if key[0] == "PASTE":
                         self.last_key = "PASTE"
                         self.handle_paste(key[1])

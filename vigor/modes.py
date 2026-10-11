@@ -590,6 +590,12 @@ class ModeMixin:
             self.msg = "Paste ignored outside Insert/Command/Search"
 
     def handle_insert(self, key):
+        if not self._insert_literal and (key == "CTRL_P" or self.comp_matches):
+            if self._readonly_blocked():
+                self._clear_completion()
+                return
+            if self._handle_insert_completion(key):
+                return
         # Dot repeat recording in insert mode
         if key != "ESC" and key not in ("LEFT", "RIGHT", "UP", "DOWN", "HOME", "END") and self._readonly_blocked():
             self._save_dot()

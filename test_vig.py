@@ -2693,6 +2693,58 @@ def test_gf_reuses_dirty_buffer():
     print("  PASS: gf reuses dirty buffer")
 
 
+def test_insert_path_completion():
+    """Insert completion preserves prefixes/suffixes and supports quoted paths."""
+    with tempfile.TemporaryDirectory() as d:
+        for name in (".bashrc", "config", "space name"):
+            with open(os.path.join(d, name), "w") as f:
+                f.write("")
+        os.mkdir(os.path.join(d, "sub"))
+        with open(os.path.join(d, "sub", "leaf"), "w") as f:
+            f.write("")
+        env = {"HOME": d, "IC_ROOT": d, "XDG_STATE_HOME": d, "VIG_NO_CONFIG": "1"}
+        cases = (
+            (b"i~/.bas\x10\x1b", "~/.bashrcTAIL\n"),
+            (b"i$IC_ROOT/.bas\x10\x1b", "$IC_ROOT/.bashrcTAIL\n"),
+            (b"icon\x10\x1b", "configTAIL\n"),
+            (b'i"space n\x10"\x1b', '"space name"TAIL\n'),
+            (b"isub\x10lea\x10\x1b", "sub/leafTAIL\n"),
+            (b"ino-such-prefix\x10\x1b", "no-such-prefixTAIL\n"),
+        )
+        for keys, expected in cases:
+            path = write_temp("TAIL\n")
+            try:
+                _, content, code = run_vig(keys + b":wq\r", file_path=path, env=env, cwd=d)
+                assert code == 0 and content == expected, (keys, content)
+            finally:
+                os.unlink(path)
+    print("  PASS: Insert path completion")
+
+
+def test_insert_path_completion_menu_and_repeat():
+    """Common prefixes survive Esc; acceptance records text, not completion keys."""
+    with tempfile.TemporaryDirectory() as d:
+        for name in ("common-a", "common-b"):
+            with open(os.path.join(d, name), "w") as f:
+                f.write("")
+        env = {"XDG_STATE_HOME": d, "VIG_NO_CONFIG": "1"}
+        cases = (
+            (b"icom\x10\x1bX\x1b", "common-X\n\n"),
+            (b"icom\x10\t\r\x1bj0.", "common-b\ncommon-b\n"),
+            (b"icom\x10\x1b[Z\r\x1b", "common-b\n\n"),
+            (b"icom\x10\x1b[B\x1b[A\r\x1bu", "\n\n"),
+        )
+        for keys, expected in cases:
+            path = write_temp("\n\n")
+            try:
+                screen, content, code = run_vig(keys + b":wq\r", file_path=path, env=env, cwd=d)
+                assert code == 0 and content == expected, (keys, content)
+                assert "common-a" in screen and "common-b" in screen
+            finally:
+                os.unlink(path)
+    print("  PASS: Insert path completion menu and repeat")
+
+
 def test_mru_persistence_and_shortcuts():
     """MRU persists order, reuses buffers, and supports both list shortcuts."""
     with tempfile.TemporaryDirectory() as d:
@@ -6154,6 +6206,8 @@ def main():
             test_gf_directory_opens_edit_completion,
             test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
+            test_insert_path_completion,
+            test_insert_path_completion_menu_and_repeat,
             test_mru_persistence_and_shortcuts,
             test_mru_limit_empty_and_storage_failure,
             test_vigfiles_missing_entry_opens_new_file_with_warning,

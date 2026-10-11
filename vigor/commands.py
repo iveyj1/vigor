@@ -156,6 +156,48 @@ class CommandMixin:
             self._set_completed_token(self.comp_matches[0])
             self._clear_completion()
 
+    def _insert_completed_name(self, name):
+        prefix = os.path.basename(os.path.expandvars(os.path.expanduser(self.comp_token)))
+        suffix = name[len(prefix):]
+        self._clear_completion()
+        for char in suffix:
+            self.handle_insert(char)
+        self.comp_token += suffix
+
+    def _handle_insert_completion(self, key):
+        if self.comp_matches:
+            if key == "ESC":
+                self._clear_completion()
+                return True
+            if key == "ENTER":
+                self._insert_completed_name(self.comp_matches[self.comp_index])
+                return True
+            if key in ("TAB", "SHIFT_TAB", "UP", "DOWN"):
+                step = -1 if key in ("SHIFT_TAB", "UP") else 1
+                index = self.comp_index + step
+                self.comp_index = (index % len(self.comp_matches) if key in ("TAB", "SHIFT_TAB")
+                                   else max(0, min(index, len(self.comp_matches) - 1)))
+                return True
+            self._clear_completion()
+        if key != "CTRL_P":
+            return False
+        before = self.buf.lines[self.cy][:self.cx]
+        match = re.search(r'''(?:^|\s)(?:"([^"]*)|'([^']*)|([^\s"']*))$''', before)
+        if not match:
+            self.msg = "No path prefix before cursor"
+            return True
+        self.comp_token = next(group for group in match.groups() if group is not None)
+        expanded = os.path.expandvars(os.path.expanduser(self.comp_token))
+        matches, _ = self._completion_names(expanded, os.getcwd())
+        matches = [name for name in matches if not any(c in name for c in "\n\r\t")]
+        if not matches:
+            self.msg = "No path matches"
+            return True
+        self._insert_completed_name(os.path.commonprefix(matches))
+        if len(matches) > 1:
+            self.comp_matches = matches
+        return True
+
     def _refresh_completion(self):
         if not self.comp_matches:
             return

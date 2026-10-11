@@ -430,7 +430,7 @@ class RenderMixin:
 
     def _append_completion_box(self, out):
         """Overlay centered completion menu with a rounded border."""
-        if self.mode != Mode.COMMAND or not self.comp_matches or self.cols < 8 or self.rows < 5:
+        if self.mode not in (Mode.COMMAND, Mode.INSERT) or not self.comp_matches or self.cols < 8 or self.rows < 5:
             return
         hpad = 2
         vpad = 1
