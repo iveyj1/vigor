@@ -602,15 +602,24 @@ class CommandMixin:
         except ValueError as e:
             self.msg = f"rg: {e}"
             return
+        context = []
+        while parts and parts[0] in ("-A", "-B", "-C"):
+            if len(parts) < 2 or not parts[1].isascii() or not parts[1].isdigit():
+                self.msg = "rg: context requires a nonnegative integer"
+                return
+            context.extend(parts[:2])
+            del parts[:2]
+        if parts and parts[0] == "--":
+            parts.pop(0)
         if not parts or len(parts) > 2:
-            self.msg = "Usage: rg <pattern> [path]"
+            self.msg = "Usage: rg [-C N | -B N -A N] [--] <pattern> [path]"
             return
         pattern = parts[0]
         path = self._resolve_cmd_path(parts[1]) if len(parts) == 2 else None
-        cmd = ["rg", "-n", "--column"]
+        cmd = ["rg", "--no-config", "--no-heading", "--color=never", "--with-filename", "-n", "--column"] + context
         if self.opt_rghidden:
             cmd.append("-H")
-        cmd.append(pattern)
+        cmd.extend(["--", pattern])
         if path:
             cmd.append(path)
         import subprocess

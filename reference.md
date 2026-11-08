@@ -111,6 +111,8 @@ Lowercase literal `/` and `?` patterns ignore case. A capital letter or any rege
 
 Substitute replacements may not produce carriage returns or line feeds inside a logical line. Use `:[range]!command` for multiline transformations.
 
+`:rg -C N pattern [path]` includes N context lines on each side; `-B N -A N` sets before/after independently. Counts must be nonnegative integers. Use `--` before a pattern that resembles a context option. Context and separators are displayed in quickfix; `<space>j`/`<space>k` visit only match entries, while ordinary `j`/`k` inspect individual lines.
+
 While a `/` or `?` prompt is being typed, visible matches preview without moving the cursor. Esc clears the preview, and incomplete regular expressions quietly show no matches. After Enter, `hlsearch` controls persistence. Ordinary matches are yellow; the match containing the cursor is magenta.
 
 ### Ex Commands

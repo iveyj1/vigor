@@ -8,6 +8,10 @@ Changed-on-disk files warn on focus; first :w is blocked, repeat :w overwrites.
 
 Completion menus: Ctrl-O toggles dotfiles (session-local); explicit . prefixes always show them.
 
+:rg -C N pattern [path]     include context on both sides
+:rg -B N -A N pattern [path] independent before/after context
+Quickfix <space>j/k skips context; ordinary j/k moves by line.
+
 KEY / COMMAND       ACTION
 
 h j k l / arrows    move left/down/up/right; counts repeat motions

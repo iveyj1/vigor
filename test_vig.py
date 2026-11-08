@@ -2693,6 +2693,24 @@ def test_gf_reuses_dirty_buffer():
     print("  PASS: gf reuses dirty buffer")
 
 
+def test_rg_context_navigation():
+    if not shutil.which("rg"):
+        print("  SKIP: rg unavailable")
+        return
+    path = write_temp("before\nHIT one\nafter\ngap\nbefore two\nHIT two\nafter two\n")
+    try:
+        screen, _, code = run_vig(f":rg -C 1 HIT {path}\r j j:qa\r".encode(), file_path=path)
+        assert code == 0 and "-1-before" in screen and "-7-after two" in screen
+        assert f"{path}:6:1:HIT two" in screen
+        screen, _, code = run_vig(f":rg -B 0 -A 1 HIT {path}\r:qa\r".encode(), file_path=path)
+        assert code == 0 and "-3-after" in screen and "-1-before" not in screen
+        screen, _, code = run_vig(b":rg -C -1 HIT\r:qa\r", file_path=path)
+        assert code == 0 and "nonnegative integer" in screen
+    finally:
+        os.unlink(path)
+    print("  PASS: rg context and entry navigation")
+
+
 def test_completion_hidden_toggle():
     with tempfile.TemporaryDirectory() as d:
         for name in ("alpha", "beta", ".secret"):
@@ -6219,6 +6237,7 @@ def main():
             test_gf_directory_opens_edit_completion,
             test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
+            test_rg_context_navigation,
             test_completion_hidden_toggle,
             test_insert_path_completion,
             test_insert_path_completion_menu_and_repeat,
