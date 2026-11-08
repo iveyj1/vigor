@@ -436,14 +436,15 @@ class RenderMixin:
         vpad = 1
         max_items = max(1, self.rows - 4 - 2 * vpad)
         item_rows = min(len(self.comp_matches), max_items)
-        text_w = min(max(len(n) for n in self.comp_matches), self.cols - 2 - 2 * hpad)
+        title = f" Hidden: {'on' if self.comp_hidden else 'off'} "
+        text_w = min(max(len(title), max(len(n) for n in self.comp_matches)), self.cols - 2 - 2 * hpad)
         inner_w = text_w + 2 * hpad
         box_w = inner_w + 2
         box_h = item_rows + 2 * vpad + 2
         top = max(1, (self.rows - box_h) // 2 + 1)
         left = max(1, (self.cols - box_w) // 2 + 1)
         start = max(0, min(self.comp_index - item_rows + 1, len(self.comp_matches) - item_rows))
-        out.append(f"\x1b[{top};{left}H╭" + "─" * inner_w + "╮")
+        out.append(f"\x1b[{top};{left}H╭" + title[:inner_w].ljust(inner_w, "─") + "╮")
         for i in range(vpad):
             out.append(f"\x1b[{top + 1 + i};{left}H│" + " " * inner_w + "│")
         item_top = top + 1 + vpad

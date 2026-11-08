@@ -238,6 +238,8 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 | Status bar `[RO]` | buffer is locked read-only; files with no write bits or no effective-user write access open locked; blocked edits report once per buffer |
 | Status bar `L/T:C P%` | cursor line / total lines, 1-based column, and line-based file percent; first line is at least `1%`, final line is `100%` |
 
+Filename completion hides dotfiles unless the basename prefix begins with `.`. Ctrl-O in a completion menu toggles hidden entries for the session, across command, directory, and Insert completion. The heading shows the current setting; selection is preserved where possible.
+
 ### Insert Mode
 
 Ctrl-P completes whitespace-delimited paths or paths inside an opening single/double quote, including spaces. Filesystem lookup expands `~` and environment variables while preserving their spelling in the buffer. A unique match inserts its remaining suffix; directories end in `/`. Multiple matches insert their common prefix and show the existing completion menu: Up/Down select, Tab/Shift-Tab cycle, Enter accepts, and Esc dismisses while staying in Insert and retaining the common prefix. Other typing dismisses the menu and edits normally; Ctrl-P refreshes candidates. No matches leave text unchanged with a message. Following text is preserved. Accepted suffixes participate in ordinary Insert undo grouping and dot repeat as literal text, not filesystem lookups. No shell execution, globbing, or quote escaping; names containing tabs or newlines are omitted.

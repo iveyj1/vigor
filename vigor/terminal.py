@@ -138,6 +138,8 @@ class Terminal:
             return "CTRL_U"
         if ch == 25:
             return "CTRL_Y"
+        if ch == 15:
+            return "CTRL_O"
         if ch == 16:
             return "CTRL_P"
         if ch == 18:

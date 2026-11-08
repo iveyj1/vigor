@@ -6,6 +6,8 @@ See `reference.md` for detailed semantics and deliberate vi divergences.
 Files with no write bits or no current-user write access open locked.
 Changed-on-disk files warn on focus; first :w is blocked, repeat :w overwrites.
 
+Completion menus: Ctrl-O toggles dotfiles (session-local); explicit . prefixes always show them.
+
 KEY / COMMAND       ACTION
 
 h j k l / arrows    move left/down/up/right; counts repeat motions

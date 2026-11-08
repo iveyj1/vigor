@@ -2693,6 +2693,19 @@ def test_gf_reuses_dirty_buffer():
     print("  PASS: gf reuses dirty buffer")
 
 
+def test_completion_hidden_toggle():
+    with tempfile.TemporaryDirectory() as d:
+        for name in ("alpha", "beta", ".secret"):
+            with open(os.path.join(d, name), "w") as f:
+                f.write("")
+        for keys in (b":e \t\x0f\x1b\x1b:qa\r", b"i\x10\x0f\x1b\x1b:qa\r"):
+            screen, _, code = run_vig(keys, cwd=d, env={"VIG_NO_CONFIG": "1", "XDG_STATE_HOME": d})
+            assert code == 0 and "Hidden: off" in screen and "Hidden: on" in screen and ".secret" in screen
+        screen, _, code = run_vig(b":e .s\t\x1b:qa\r", cwd=d)
+        assert code == 0 and ".secret" in screen
+    print("  PASS: completion hidden toggle")
+
+
 def test_insert_path_completion():
     """Insert completion preserves prefixes/suffixes and supports quoted paths."""
     with tempfile.TemporaryDirectory() as d:
@@ -6206,6 +6219,7 @@ def main():
             test_gf_directory_opens_edit_completion,
             test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
+            test_completion_hidden_toggle,
             test_insert_path_completion,
             test_insert_path_completion_menu_and_repeat,
             test_mru_persistence_and_shortcuts,

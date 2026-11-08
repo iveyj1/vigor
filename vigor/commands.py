@@ -133,7 +133,8 @@ class CommandMixin:
         dpart, prefix = os.path.split(expanded)
         search_dir = dpart if os.path.isabs(dpart) else os.path.join(base_dir, dpart)
         try:
-            names = sorted(n for n in os.listdir(search_dir or ".") if n.startswith(prefix))
+            names = sorted(n for n in os.listdir(search_dir or ".") if n.startswith(prefix)
+                           and (self.comp_hidden or prefix.startswith(".") or not n.startswith(".")))
         except OSError:
             return [], search_dir
         shown = [n + ("/" if os.path.isdir(os.path.join(search_dir, n)) else "") for n in names]
@@ -164,8 +165,22 @@ class CommandMixin:
             self.handle_insert(char)
         self.comp_token += suffix
 
+    def _toggle_completion_hidden(self):
+        selected = self.comp_matches[self.comp_index] if self.comp_matches else None
+        self.comp_hidden = not self.comp_hidden
+        token = self.comp_token
+        if self.mode == Mode.INSERT:
+            token = os.path.expandvars(os.path.expanduser(token))
+        self.comp_matches, _ = self._completion_names(token, os.getcwd())
+        if self.mode == Mode.INSERT:
+            self.comp_matches = [n for n in self.comp_matches if not any(c in n for c in "\n\r\t")]
+        self.comp_index = self.comp_matches.index(selected) if selected in self.comp_matches else 0
+
     def _handle_insert_completion(self, key):
         if self.comp_matches:
+            if key == "CTRL_O":
+                self._toggle_completion_hidden()
+                return True
             if key == "ESC":
                 self._clear_completion()
                 return True
@@ -224,6 +239,9 @@ class CommandMixin:
             self._clear_completion()
             return
         if self.comp_matches:
+            if key == "CTRL_O":
+                self._toggle_completion_hidden()
+                return
             if key == "ESC":
                 self._clear_completion()
                 return
