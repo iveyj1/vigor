@@ -119,6 +119,7 @@ OPTIONS (shown with available forms; defaults are in example-config)
 :set yankflash=N
 :set delcopy / :set nodelcopy
 :set rghidden / :set norghidden
+:set incscroll / :set noincscroll   scroll to offscreen search preview (default off)
 :set hlsearch / :set nohlsearch
 :set markdownfences / :set nomarkdownfences
 :set autodetect / :set noautodetect

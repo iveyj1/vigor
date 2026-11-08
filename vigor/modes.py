@@ -892,8 +892,52 @@ class ModeMixin:
         self._add_history(self.search_history, self.search_pattern)
         self._search_next(direction)
 
+    def _restore_search_view(self, finish=True):
+        if self._search_origin is not None:
+            self.scroll, self._wrap_skip = self._search_origin
+        self._search_hscroll = None
+        if finish:
+            self._search_origin = None
+
+    def _preview_search_scroll(self):
+        if self.mode != Mode.SEARCH or not self.opt_incscroll:
+            return
+        if self._search_origin is None:
+            self._search_origin = (self.scroll, self._wrap_skip)
+        try:
+            pat = re.compile(self.cmd, re.IGNORECASE if literal_ignorecase(self.cmd) else 0)
+        except re.error:
+            self._restore_search_view(finish=False)
+            return
+        layout = self._viewport_layout()
+        hits = [(y, m.start(), m.end()) for y, line in enumerate(self.buf.lines)
+                if not layout.hidden_line(y) for m in pat.finditer(line)
+                if self.cmd and m.end() > m.start()]
+        if not hits:
+            self._restore_search_view(finish=False)
+            return
+        hscroll = self._search_hscroll
+        if hscroll is None:
+            hscroll = 0 if self.opt_wrap else max(0, self._cursor_display_col() - layout.content_cols + 1)
+        visible = layout.visible_rows(hscroll)
+        if any(row.source_y == y and self._view_col(y, end) > row.display_start
+               and self._view_col(y, start) < row.display_start + len(row.text)
+               for y, start, end in hits for row in visible):
+            return
+        cursor = (self.cy, self.cx)
+        ordered = hits if self.search_dir == 1 else list(reversed(hits))
+        target = next((h for h in ordered if ((h[:2] > cursor) if self.search_dir == 1 else (h[:2] < cursor))), ordered[0])
+        self.cy, self.cx = target[:2]
+        try:
+            self._center_cursor()
+            self._search_hscroll = 0 if self.opt_wrap else max(0, self._cursor_display_col() - layout.content_cols + 1)
+        finally:
+            self.cy, self.cx = cursor
+
     def handle_search(self, key):
         """Handle input in search mode (/ or ?)."""
+        if key in ("ESC", "ENTER") or (key == "BACKSPACE" and not self.cmd):
+            self._restore_search_view()
         if key == "ESC":
             self.mode = Mode.NORMAL
             self.cmd = ""

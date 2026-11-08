@@ -16,6 +16,7 @@ set yankflash=300
 set delcopy
 set norghidden
 set nohlsearch
+set noincscroll
 set nomarkdownfences
 set autodetect
 set saveversions=0

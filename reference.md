@@ -113,6 +113,8 @@ Substitute replacements may not produce carriage returns or line feeds inside a 
 
 `:rg -C N pattern [path]` includes N context lines on each side; `-B N -A N` sets before/after independently. Counts must be nonnegative integers. Use `--` before a pattern that resembles a context option. Context and separators are displayed in quickfix; `<space>j`/`<space>k` visit only match entries, while ordinary `j`/`k` inspect individual lines.
 
+With `incscroll`, a search preview scrolls only when no match is visible, choosing the next match from the original cursor in the search direction (wrapping). The cursor does not move. Empty, invalid, and unmatched patterns restore the original viewport; Esc/Ctrl-C cancel and restore it too. Enter performs the normal search. History and pasted search text update preview. Wrapped-row offsets and horizontal clipping are respected; hidden Markdown fence rows are skipped during preview.
+
 While a `/` or `?` prompt is being typed, visible matches preview without moving the cursor. Esc clears the preview, and incomplete regular expressions quietly show no matches. After Enter, `hlsearch` controls persistence. Ordinary matches are yellow; the match containing the cursor is magenta.
 
 ### Ex Commands
@@ -176,6 +178,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
 | `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
+| `:set incscroll` / `noincscroll` | scroll incremental search to an offscreen match (default off); Esc/Ctrl-C restore viewport |
 | `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
 | `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit matched ``` or ~~~ opening/closing marker rows |
 | `:set autodetect` / `noautodetect` | enable or disable syntax and automatic Markdown recognition for subsequently opened buffers (default on) |

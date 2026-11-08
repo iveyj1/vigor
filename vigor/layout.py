@@ -514,6 +514,7 @@ class RenderMixin:
         out.append(f"\x1b[{top + box_height - 1};{left}H{SPLASH_BG}{SPLASH_FRAME}╰" + "─" * inner_width + "╯\x1b[m")
 
     def render(self):
+        self._preview_search_scroll()
         out = []
         out.append("\x1b[?25l")  # hide cursor
         out.append("\x1b[H")     # cursor home
@@ -534,6 +535,8 @@ class RenderMixin:
         gw = layout.gutter_width
         cursor_display_x = self._cursor_display_col()
         window_hscroll = 0 if self.opt_wrap else max(0, cursor_display_x - layout.content_cols + 1)
+        if self.mode == Mode.SEARCH and self._search_hscroll is not None:
+            window_hscroll = self._search_hscroll
         cursor_screen_y = cursor_screen_x = 0
         cursor_position = layout.source_to_screen(self.cy, self.cx, window_hscroll)
         if cursor_position:

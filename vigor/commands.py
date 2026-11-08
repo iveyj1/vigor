@@ -31,6 +31,7 @@ OPTIONS = {
     "delcopy": ("bool", "opt_delcopy", True, None, None),
     "rghidden": ("bool", "opt_rghidden", False, None, None),
     "hlsearch": ("bool", "opt_hlsearch", False, None, None),
+    "incscroll": ("bool", "opt_incscroll", False, None, None),
     "markdownfences": ("bool", "opt_markdownfences", False, None, None),
     "autodetect": ("bool", "opt_autodetect", True, None, None),
     "saveversions": ("int", "opt_saveversions", 0, (0, 100), None),

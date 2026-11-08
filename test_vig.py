@@ -2693,6 +2693,26 @@ def test_gf_reuses_dirty_buffer():
     print("  PASS: gf reuses dirty buffer")
 
 
+def test_incremental_search_scroll():
+    path = write_temp("start\n" + "filler\n" * 60 + "needle\n")
+    try:
+        for enabled in (False, True):
+            setting = b":set incscroll\r" if enabled else b""
+            screen, _, code = run_vig(b":set number\r" + setting + b"/needle\x1b:q\r", file_path=path)
+            assert code == 0
+            plain = re.sub(r"\x1b\[[0-9;? ]*[A-Za-z]", "", screen)
+            assert bool(re.search(r"^\s*\d+\s+needle\s*$", plain, re.M)) == enabled
+            assert "start" in last_frame(screen)
+        for ending in (b"\x03", b"[\x1b", b"X\x1b"):
+            screen, _, code = run_vig(b":set incscroll\r/needle" + ending + b":q\r", file_path=path)
+            assert code == 0 and "start" in last_frame(screen)
+        screen, _, code = run_vig(b":set incscroll\r/needle\r:q\r", file_path=path)
+        assert code == 0 and "needle" in last_frame(screen) and "62/62" in last_frame(screen)
+    finally:
+        os.unlink(path)
+    print("  PASS: incremental-search scrolling and restoration")
+
+
 def test_rg_context_navigation():
     if not shutil.which("rg"):
         print("  SKIP: rg unavailable")
@@ -6237,6 +6257,7 @@ def main():
             test_gf_directory_opens_edit_completion,
             test_gf_reuses_dirty_buffer,
             test_vigfiles_opens_listed_file,
+            test_incremental_search_scroll,
             test_rg_context_navigation,
             test_completion_hidden_toggle,
             test_insert_path_completion,

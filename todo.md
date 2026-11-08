@@ -9,11 +9,8 @@ None
 ### Implement
 
 ### On Hold
-1. Add ability for :rg to specify a context range to include.  Make quickfix navigation move from one entry to the next rather than one line to the next.
 
 (Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies)
-1. Add optional incremental-search scrolling when no preview hit is visible.
-   **Moderate feasibility; 30–50 lines.** Existing preview spans and `ViewportLayout` make finding/centering practical, but Search must save and restore the original viewport on Esc or a failed pattern. Add it as an option only after defining that cancellation behavior.
 1. Add a `\v` search modifier.
    **Small implementation after specification; 15–35 lines.** Python regex syntax is already close to Vim's “very magic” mode, so first define exactly which vigor escapes and metacharacters `\v` changes; avoid a modifier that is merely ignored.
 1. Pipe stdin into the initial unnamed buffer, then use `/dev/tty` for interaction.
@@ -36,6 +33,9 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Add session-local Ctrl-O hidden-file toggle to shared completion menus; explicit dot prefixes always match hidden files. Full suite passed.
+1. Add `:rg -C N` / `-B N -A N` context with match-only quickfix entry navigation. Full suite passed.
+1. Add optional `incscroll` search-preview scrolling with viewport restoration on cancellation or invalid/unmatched patterns. Full suite passed.
 1. Add persistent disk-change status and explicit save-time Overwrite/Reload/Save-elsewhere/Cancel dialog, with safe default cancellation and dirty-reload confirmation. Remove repeat-write overwrite approval.
 1. Add Insert-mode Ctrl-P path completion with cwd-relative bare paths, quoted spaces, preserved tilde/environment spelling, common-prefix insertion, shared menu, and literal-text dot replay; focused and full suites passed.
 1. Add `<space>ev` for `:vigfiles` and persistent 100-file MRU via `:mru` / `<space>em`, with Enter/`<space>o` selection; focused and full suites passed.

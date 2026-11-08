@@ -86,6 +86,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.search_pattern = ""  # last / or ? search
         self.search_ignorecase = False  # smart-case flag for active search
         self.search_dir = 1  # 1=forward, -1=backward
+        self._search_origin = None
+        self._search_hscroll = None
         for _, attr, default, _, _ in OPTIONS.values():
             setattr(self, attr, default)
         self._insert_word_count = 0 # WORD boundaries since last snapshot
@@ -904,6 +906,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     self._suspend()
                     continue
                 if key == "CTRL_C" and self.mode != Mode.NORMAL:
+                    self._restore_search_view()
                     self._cancel_pending()
                     self._startup_completion = False
                     self._clear_completion()
