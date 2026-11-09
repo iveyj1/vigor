@@ -156,14 +156,14 @@ class CommandMixin:
         self.cmd = (self.comp_head + sep + new_token).strip() if self.comp_head else new_token
         self.cmd_cx = len(self.cmd)
 
-    def _start_completion(self):
+    def _start_completion(self, auto_accept=True):
         ctx = self._completion_context()
         if not ctx:
             return
         self.comp_head, self.comp_token, self.comp_base_dir, self.comp_shell = ctx
         self.comp_matches, _ = self._completion_names(self.comp_token, self.comp_base_dir)
         self.comp_index = 0
-        if len(self.comp_matches) == 1 and self.comp_matches[0] != "../":
+        if auto_accept and len(self.comp_matches) == 1 and self.comp_matches[0] != "../":
             self._set_completed_token(self.comp_matches[0])
             self._clear_completion()
 
@@ -202,8 +202,10 @@ class CommandMixin:
             if key == "ENTER":
                 name = self.comp_matches[self.comp_index]
                 self._insert_completed_name(name)
-                if name == "../":
-                    self._handle_insert_completion("CTRL_P")
+                if name.endswith("/"):
+                    token = os.path.expandvars(os.path.expanduser(self.comp_token))
+                    matches, _ = self._completion_names(token, os.getcwd())
+                    self.comp_matches = [n for n in matches if not any(c in n for c in "\n\r\t")]
                 return True
             if key in ("TAB", "SHIFT_TAB", "UP", "DOWN"):
                 step = -1 if key in ("SHIFT_TAB", "UP") else 1
@@ -244,11 +246,11 @@ class CommandMixin:
 
     def _accept_completion(self):
         if self.comp_matches:
-            parent = self.comp_matches[self.comp_index] == "../"
+            directory = self.comp_matches[self.comp_index].endswith("/")
             self._set_completed_token(self.comp_matches[self.comp_index])
             self._clear_completion()
-            if parent:
-                self._start_completion()
+            if directory:
+                self._start_completion(auto_accept=False)
 
     def handle_command(self, key):
         if self._startup_completion and key in ("ESC", "CTRL_C"):

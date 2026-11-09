@@ -7,6 +7,7 @@ Files with no write bits or no current-user write access open locked.
 Changed-on-disk files warn on focus; first :w is blocked, repeat :w overwrites.
 
 Directory lists start with ../ except at root; Enter uses the resolved parent path.
+Enter on a directory shows its contents; Enter on a file accepts and closes the menu.
 Completion menus: Ctrl-O toggles dotfiles (session-local); explicit . prefixes always show them.
 
 :rg -C N pattern [path]     include context on both sides
@@ -156,7 +157,7 @@ Central artifacts use basename plus an absolute-path hash and contain no path me
 Ctrl-V Tab          in Insert mode, insert a literal tab character
 Ctrl-P              in Insert, complete path before cursor; bare paths use cwd
                     inserts common prefix; Tab/Shift-Tab or arrows select
-                    Enter accepts; Esc hides menu, stays in Insert
+                    Enter accepts files / browses directories; Esc hides menu, stays in Insert
 Esc                 return to Normal / cancel prompt
 Ctrl-C              cancel pending state and return to Normal
 Ctrl-C Ctrl-C       quit all buffers

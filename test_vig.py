@@ -2775,6 +2775,34 @@ def test_completion_parent_root_and_normalization():
     print("  PASS: normalized parents, root suppression, and Insert dot replay")
 
 
+def test_completion_enter_directory():
+    """Enter browses directories; file acceptance still needs command execution."""
+    with tempfile.TemporaryDirectory() as d:
+        child = os.path.join(d, "child")
+        os.mkdir(child)
+        target = os.path.join(child, "only-file")
+        with open(target, "w") as f:
+            f.write("directory body\n")
+        env = {"VIG_NO_CONFIG": "1", "XDG_STATE_HOME": d}
+        screen, _, code = run_vig(b"\x1b[B\r\x1b[B\r\r:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "directory body" in screen
+        # Enter must retain the directory token and menu rather than insert its only file.
+        path = write_temp("TAIL\n")
+        try:
+            keys = b"i\x10\x1b[B\r\x1b\x1b:wq\r"
+            screen, content, code = run_vig(keys, file_path=path, cwd=d, env=env)
+            assert code == 0 and content == "child/TAIL\n", content
+            assert "only-file" in screen
+            keys = b"i\x10\x1b[B\r\x1b[B\r\x1b:wq\r"
+            with open(path, "w") as f:
+                f.write("TAIL\n")
+            _, content, code = run_vig(keys, file_path=path, cwd=d, env=env)
+            assert code == 0 and content == "child/only-fileTAIL\n", content
+        finally:
+            os.unlink(path)
+    print("  PASS: Enter descends into completion directories")
+
+
 def test_completion_parent_entry():
     with tempfile.TemporaryDirectory() as d:
         child = os.path.join(d, "child")
@@ -6322,6 +6350,7 @@ def main():
             test_incremental_search_scroll,
             test_rg_context_navigation,
             test_completion_parent_entry,
+            test_completion_enter_directory,
             test_completion_parent_root_and_normalization,
             test_completion_hidden_toggle,
             test_insert_path_completion,
