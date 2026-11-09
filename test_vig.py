@@ -5366,10 +5366,16 @@ def test_vighelp_covers_commands_and_config_options():
     commands = (":w", ":q", ":qa", ":e", ":new", ":n", ":p", ":ls", ":k",
                 ":help", ":md", ":nomd", ":ft", ":cd", ":cdb", ":pwd",
                 ":read", ":!command", ":[range]!command", ":[range]s/",
-                ":make", ":qf", ":rg", ":rgf")
+                ":make", ":qf", ":rg", ":rgf", ":mru", ":vigfiles", ":source")
     options = OPTIONS
     assert all(command in help_text for command in commands)
     assert all(f":set {option}" in help_text for option in options)
+    reference = open(os.path.join(os.path.dirname(VIG), "reference.md")).read()
+    for text in (help_text, reference):
+        assert "repeat :w overwrites" not in text
+        assert "[DISK CHANGED]" in text and "filter first" in text
+        assert all(key in text for key in ("Ctrl-O", "Ctrl-P", "<space>em", "<space>ev"))
+        assert all(option in text for option in options)
     print("  PASS: vighelp covers commands and config options")
 
 

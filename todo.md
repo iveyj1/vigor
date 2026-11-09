@@ -33,6 +33,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Audit vighelp/reference: correct stale disk-write, completion Esc, path/list navigation, Makefile tab, case-operation, and ripgrep descriptions; extend documentation checks. Full suite passed.
 1. Add separate fuzzy keyboard filters to completion dialogs, ranked subsequence matches, no-match recovery, and Insert basename replacement with literal dot replay. Full suite passed.
 1. Enter on a completion directory refreshes its contents without auto-accepting a child; file acceptance and selection keys stay unchanged. Full suite passed.
 1. Hide `../` at resolved filesystem root and replace parent navigation tokens with resolved absolute paths instead of accumulating parent segments; full suite passed.

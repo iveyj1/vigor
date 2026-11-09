@@ -4,7 +4,7 @@ vig is a compact, vi-style terminal editor. Runtime code lives in the `vigor` pa
 
 The splash footer identifies the source as `v0.1.0 · development`; `scripts/install` stamps installed copies with the Git commit and commit date. The launcher explicitly prioritizes its adjacent package without changing cwd, so running an installed `vig` from inside a source checkout still uses the stamped installed runtime.
 
-Run `vig tutor` for an exercise-driven introduction. On invocation, file arguments open as buffers. The first existing directory argument opens an `:edit` filename-completion menu without the splash; later directory arguments are ignored. Esc cancels the directory item while retaining any file buffers.
+Run `vig tutor` for an exercise-driven introduction. On invocation, file arguments open as buffers. The first existing directory argument opens an `:edit` filename-completion menu without the splash; later directory arguments are ignored. Esc clears a nonempty fuzzy filter first; with an empty filter it cancels the directory item while retaining any file buffers.
 
 **Modes:** NORMAL, INSERT, VISUAL, VISUAL LINE, COMMAND, SEARCH
 
@@ -60,6 +60,8 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `p` `P` | paste after / before cursor |
 | `>>` `<<` | indent / dedent by 4 spaces |
 | `gcc` | toggle line comment (count: N lines) |
+| `~` | toggle character case (count accepted) |
+| `g~` / `gU` / `gu` + motion or text object | toggle / upper / lower case over the range |
 | `gf` | open the bare or quoted path under the cursor (Normal mode) |
 | `u` | undo |
 | `Ctrl-R` | redo |
@@ -78,6 +80,7 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `y` | yank selection |
 | `c` | change selection |
 | `gc` | toggle comment on selected lines |
+| `~` / `g~` / `gU` / `gu` | toggle / toggle / upper / lower case in the selection |
 | `>` `<` | indent / dedent every selected logical line, then return to Normal mode |
 | `gq` | hard-wrap every selected logical line using `textwidth`, then return to Normal mode |
 
@@ -100,10 +103,10 @@ The hard-coded `NAMED_COLORS` palette and semantic `SYNTAX_COLOR_NAMES` / `MARKD
 | `:[range]s/pat/repl/[g]` | substitute (any delimiter; endpoints: `N`, `.`, `$`, `+N`, `-N`) |
 
 ### Command/Search Input
-- In `:` command mode, Up browses only history entries matching the typed prefix; Down moves toward and eventually restores the unsubmitted draft. Backspace at the beginning is a no-op; only Esc or Ctrl-C cancels the prompt.
+- Outside the completion dialog, in `:` command mode, Up browses only history entries matching the typed prefix; Down moves toward and eventually restores the unsubmitted draft. Backspace at the beginning is a no-op; only Esc or Ctrl-C cancels the prompt.
 - In `/` and `?` search prompts, Up/Down browse shared search history.
 - Tab completes path arguments for `:e`, `:w`, `:read`, `:rgf`, `:cd`, and shell paths in `:!` commands.
-- A single completion fills the command line. Multiple completions show a centered rounded-border menu; Up/Down moves the reverse-video selection, Tab/Shift-Tab advance/reverse it with wrapping, Enter accepts a file into the command line (a second Enter executes), or enters a selected directory and refreshes its contents without auto-accepting a sole file. Esc hides the menu.
+- A single completion fills the command line. Multiple completions show a centered rounded-border menu; Up/Down moves the reverse-video selection, Tab/Shift-Tab advance/reverse it with wrapping, Enter accepts a file into the command line (a second Enter executes), or enters a selected directory and refreshes its contents without auto-accepting a sole file. Typing edits a separate fuzzy filter; Esc clears a nonempty filter first, then hides the menu.
 
 `gf` opens an existing file or switches to its existing buffer without discarding edits. If the path is a directory, `gf` opens the existing `:edit` filename-completion prompt rooted in that directory. Relative paths resolve from the current working directory, unlike `:vigfiles` entries, which resolve from the list file's directory. Paths are whitespace-delimited or enclosed in single/double quotes (spaces allowed); quotes are delimiters, not shell quoting rules. Both forms expand `~`, `$NAME`, and `${NAME}` from the editor's environment. Undefined variables and missing files report errors. Shell execution, parameter operators, glob expansion, quote escaping, Markdown-link parsing, and line/column suffixes are not supported. The cursor must be within the path token, not on whitespace or past EOL.
 
@@ -148,7 +151,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set option?` | print the current value as reusable set syntax, e.g. `nowrap` or `textwidth=72` |
 | `:make [args]` | run configured `makeprg` and capture merged output in quickfix |
 | `:qf !<cmd>` | run a generic diagnostic producer and capture output in quickfix |
-| `:rg <pattern> [path]` | run `rg -n --column` into quickfix buffer |
+| `:rg [-C N \| -B N -A N] [--] <pattern> [path]` | run ripgrep with optional context into quickfix; filenames, line numbers, and columns are included |
 | `:rgf [path]` | open optional `fzf` live ripgrep picker; Enter sends all filtered rows to quickfix |
 | `:read <file>` | insert file contents below cursor |
 | `:r !<cmd>` | insert command output below cursor |
@@ -177,7 +180,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:set mouse=off|scroll|cursor|visual` | SGR mouse mode; wheel scrolls three rows, clicks position the cursor, and `visual` enables characterwise drag selection (`off` default) |
 | `:set yankflash=<ms>` | yank highlight duration in milliseconds (`0` disables) |
 | `:set delcopy` / `nodelcopy` | choose whether `d` updates the unnamed register; `yd` always does |
-| `:set rghidden` / `norghidden` | add `-H` to `:rg` command when set |
+| `:set rghidden` / `norghidden` | add ripgrep `-H` (show filenames), not `--hidden`; redundant for `:rg`, which always includes filenames |
 | `:set incscroll` / `noincscroll` | scroll incremental search to an offscreen match (default off); Esc/Ctrl-C restore viewport |
 | `:set hlsearch` / `nohlsearch` | highlight active search-regex matches (default off) |
 | `:set markdownfences` / `nomarkdownfences` | while `:md` is active in Markdown files, omit matched ``` or ~~~ opening/closing marker rows |
@@ -229,11 +232,12 @@ It executes arguments directly rather than through a shell; use `sh -c '...'` ex
 | `<space>d` | delete current buffer, refusing unsaved changes; last nonempty buffer becomes a fresh unnamed buffer |
 | `<space>w` | toggle `wrap` / `nowrap` |
 | `<space>ec` | edit the loaded effective config file, if any |
+| `<space>ev` / `<space>em` | open common-files / recent-files list |
 | `<space>(` / `{` / `[` / `"` / `'` + motion or text object | surround the range with the matching literal pair; counts and dot repeat work |
 | `<space>n` / `<space>N` | next / previous buffer |
 | `<space>c` | switch to quickfix buffer, if any |
 | `<space>s{char}{label}` | label visible occurrences of `{char}` and jump to the selected label; nearby hits use one-letter labels and farther hits use two-letter labels; `{char}` labels the first visible match after the cursor, or the last before it if none follow; works in Visual and as a `d`/`y`/`c` motion |
-| `<space>o` | open `file:line:column:` location under cursor |
+| `<space>o` | open quickfix `file:line:column:` location or selected vigfiles/MRU entry |
 | `<space>j` / `<space>k` | open next / previous remembered quickfix item without wrapping |
 
 For an unrecognized one-key Space combination, Space is a no-op and the following key executes normally.
@@ -260,7 +264,7 @@ Ctrl-P completes whitespace-delimited paths or paths inside an opening single/do
 |-----|--------|
 | Printable chars | insert at cursor |
 | Bracketed paste | insert pasted text literally; tabs/newlines are not treated as typed keys |
-| Tab | insert spaces to the next 4-column tab stop |
+| Tab | insert spaces to the next 4-column tab stop; Makefile buffers insert a literal tab |
 | Ctrl-V Tab | insert a literal tab character |
 | Ctrl-P | complete the path immediately before the cursor; bare prefixes use cwd |
 | Enter | split line (copies indent if autoindent) |
@@ -294,7 +298,7 @@ Ctrl-P completes whitespace-delimited paths or paths inside an opening single/do
 - Startup first renders the editor, then overlays a horizontally centered rounded logo frame high on the screen. Input dismisses it and still executes; command-line file startup also dismisses it after two seconds.
 - Cursor shape: block (Normal/Visual), bar (Insert)
 - Single `write()` render — no flicker
-- Existing tab characters render as spaces to four-column stops; cursor movement, wrapping, scrolling, and highlighting use those display columns
+- Existing tab characters occupy four-column stops, shown as spaces normally or `›···` with `list` (enabled by default for Makefiles); cursor movement, wrapping, scrolling, and highlighting use those display columns
 - The visible window horizontally scrolls in nowrap mode to keep the cursor visible
 - SIGWINCH-aware terminal resize
 - Ctrl-Z moves the terminal cursor to the bottom line, suspends vig, and restores raw mode when foregrounded
