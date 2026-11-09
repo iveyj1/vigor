@@ -7,14 +7,11 @@
 None
 
 ### Implement
+None
 
 ### On Hold
-
 (Ordered by recommended implementation sequence, balancing feasibility, effort, ambiguity, and dependencies)
-1. Add a `\v` search modifier.
-   **Small implementation after specification; 15–35 lines.** Python regex syntax is already close to Vim's “very magic” mode, so first define exactly which vigor escapes and metacharacters `\v` changes; avoid a modifier that is merely ignored.
-1. Pipe stdin into the initial unnamed buffer, then use `/dev/tty` for interaction.
-   **Moderate feasibility; estimated 60–90 lines, so notify before implementation.** First write the missing proposal defining non-interactive fallback, stdin/filename precedence, terminal-open failures, and behavior under pipes and redirection.
+
 1. Add in-session location history.
    **Moderate feasibility; 40–70 lines.** Establish one jump-stack abstraction before last-location commands or marks. Define which actions create entries and whether quickfix/search/buffer switches participate.
 1. Open or jump to the last location.

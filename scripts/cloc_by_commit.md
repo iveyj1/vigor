@@ -222,4 +222,31 @@ Generated with `scripts/cloc.pl` against `vigor/*.py`, or the historical `vig.py
 | `4f08c40` | 4243 | 372 | 289 | 0 | Prefer searched character as first flash label |
 | `72d37b0` | 4253 | 372 | 289 | 10 | Assign primary flash label by cursor position |
 | `ee75d37` | 4253 | 372 | 289 | 0 | remove markdown annotation from splash |
-| `6d7ca49` | 4287 | 372 | 289 | 34 | Add two-letter flash labels |
+| `5412e42` | 4287 | 372 | 289 | 34 | remove markdown annotation from splash |
+| `5ef8bd6` | 4287 | 372 | 289 | 0 | update cloc |
+| `bb6fded` | 4287 | 372 | 289 | 0 | add to example config |
+| `e1f47b6` | 4375 | 373 | 290 | 88 | Lock read-only buffers against edits |
+| `a356c4b` | 4370 | 373 | 290 | -5 | Move readonly lock to set option |
+| `0471988` | 4441 | 377 | 289 | 71 | Add config sourcing and literal tab insertion |
+| `195f9d7` | 4474 | 380 | 289 | 33 | Add vigfiles common file list |
+| `0353796` | 4516 | 384 | 289 | 42 | Detect changed-on-disk files |
+| `6ba4c86` | 4516 | 384 | 289 | 0 | Fix last-nonblank-line-of-file dW issue |
+| `d93e81c` | 4544 | 385 | 290 | 28 | Add gf navigation for paths under the cursor |
+| `f15b11c` | 4545 | 385 | 290 | 1 | Detect read-only files using effective-user write access |
+| `7cb9dd2` | 4545 | 385 | 290 | 0 | update todo |
+| `2d89c83` | 4552 | 385 | 290 | 7 | Open directory gf paths in edit completion |
+| `1d011c6` | 4554 | 385 | 290 | 2 | Show line count and percent in status |
+| `de29fda` | 4566 | 386 | 293 | 12 | Isolate shell stdin and clean up timed-out process groups |
+| `72c5464` | 4581 | 386 | 293 | 15 | Configure shell timeout and support Ctrl-C cancellation |
+| `1b0c7d1` | 4640 | 388 | 293 | 59 | Require explicit resolution of external disk changes on save |
+| `631678a` | 4642 | 389 | 294 | 2 | Record character targets for dot repeat |
+| `1ee7df3` | 4645 | 389 | 294 | 3 | Preserve operator-internal counts in dot repeat |
+| `9875eba` | 4711 | 394 | 294 | 66 | Add persistent MRU list and file-list leader shortcuts |
+| `d043dfa` | 4761 | 396 | 294 | 50 | Add Insert-mode Ctrl-P path completion |
+| `4e9adde` | 4782 | 397 | 294 | 21 | Add session-local hidden-file toggle to completion menus |
+| `36ffbae` | 4791 | 397 | 294 | 9 | Add ripgrep context options with match-only quickfix navigation |
+| `1f3ca3a` | 4840 | 399 | 294 | 49 | Add optional incremental-search viewport scrolling |
+| `77785a0` | 4835 | 400 | 294 | -5 | Replace deleted last nonempty buffer with fresh unnamed buffer |
+| `bf76489` | 4841 | 400 | 294 | 6 | Add parent-directory entry to completion browser listings |
+| `c3142f1` | 4854 | 401 | 294 | 13 | Normalize parent navigation and hide parent entry at root |
+| `c4685bf` | 4856 | 401 | 294 | 2 | Browse selected completion directories with Enter |
