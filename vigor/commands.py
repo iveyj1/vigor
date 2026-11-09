@@ -139,10 +139,19 @@ class CommandMixin:
         except OSError:
             return [], search_dir
         shown = [n + ("/" if os.path.isdir(os.path.join(search_dir, n)) else "") for n in names]
-        return (["../"] if not prefix else []) + shown, search_dir
+        parent = not prefix and os.path.dirname(os.path.realpath(search_dir)) != os.path.realpath(search_dir)
+        return (["../"] if parent else []) + shown, search_dir
+
+    def _completion_parent(self):
+        token = os.path.expanduser(self.comp_token)
+        if self.mode == Mode.INSERT:
+            token = os.path.expandvars(token)
+        return os.path.dirname(os.path.realpath(token or ".")).rstrip(os.sep) + os.sep
 
     def _set_completed_token(self, name):
         new_token = os.path.join(os.path.dirname(self.comp_token), name) if os.path.dirname(self.comp_token) else name
+        if name == "../":
+            new_token = self._completion_parent()
         sep = "" if self.comp_shell else " "
         self.cmd = (self.comp_head + sep + new_token).strip() if self.comp_head else new_token
         self.cmd_cx = len(self.cmd)
@@ -162,6 +171,11 @@ class CommandMixin:
         prefix = os.path.basename(os.path.expandvars(os.path.expanduser(self.comp_token)))
         suffix = name[len(prefix):]
         self._clear_completion()
+        if name == "../":
+            suffix = self._completion_parent()
+            for _ in self.comp_token:
+                self.handle_insert("BACKSPACE")
+            self.comp_token = ""
         for char in suffix:
             self.handle_insert(char)
         self.comp_token += suffix

@@ -33,6 +33,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Hide `../` at resolved filesystem root and replace parent navigation tokens with resolved absolute paths instead of accumulating parent segments; full suite passed.
 1. Add `../` at the top of directory listings regardless of hidden visibility; selecting it refreshes the parent listing. Full suite passed.
 1. Delete the last nonempty buffer into a fresh unnamed buffer; retain dirty-buffer checks and refuse deleting the last empty buffer even with force. Full suite passed.
 1. Add session-local Ctrl-O hidden-file toggle to shared completion menus; explicit dot prefixes always match hidden files. Full suite passed.

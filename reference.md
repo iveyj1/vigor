@@ -243,7 +243,7 @@ Use `j`/`k` or arrow keys in the quickfix buffer to choose a row, then `<space>o
 | Status bar `[RO]` | buffer is locked read-only; files with no write bits or no effective-user write access open locked; blocked edits report once per buffer |
 | Status bar `L/T:C P%` | cursor line / total lines, 1-based column, and line-based file percent; first line is at least `1%`, final line is `100%` |
 
-Directory listings (empty basename prefix) always start with `../`, even with hidden files disabled or an otherwise empty directory. Selecting it navigates to the parent and refreshes the menu; Insert completion inserts `../` and refreshes. Typed filename prefixes still filter ordinary completion candidates.
+Directory listings (empty basename prefix) start with `../`, even with hidden files disabled or an otherwise empty directory, except at filesystem root (including paths or symlinks resolving to root). Selecting it replaces the path token with the resolved absolute parent directory and refreshes the menu. This also applies to Insert completion: following text and quotes remain intact, and undo/dot replay record the replacement. Parent navigation resolves symlinks and expands tilde/environment spelling as applicable; it does not accumulate `../` segments. Typed filename prefixes still filter ordinary completion candidates.
 
 Filename completion hides dotfiles unless the basename prefix begins with `.`. Ctrl-O in a completion menu toggles hidden entries for the session, across command, directory, and Insert completion. The heading shows the current setting; selection is preserved where possible.
 

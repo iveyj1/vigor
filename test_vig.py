@@ -2746,6 +2746,35 @@ def test_rg_context_navigation():
     print("  PASS: rg context and entry navigation")
 
 
+def test_completion_parent_root_and_normalization():
+    from vigor.commands import CommandMixin
+    from vigor.state import Mode
+    completion = CommandMixin()
+    completion.comp_hidden = False
+    completion.mode = Mode.COMMAND
+    for root in ("/", "/tmp/../", "/../../"):
+        names, _ = completion._completion_names(root, os.getcwd())
+        assert "../" not in names
+    with tempfile.TemporaryDirectory() as d:
+        child = os.path.join(d, "child")
+        os.mkdir(child)
+        os.symlink("/", os.path.join(d, "root"))
+        names, _ = completion._completion_names(os.path.join(d, "root") + "/", d)
+        assert "../" not in names
+        completion.comp_token = child + "/"
+        assert completion._completion_parent() == d + "/"
+        completion.comp_token = d + "/"
+        assert completion._completion_parent() == os.path.dirname(d) + "/"
+        path = write_temp("TAIL\n\n")
+        try:
+            keys = b'i"' + (child + "/").encode() + b'\x10\r\x1b\x1bj0.:wq\r'
+            _, content, code = run_vig(keys, file_path=path)
+            assert code == 0 and content == '"' + d + '/TAIL\n"' + d + '/\n', content
+        finally:
+            os.unlink(path)
+    print("  PASS: normalized parents, root suppression, and Insert dot replay")
+
+
 def test_completion_parent_entry():
     with tempfile.TemporaryDirectory() as d:
         child = os.path.join(d, "child")
@@ -2757,7 +2786,7 @@ def test_completion_parent_entry():
         path = write_temp("")
         try:
             screen, content, code = run_vig(b"i\x10\r\x1b\x1b:wq\r", file_path=path, cwd=child)
-            assert code == 0 and content == "../\n" and "parent-target" in screen
+            assert code == 0 and content == d + "/\n" and "parent-target" in screen
         finally:
             os.unlink(path)
     print("  PASS: parent entry navigates empty directories in command and Insert")
@@ -6293,6 +6322,7 @@ def main():
             test_incremental_search_scroll,
             test_rg_context_navigation,
             test_completion_parent_entry,
+            test_completion_parent_root_and_normalization,
             test_completion_hidden_toggle,
             test_insert_path_completion,
             test_insert_path_completion_menu_and_repeat,
