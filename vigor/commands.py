@@ -139,7 +139,7 @@ class CommandMixin:
         except OSError:
             return [], search_dir
         shown = [n + ("/" if os.path.isdir(os.path.join(search_dir, n)) else "") for n in names]
-        return shown, search_dir
+        return (["../"] if not prefix else []) + shown, search_dir
 
     def _set_completed_token(self, name):
         new_token = os.path.join(os.path.dirname(self.comp_token), name) if os.path.dirname(self.comp_token) else name
@@ -154,7 +154,7 @@ class CommandMixin:
         self.comp_head, self.comp_token, self.comp_base_dir, self.comp_shell = ctx
         self.comp_matches, _ = self._completion_names(self.comp_token, self.comp_base_dir)
         self.comp_index = 0
-        if len(self.comp_matches) == 1:
+        if len(self.comp_matches) == 1 and self.comp_matches[0] != "../":
             self._set_completed_token(self.comp_matches[0])
             self._clear_completion()
 
@@ -186,7 +186,10 @@ class CommandMixin:
                 self._clear_completion()
                 return True
             if key == "ENTER":
-                self._insert_completed_name(self.comp_matches[self.comp_index])
+                name = self.comp_matches[self.comp_index]
+                self._insert_completed_name(name)
+                if name == "../":
+                    self._handle_insert_completion("CTRL_P")
                 return True
             if key in ("TAB", "SHIFT_TAB", "UP", "DOWN"):
                 step = -1 if key in ("SHIFT_TAB", "UP") else 1
@@ -209,8 +212,8 @@ class CommandMixin:
         if not matches:
             self.msg = "No path matches"
             return True
-        self._insert_completed_name(os.path.commonprefix(matches))
-        if len(matches) > 1:
+        self._insert_completed_name("" if matches[0] == "../" else os.path.commonprefix(matches))
+        if len(matches) > 1 or matches[0] == "../":
             self.comp_matches = matches
         return True
 
@@ -227,8 +230,11 @@ class CommandMixin:
 
     def _accept_completion(self):
         if self.comp_matches:
+            parent = self.comp_matches[self.comp_index] == "../"
             self._set_completed_token(self.comp_matches[self.comp_index])
             self._clear_completion()
+            if parent:
+                self._start_completion()
 
     def handle_command(self, key):
         if self._startup_completion and key in ("ESC", "CTRL_C"):

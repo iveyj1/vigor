@@ -2687,7 +2687,7 @@ def test_gf_directory_opens_edit_completion():
         with open(target, "w") as f:
             f.write("directory target\n")
         path = write_temp(d + "\n")
-        screen, _, code = run_vig(b"gf\r:qa\r", file_path=path)
+        screen, _, code = run_vig(b"gf\x1b[B\r\r:qa\r", file_path=path)
         os.unlink(path)
     assert code == 0 and "directory target" in screen, f"Expected gf directory completion: {screen[-800:]}"
     print("  PASS: gf directory opens edit completion")
@@ -2744,6 +2744,23 @@ def test_rg_context_navigation():
     finally:
         os.unlink(path)
     print("  PASS: rg context and entry navigation")
+
+
+def test_completion_parent_entry():
+    with tempfile.TemporaryDirectory() as d:
+        child = os.path.join(d, "child")
+        os.mkdir(child)
+        with open(os.path.join(d, "parent-target"), "w") as f:
+            f.write("parent body\n")
+        screen, _, code = run_vig(b"\r\x1b\x1b:qa\r", file_paths=[child])
+        assert code == 0 and "../" in screen and "parent-target" in screen and "Hidden: off" in screen
+        path = write_temp("")
+        try:
+            screen, content, code = run_vig(b"i\x10\r\x1b\x1b:wq\r", file_path=path, cwd=child)
+            assert code == 0 and content == "../\n" and "parent-target" in screen
+        finally:
+            os.unlink(path)
+    print("  PASS: parent entry navigates empty directories in command and Insert")
 
 
 def test_completion_hidden_toggle():
@@ -3608,7 +3625,7 @@ def test_startup_directory_selection_opens_buffer():
     with tempfile.TemporaryDirectory() as d:
         open(os.path.join(d, "aa_first.txt"), "w").write("selected body\n")
         open(os.path.join(d, "aa_second.txt"), "w").write("other body\n")
-        screen, _, code = run_vig(b"\r\r:qa\r", file_paths=[d])
+        screen, _, code = run_vig(b"\x1b[B\r\r:qa\r", file_paths=[d])
     assert code == 0
     assert "selected body" in screen, screen[-800:]
     print("  PASS: startup directory selection opens buffer")
@@ -6275,6 +6292,7 @@ def main():
             test_vigfiles_opens_listed_file,
             test_incremental_search_scroll,
             test_rg_context_navigation,
+            test_completion_parent_entry,
             test_completion_hidden_toggle,
             test_insert_path_completion,
             test_insert_path_completion_menu_and_repeat,

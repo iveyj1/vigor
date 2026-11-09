@@ -6,6 +6,7 @@ See `reference.md` for detailed semantics and deliberate vi divergences.
 Files with no write bits or no current-user write access open locked.
 Changed-on-disk files warn on focus; first :w is blocked, repeat :w overwrites.
 
+Directory lists start with ../; Enter navigates up and refreshes the list.
 Completion menus: Ctrl-O toggles dotfiles (session-local); explicit . prefixes always show them.
 
 :rg -C N pattern [path]     include context on both sides
