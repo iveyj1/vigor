@@ -8,6 +8,8 @@ Changed-on-disk files warn on focus; first :w is blocked, repeat :w overwrites.
 
 Directory lists start with ../ except at root; Enter uses the resolved parent path.
 Enter on a directory shows its contents; Enter on a file accepts and closes the menu.
+Completion menus: type to fuzzy-filter filenames; Backspace edits filter.
+Esc clears filter first, then closes menu. Filter text is not inserted.
 Completion menus: Ctrl-O toggles dotfiles (session-local); explicit . prefixes always show them.
 
 :rg -C N pattern [path]     include context on both sides

@@ -2775,6 +2775,48 @@ def test_completion_parent_root_and_normalization():
     print("  PASS: normalized parents, root suppression, and Insert dot replay")
 
 
+def test_completion_fuzzy_filter():
+    with tempfile.TemporaryDirectory() as d:
+        names = ("vigor_commands.md", "vigor_config.md", "abc-tail", "xabc", "a_b_c", ".secret")
+        for name in names:
+            with open(os.path.join(d, name), "w") as f:
+                f.write("body " + name + "\n")
+        os.mkdir(os.path.join(d, "subdirectory"))
+        with open(os.path.join(d, "subdirectory", "target"), "w") as f:
+            f.write("nested fuzzy body\n")
+        env = {"VIG_NO_CONFIG": "1", "XDG_STATE_HOME": d}
+        screen, _, code = run_vig(b"sd\rtg\r\r:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "nested fuzzy body" in screen
+        screen, _, code = run_vig(b"vcm\r\r:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "body vigor_commands.md" in screen
+        assert "Filter: vcm" in screen
+        screen, _, code = run_vig(b"zzzz\r\x7f\x1babc\r\r:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "No matches" in screen and "body abc-tail" in screen
+        screen, _, code = run_vig(b".sc\r\r:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "body .secret" in screen
+    print("  PASS: fuzzy dialog filtering, no-match recovery, rank, and dotfiles")
+
+
+def test_insert_completion_fuzzy_replacement():
+    with tempfile.TemporaryDirectory() as d:
+        for name in ("alpha-one", "alpha-two", "vigor_commands.md"):
+            with open(os.path.join(d, name), "w") as f:
+                f.write("")
+        env = {"VIG_NO_CONFIG": "1", "XDG_STATE_HOME": d}
+        cases = (
+            (b"ial\x10vcm\r\x1bj0.", "vigor_commands.mdTAIL\nvigor_commands.md\n"),
+            (b"ial\x10zzzz\x1b\x1bX\x1b", "alpha-XTAIL\n\n"),
+        )
+        for keys, expected in cases:
+            path = write_temp("TAIL\n\n")
+            try:
+                screen, content, code = run_vig(keys + b":wq\r", file_path=path, cwd=d, env=env)
+                assert code == 0 and content == expected, (keys, content)
+            finally:
+                os.unlink(path)
+    print("  PASS: Insert fuzzy replacement, cancellation, and dot repeat")
+
+
 def test_completion_enter_directory():
     """Enter browses directories; file acceptance still needs command execution."""
     with tempfile.TemporaryDirectory() as d:
@@ -6351,6 +6393,8 @@ def main():
             test_rg_context_navigation,
             test_completion_parent_entry,
             test_completion_enter_directory,
+            test_completion_fuzzy_filter,
+            test_insert_completion_fuzzy_replacement,
             test_completion_parent_root_and_normalization,
             test_completion_hidden_toggle,
             test_insert_path_completion,

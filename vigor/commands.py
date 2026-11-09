@@ -111,6 +111,8 @@ class CommandMixin:
         return True
 
     def _clear_completion(self):
+        self.comp_active = False
+        self.comp_filter = ""
         self.comp_matches = []
         self.comp_index = 0
 
@@ -163,6 +165,8 @@ class CommandMixin:
         self.comp_head, self.comp_token, self.comp_base_dir, self.comp_shell = ctx
         self.comp_matches, _ = self._completion_names(self.comp_token, self.comp_base_dir)
         self.comp_index = 0
+        self.comp_filter = ""
+        self.comp_active = bool(self.comp_matches) or not auto_accept
         if auto_accept and len(self.comp_matches) == 1 and self.comp_matches[0] != "../":
             self._set_completed_token(self.comp_matches[0])
             self._clear_completion()
@@ -170,7 +174,14 @@ class CommandMixin:
     def _insert_completed_name(self, name):
         prefix = os.path.basename(os.path.expandvars(os.path.expanduser(self.comp_token)))
         suffix = name[len(prefix):]
+        replace = not name.startswith(prefix)
         self._clear_completion()
+        if replace and name != "../":
+            raw_prefix = os.path.basename(self.comp_token)
+            for _ in raw_prefix:
+                self.handle_insert("BACKSPACE")
+            self.comp_token = self.comp_token[:-len(raw_prefix)] if raw_prefix else self.comp_token
+            suffix = name
         if name == "../":
             suffix = self._completion_parent()
             for _ in self.comp_token:
@@ -180,19 +191,64 @@ class CommandMixin:
             self.handle_insert(char)
         self.comp_token += suffix
 
-    def _toggle_completion_hidden(self):
+    def _filter_completion(self):
         selected = self.comp_matches[self.comp_index] if self.comp_matches else None
-        self.comp_hidden = not self.comp_hidden
         token = self.comp_token
         if self.mode == Mode.INSERT:
             token = os.path.expandvars(os.path.expanduser(token))
-        self.comp_matches, _ = self._completion_names(token, os.getcwd())
-        if self.mode == Mode.INSERT:
-            self.comp_matches = [n for n in self.comp_matches if not any(c in n for c in "\n\r\t")]
+        directory = os.path.dirname(token)
+        names, _ = self._completion_names(directory.rstrip(os.sep) + os.sep if directory else "", os.getcwd())
+        query = self.comp_filter.casefold()
+        if (query.startswith(".") or os.path.basename(token).startswith(".")) and not self.comp_hidden:
+            extra, _ = self._completion_names(os.path.join(directory, "."), os.getcwd())
+            names = list(dict.fromkeys(names + extra))
+        ranked = []
+        for name in names:
+            if any(c in name for c in "\n\r\t"):
+                continue
+            text = name.casefold()
+            pos, positions = 0, []
+            for char in query:
+                index = text.find(char, pos)
+                if index < 0:
+                    break
+                positions.append(index)
+                pos = index + 1
+            else:
+                rank = 0 if text.startswith(query) else 1 if query in text else 2
+                span = positions[-1] - positions[0] if positions else 0
+                ranked.append(((rank, span, name), name))
+        self.comp_matches = [name for _, name in sorted(ranked)]
+        if not query and "../" in self.comp_matches:
+            self.comp_matches.remove("../")
+            self.comp_matches.insert(0, "../")
         self.comp_index = self.comp_matches.index(selected) if selected in self.comp_matches else 0
 
+    def _toggle_completion_hidden(self):
+        self.comp_hidden = not self.comp_hidden
+        self._filter_completion()
+
+    def _completion_filter_key(self, key):
+        if not self.comp_active:
+            return False
+        if key == "ESC" and self.comp_filter:
+            self.comp_filter = ""
+        elif key == "BACKSPACE":
+            self.comp_filter = self.comp_filter[:-1]
+        elif len(key) == 1 and key.isprintable():
+            self.comp_filter += key
+        else:
+            if not self.comp_matches and key in ("ENTER", "TAB", "SHIFT_TAB", "UP", "DOWN"):
+                return True
+            return False
+        self._filter_completion()
+        self.comp_index = 0
+        return True
+
     def _handle_insert_completion(self, key):
-        if self.comp_matches:
+        if self._completion_filter_key(key):
+            return True
+        if self.comp_active:
             if key == "CTRL_O":
                 self._toggle_completion_hidden()
                 return True
@@ -206,6 +262,7 @@ class CommandMixin:
                     token = os.path.expandvars(os.path.expanduser(self.comp_token))
                     matches, _ = self._completion_names(token, os.getcwd())
                     self.comp_matches = [n for n in matches if not any(c in n for c in "\n\r\t")]
+                    self.comp_active = True
                 return True
             if key in ("TAB", "SHIFT_TAB", "UP", "DOWN"):
                 step = -1 if key in ("SHIFT_TAB", "UP") else 1
@@ -231,6 +288,7 @@ class CommandMixin:
         self._insert_completed_name("" if matches[0] == "../" else os.path.commonprefix(matches))
         if len(matches) > 1 or matches[0] == "../":
             self.comp_matches = matches
+            self.comp_active = True
         return True
 
     def _refresh_completion(self):
@@ -253,6 +311,8 @@ class CommandMixin:
                 self._start_completion(auto_accept=False)
 
     def handle_command(self, key):
+        if self._completion_filter_key(key):
+            return
         if self._startup_completion and key in ("ESC", "CTRL_C"):
             self._startup_completion = False
             self.mode = Mode.NORMAL
@@ -261,7 +321,7 @@ class CommandMixin:
             self._reset_history_nav()
             self._clear_completion()
             return
-        if self.comp_matches:
+        if self.comp_active:
             if key == "CTRL_O":
                 self._toggle_completion_hidden()
                 return

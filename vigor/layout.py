@@ -430,14 +430,15 @@ class RenderMixin:
 
     def _append_completion_box(self, out):
         """Overlay centered completion menu with a rounded border."""
-        if self.mode not in (Mode.COMMAND, Mode.INSERT) or not self.comp_matches or self.cols < 8 or self.rows < 5:
+        if self.mode not in (Mode.COMMAND, Mode.INSERT) or not self.comp_active or self.cols < 8 or self.rows < 5:
             return
         hpad = 2
         vpad = 1
         max_items = max(1, self.rows - 4 - 2 * vpad)
-        item_rows = min(len(self.comp_matches), max_items)
-        title = f" Hidden: {'on' if self.comp_hidden else 'off'} "
-        text_w = min(max(len(title), max(len(n) for n in self.comp_matches)), self.cols - 2 - 2 * hpad)
+        matches = self.comp_matches or ["No matches"]
+        item_rows = min(len(matches), max_items)
+        title = f" Filter: {self.comp_filter} | Hidden: {'on' if self.comp_hidden else 'off'} "
+        text_w = min(max(len(title), max(len(n) for n in matches)), self.cols - 2 - 2 * hpad)
         inner_w = text_w + 2 * hpad
         box_w = inner_w + 2
         box_h = item_rows + 2 * vpad + 2
@@ -449,7 +450,7 @@ class RenderMixin:
             out.append(f"\x1b[{top + 1 + i};{left}H│" + " " * inner_w + "│")
         item_top = top + 1 + vpad
         for row, idx in enumerate(range(start, start + item_rows), item_top):
-            text = (" " * hpad + self.comp_matches[idx][:text_w] + " " * hpad).ljust(inner_w)
+            text = (" " * hpad + matches[idx][:text_w] + " " * hpad).ljust(inner_w)
             out.append(f"\x1b[{row};{left}H│")
             if idx == self.comp_index:
                 out.append("\x1b[7m" + text + "\x1b[m")

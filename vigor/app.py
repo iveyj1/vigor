@@ -64,6 +64,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._hist_idx = None
         self._hist_draft = ""
         self._hist_matches = []
+        self.comp_active = False
+        self.comp_filter = ""
         self.comp_hidden = False
         self.comp_matches = []
         self.comp_index = 0
