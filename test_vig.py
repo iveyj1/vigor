@@ -2024,13 +2024,28 @@ def test_bdelete_dirty_blocked():
     assert "No write since last change" in screen, f":k should warn about dirty: {screen[-500:]}"
     print("  PASS: :k blocks on dirty buffer")
 
+def test_delete_last_buffer_replacement():
+    for command in (b" d", b":k\r", b":bdelete\r", b":k!\r", b":bdelete!\r"):
+        path = write_temp("only\n")
+        try:
+            screen, content, code = run_vig(command + b":ls\r:k!\r:q\r", file_path=path)
+            assert code == 0 and content == "only\n"
+            assert "[No Name]" in last_frame(screen) and "Cannot delete last empty buffer" in screen
+            screen, content, code = run_vig(b"iX\x1b:k\r:k!\r:q\r", file_path=path)
+            assert code == 0 and content == "only\n"
+            assert "No write since last change" in screen and "[No Name]" in last_frame(screen)
+        finally:
+            os.unlink(path)
+    print("  PASS: last-buffer deletion replaces nonempty and protects empty")
+
+
 def test_bdelete_last_refused():
-    """:k refuses to delete the last buffer."""
-    path = write_temp("only\n")
+    """:k refuses to delete the last empty buffer."""
+    path = write_temp("")
     screen, _, code = run_vig(b":k\r:q\r", file_path=path)
     os.unlink(path)
     assert code == 0
-    assert "Cannot delete last buffer" in screen, f":k should refuse last: {screen[-500:]}"
+    assert "Cannot delete last empty buffer" in screen, f":k should refuse last empty: {screen[-500:]}"
     print("  PASS: :k refuses last buffer")
 
 def test_qa_checks_all_dirty():
@@ -2108,7 +2123,7 @@ def test_space_d_deletes_buffer_safely():
     os.unlink(p2)
     assert clean_code == dirty_code == last_code == 0
     assert "No write since last change" in dirty_screen
-    assert "Cannot delete last buffer" in last_screen
+    assert "[No Name]" in last_frame(last_screen)
     print("  PASS: <space>d safely deletes buffer")
 
 # ── Phase 30: ^/$ Home/End + Insert Tab/Delete ────────────────────────────
@@ -6184,6 +6199,7 @@ def main():
             test_bdelete_removes_buffer,
             test_bdelete_dirty_blocked,
             test_bdelete_last_refused,
+            test_delete_last_buffer_replacement,
             test_qa_checks_all_dirty,
             test_wq_closes_buffer,
         ]),

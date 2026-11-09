@@ -451,22 +451,8 @@ class CommandMixin:
                 parts_list.append(f"{i+1}{marker}{dirty} {name}")
             self.msg = "  ".join(parts_list)
             self.mode = Mode.NORMAL
-        elif cmd in ("k", "bdelete"):
-            if self.buf.dirty:
-                self.msg = "No write since last change (add ! to override)"
-                self.mode = Mode.NORMAL
-                return
-            if len(self.buffers) <= 1:
-                self.msg = "Cannot delete last buffer"
-                self.mode = Mode.NORMAL
-                return
-            self._close_buffer()
-        elif cmd in ("k!", "bdelete!"):
-            if len(self.buffers) <= 1:
-                self.msg = "Cannot delete last buffer"
-                self.mode = Mode.NORMAL
-                return
-            self._close_buffer()
+        elif cmd in ("k", "bdelete", "k!", "bdelete!"):
+            self._delete_buffer(force=cmd.endswith("!"))
         elif cmd == "set":
             self._exec_set(arg)
             self.mode = Mode.NORMAL

@@ -120,12 +120,7 @@ class ModeMixin:
                 self.pending_extra_n = leader_extra
                 return
             if key == "d":
-                if self.buf.dirty:
-                    self.msg = "No write since last change (add ! to override)"
-                elif len(self.buffers) <= 1:
-                    self.msg = "Cannot delete last buffer"
-                else:
-                    self._close_buffer()
+                self._delete_buffer()
             elif key == "j":
                 self._quickfix_step(1)
             elif key == "k":

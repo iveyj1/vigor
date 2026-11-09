@@ -33,6 +33,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Delete the last nonempty buffer into a fresh unnamed buffer; retain dirty-buffer checks and refuse deleting the last empty buffer even with force. Full suite passed.
 1. Add session-local Ctrl-O hidden-file toggle to shared completion menus; explicit dot prefixes always match hidden files. Full suite passed.
 1. Add `:rg -C N` / `-B N -A N` context with match-only quickfix entry navigation. Full suite passed.
 1. Add optional `incscroll` search-preview scrolling with viewport restoration on cancellation or invalid/unmatched patterns. Full suite passed.

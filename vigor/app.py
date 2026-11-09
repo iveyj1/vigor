@@ -664,11 +664,26 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self._ensure_scroll()
         self.mode = Mode.NORMAL
 
+    def _delete_buffer(self, force=False):
+        self.mode = Mode.NORMAL
+        if len(self.buffers) == 1 and self.buf.lines == [""]:
+            self.msg = "Cannot delete last empty buffer"
+        elif self.buf.dirty and not force:
+            self.msg = "No write since last change (add ! to override)"
+        else:
+            self._close_buffer()
+
     def _close_buffer(self):
         """Remove current buffer and load an adjacent one."""
         old = self.buffers.pop(self.buf_idx)
         if old is self.quickfix_state:
             self.quickfix_state = None
+        if old is self.mru_state:
+            self.mru_state = None
+        if not self.buffers:
+            state = BufferState()
+            self.buffers.append(state)
+            self._initialize_buffer_detection(state)
         if self.buf_idx >= len(self.buffers):
             self.buf_idx = len(self.buffers) - 1
         self._sticky_cx = None

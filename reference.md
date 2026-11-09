@@ -143,7 +143,7 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:n` / `:next` / `:bn` | next buffer |
 | `:p` / `:prev` / `:bp` | previous buffer |
 | `:ls` | list buffers |
-| `:k` / `:bdelete` | close buffer (`:k!` / `:bdelete!` to force) |
+| `:k` / `:bdelete` | delete buffer (`:k!` / `:bdelete!` discard unsaved changes); last nonempty buffer is replaced by a fresh unnamed buffer; last empty buffer is retained with a warning, even with `!` |
 | `:set readonly` / `:set noreadonly` | lock or unlock current buffer editing; write-as to another path also retargets and unlocks when writable |
 | `:set option?` | print the current value as reusable set syntax, e.g. `nowrap` or `textwidth=72` |
 | `:make [args]` | run configured `makeprg` and capture merged output in quickfix |
@@ -226,7 +226,7 @@ It executes arguments directly rather than through a shell; use `sh -c '...'` ex
 | `:n` `:bn` | next buffer |
 | `:p` `:bp` | previous buffer |
 | `:ls` | list all buffers |
-| `<space>d` | close current buffer, refusing dirty or last buffers |
+| `<space>d` | delete current buffer, refusing unsaved changes; last nonempty buffer becomes a fresh unnamed buffer |
 | `<space>w` | toggle `wrap` / `nowrap` |
 | `<space>ec` | edit the loaded effective config file, if any |
 | `<space>(` / `{` / `[` / `"` / `'` + motion or text object | surround the range with the matching literal pair; counts and dot repeat work |

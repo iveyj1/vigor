@@ -141,7 +141,8 @@ Recovery and manual versions use protectdir; autosave still writes the original.
 `auto` uses XDG state, `file` uses adjacent hidden files, and PATH is explicit.
 Central artifacts use basename plus an absolute-path hash and contain no path metadata.
 
-<space>d            delete current buffer
+<space>d            delete current buffer (refuses unsaved changes)
+                    last nonempty becomes unnamed; last empty cannot be deleted
 <space>ec           edit loaded startup config file
 <space>w            toggle line wrapping
 <space>(/{/[/"/' + motion/text object    surround range
