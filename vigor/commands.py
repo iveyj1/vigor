@@ -298,6 +298,8 @@ class CommandMixin:
         return True
 
     def _handle_insert_completion(self, key):
+        if self.comp_active and key == "CTRL_A":
+            return True
         if self._completion_filter_key(key):
             return True
         if self.comp_active:
@@ -368,6 +370,41 @@ class CommandMixin:
             if directory:
                 self._start_completion(auto_accept=False)
 
+    def _completion_edit_files(self):
+        if self.mode != Mode.COMMAND or not self.comp_active:
+            return None
+        if self.comp_glob is not None:
+            return self.comp_matches[:]
+        if self.comp_head not in ("e", "edit", "e --literal", "edit --literal"):
+            return None
+        base = os.path.dirname(self.comp_token)
+        return [os.path.abspath(os.path.expanduser(os.path.join(base, name)))
+                for name in self.comp_matches if not name.endswith("/")]
+
+    def _open_completion_files(self):
+        paths = self._completion_edit_files()
+        if paths is None:
+            return
+        if not paths:
+            self.msg = "No matching files to open"
+            return
+        self._clear_completion()
+        self._startup_completion = False
+        self.cmd, self.cmd_cx = "", 0
+        self._reset_history_nav()
+        self.mode = Mode.NORMAL
+        first, failed, opened = None, 0, 0
+        for path in paths:
+            if not os.path.isfile(path) or not self._goto_file_location(path):
+                failed += 1
+                continue
+            opened += 1
+            if first is None:
+                first = self.buffers[self.buf_idx]
+        if first is not None:
+            self._switch_buffer(self.buffers.index(first))
+        self.msg = f"Opened {opened} file(s)" + (f"; {failed} failed" if failed else "")
+
     def handle_command(self, key):
         if self._completion_filter_key(key):
             return
@@ -380,6 +417,9 @@ class CommandMixin:
             self._clear_completion()
             return
         if self.comp_active:
+            if key == "CTRL_A":
+                self._open_completion_files()
+                return
             if key == "CTRL_O":
                 self._toggle_completion_hidden()
                 return

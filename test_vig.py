@@ -2775,6 +2775,48 @@ def test_completion_parent_root_and_normalization():
     print("  PASS: normalized parents, root suppression, and Insert dot replay")
 
 
+def test_picker_open_all_files():
+    with tempfile.TemporaryDirectory() as d:
+        for name in ("aa.txt", "ab.txt", "other", ".hidden.txt"):
+            with open(os.path.join(d, name), "w") as f:
+                f.write(name + " body\n")
+        os.mkdir(os.path.join(d, "a-directory"))
+        env = {"VIG_NO_CONFIG": "1", "XDG_STATE_HOME": d}
+        for launch in (b":e *.txt\r", b":e \t"):
+            screen, _, code = run_vig(launch + b"at\x01:ls\r:qa\r", cwd=d, env=env, file_paths=[])
+            assert code == 0 and "Opened 2 file(s)" in screen
+            frame = last_frame(screen)
+            assert "aa.txt body" in frame and "[1/2]" in frame
+            assert "Ctrl-A: open all 2 files" in screen
+        screen, _, code = run_vig(b"\x01:ls\r:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "Opened 3 file(s)" in screen
+        screen, _, code = run_vig(b"zzzz\x01\x03:qa\r", file_paths=[d], env=env)
+        assert code == 0 and "No matching files to open" in screen
+        path = os.path.join(d, "aa.txt")
+        screen, content, code = run_vig(b"iDIRTY\x1b:e *.txt\r\x01:w\r:qa\r", file_path=path, cwd=d, env=env)
+        assert code == 0 and content == "DIRTYaa.txt body\n"
+        for keys in (b":w \t\x01\x1b\x1b:qa\r", b"i\x10\x01\x1b\x1b:qa\r"):
+            screen, _, code = run_vig(keys, cwd=d, env=env, file_paths=[])
+            assert code == 0 and "Opened " not in screen and "Ctrl-A: open all" not in screen
+        from vigor.commands import CommandMixin
+        class Picker(CommandMixin):
+            def _completion_edit_files(self):
+                return [os.path.join(d, "missing"), path, os.path.join(d, "other")]
+            def _reset_history_nav(self):
+                pass
+            def _goto_file_location(self, target):
+                self.buffers.append(target)
+                self.buf_idx = len(self.buffers) - 1
+                return True
+            def _switch_buffer(self, index):
+                self.buf_idx = index
+        picker = Picker()
+        picker.buffers = []
+        picker._open_completion_files()
+        assert picker.msg == "Opened 2 file(s); 1 failed" and picker.buf_idx == 0
+    print("  PASS: picker open-all scope, filtering, count, and dirty buffer reuse")
+
+
 def test_edit_glob_picker():
     with tempfile.TemporaryDirectory() as d:
         for name in ("alpha.py", "beta.py", ".hidden.py", "literal*.txt"):
@@ -6427,6 +6469,7 @@ def main():
             test_completion_enter_directory,
             test_completion_fuzzy_filter,
             test_edit_glob_picker,
+            test_picker_open_all_files,
             test_insert_completion_fuzzy_replacement,
             test_completion_parent_root_and_normalization,
             test_completion_hidden_toggle,

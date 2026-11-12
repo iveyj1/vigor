@@ -438,7 +438,9 @@ class RenderMixin:
         matches = self.comp_matches or ["No matches"]
         item_rows = min(len(matches), max_items)
         title = f" Filter: {self.comp_filter} | Hidden: {'on' if self.comp_hidden else 'off'} "
-        text_w = min(max(len(title), max(len(n) for n in matches)), self.cols - 2 - 2 * hpad)
+        files = self._completion_edit_files()
+        footer = f" Ctrl-A: open all {len(files)} files " if files is not None else ""
+        text_w = min(max(len(title), len(footer), max(len(n) for n in matches)), self.cols - 2 - 2 * hpad)
         inner_w = text_w + 2 * hpad
         box_w = inner_w + 2
         box_h = item_rows + 2 * vpad + 2
@@ -460,7 +462,7 @@ class RenderMixin:
         bottom_pad_top = item_top + item_rows
         for i in range(vpad):
             out.append(f"\x1b[{bottom_pad_top + i};{left}H│" + " " * inner_w + "│")
-        out.append(f"\x1b[{top + box_h - 1};{left}H╰" + "─" * inner_w + "╯")
+        out.append(f"\x1b[{top + box_h - 1};{left}H╰" + footer[:inner_w].ljust(inner_w, "─") + "╯")
 
     def _append_disk_dialog(self, out):
         if not self._disk_dialog:

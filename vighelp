@@ -9,6 +9,8 @@ Files with no write bits or no current-user write access open locked.
 Directory lists start with ../ except at root; Enter uses the resolved parent path.
 Enter on a directory shows its contents; Enter on a file accepts and closes the menu.
 Completion menus: type to fuzzy-filter filenames; Backspace edits filter.
+Edit pickers: Ctrl-A opens all filtered files (not directories), focuses first.
+The footer shows the count; unavailable in Insert/non-edit completion.
 Esc clears filter first, then closes menu. Filter text is not inserted.
 Completion menus: Ctrl-O toggles dotfiles (session-local); explicit . prefixes always show them.
 

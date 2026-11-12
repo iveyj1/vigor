@@ -128,6 +128,8 @@ class Terminal:
             return "ENTER"
         if ch == 9:
             return "TAB"
+        if ch == 1:
+            return "CTRL_A"
         if ch == 3:
             return "CTRL_C"
         if ch == 4:

@@ -30,6 +30,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Ctrl-A opens all filtered files from edit pickers, excluding directories, preserving existing buffers, focusing the first success, and reporting failures; count footer and full suite passed.
 1. Add :edit wildcard expansion with a shared Tab/fuzzy picker, literal-path escape hatch, no-match errors, and safe buffer reuse; full suite passed.
 1. Audit vighelp/reference: correct stale disk-write, completion Esc, path/list navigation, Makefile tab, case-operation, and ripgrep descriptions; extend documentation checks. Full suite passed.
 1. Add separate fuzzy keyboard filters to completion dialogs, ranked subsequence matches, no-match recovery, and Insert basename replacement with literal dot replay. Full suite passed.
