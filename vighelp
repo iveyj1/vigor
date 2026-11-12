@@ -59,7 +59,10 @@ n N                 repeat search / reverse
 :w [path]           write current buffer
 :q / :q! / :wq      quit / force quit / write and quit
 :qa / :qa!          quit all / force quit all
-:e path / :e!       open new buffer / reload current buffer
+:e path / :e!       open/reuse buffer / reload current buffer
+:e *.py             wildcard files (* ? []); multiple matches use fuzzy picker
+                    Enter accepts path; second Enter opens; Tab uses same picker
+:e --literal path   edit a filename containing literal wildcard characters
 :new                create an empty buffer
 :n / :p             next / previous buffer
 :ls                 list buffers

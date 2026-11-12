@@ -129,7 +129,9 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:wq` | write and quit |
 | `:qa` / `:qall` | quit all buffers |
 | `:qa!` / `:qall!` | force quit all |
-| `:e <path>` | open file in new buffer |
+| `:e <path>` | open file or reuse its existing buffer without discarding edits |
+| `:e <pattern>` | expand `*`, `?`, and bracket classes; multiple matching files use the shared fuzzy picker |
+| `:e --literal <path>` | bypass wildcard expansion, including for new filenames containing wildcard characters |
 | `:e!` | reload current buffer from disk, discarding unsaved changes; errors if unnamed |
 | `:new` | create empty buffer |
 | `:help` | open `vighelp` beside the vigor executable |
@@ -160,6 +162,14 @@ While a `/` or `?` prompt is being typed, visible matches preview without moving
 | `:[range]!!<cmd>` / `:!!<cmd>` | pipe range, or whole buffer without a range, to shell command and open stdout in a new buffer |
 
 `:!` and `:read !` receive EOF on stdin, never editor keystrokes. To process buffer text, use a filter such as `:%!sed '/foo/d'`. These commands and filters use `shelltimeout` seconds (default 10); timeout terminates their shell process group, including ordinary child processes. Ctrl-C cancels them and terminates their shell process group without applying partial output. Other keys typed while they run are discarded. This option does not change `:make`, `:qf`, or ripgrep timeouts.
+
+### Edit wildcards
+
+`:e` / `:edit` expands `*`, `?`, and `[abc]` with Python globbing, without a shell. Relative patterns use cwd and `~` expands. Patterns may span directory components, but recursive `**` is rejected; brace expansion and environment-variable expansion are not performed. Hidden path components must be explicitly dot-prefixed. Directories are excluded from wildcard results; explicit directory arguments retain their existing behavior.
+
+One matching file opens immediately. Multiple matches show sorted absolute paths in the same picker used by Tab: type to fuzzy-filter, use arrows or Tab/Shift-Tab to select, and press Enter to fill `edit --literal <selected path>` and close the picker. A second Enter opens the file. Esc clears a filter first, then dismisses the menu; Ctrl-C cancels. Tab on an edit wildcard pattern uses the same results (a sole match only fills the command). Ctrl-O does not broaden wildcard results; use a dot-prefixed pattern for hidden files. Only the selected file is opened and added to MRU, reusing an existing buffer safely. No matches reports an error instead of creating a wildcard-named file. Tab/newline-containing paths are omitted from the picker.
+
+Use `:e --literal file*.txt` to open or create a literal wildcard filename. Ordinary paths without wildcards still permit creating new files. Spaces in the path are part of the argument; do not add shell quotes.
 
 ### Options
 

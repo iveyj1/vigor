@@ -111,6 +111,7 @@ class CommandMixin:
         return True
 
     def _clear_completion(self):
+        self.comp_glob = None
         self.comp_active = False
         self.comp_filter = ""
         self.comp_matches = []
@@ -129,7 +130,10 @@ class CommandMixin:
         parts = s.split(None, 1)
         if not parts or parts[0] not in ("e", "edit", "w", "write", "r", "read", "rgf", "cd"):
             return None
-        return parts[0], (parts[1] if len(parts) > 1 else ""), os.getcwd(), False
+        token = parts[1] if len(parts) > 1 else ""
+        if parts[0] in ("e", "edit") and token.startswith("--literal "):
+            return parts[0] + " --literal", token[len("--literal "):], os.getcwd(), False
+        return parts[0], token, os.getcwd(), False
 
     def _completion_names(self, token, base_dir):
         expanded = os.path.expanduser(token)
@@ -143,6 +147,45 @@ class CommandMixin:
         shown = [n + ("/" if os.path.isdir(os.path.join(search_dir, n)) else "") for n in names]
         parent = not prefix and os.path.dirname(os.path.realpath(search_dir)) != os.path.realpath(search_dir)
         return (["../"] if parent else []) + shown, search_dir
+
+    def _edit_glob(self, pattern, picker=False):
+        """Expand edit patterns without a shell; reuse the completion picker."""
+        import glob
+        if not glob.has_magic(pattern):
+            return False
+        self._clear_completion()
+        if "**" in pattern:
+            self.msg = "Recursive ** patterns are not supported"
+            if not picker:
+                self.mode = Mode.NORMAL
+            return True
+        expanded = self._resolve_cmd_path(pattern)
+        try:
+            paths = sorted(p for p in glob.glob(expanded) if os.path.isfile(p)
+                           and not any(c in p for c in "\n\r\t"))
+        except (OSError, ValueError) as e:
+            self.msg = f"edit: {e}"
+            if not picker:
+                self.mode = Mode.NORMAL
+            return True
+        if not paths:
+            self.msg = "No files match"
+            if not picker:
+                self.mode = Mode.NORMAL
+        elif len(paths) == 1 and not picker:
+            self.mode = Mode.NORMAL
+            self._goto_file_location(paths[0])
+        else:
+            self.comp_glob = paths
+            self.comp_matches = paths[:]
+            self.comp_active = True
+            self.comp_token = pattern
+            self.cmd = "edit " + pattern
+            self.cmd_cx = len(self.cmd)
+            self.mode = Mode.COMMAND
+            if len(paths) == 1:
+                self._accept_completion()
+        return True
 
     def _completion_parent(self):
         token = os.path.expanduser(self.comp_token)
@@ -163,6 +206,10 @@ class CommandMixin:
         if not ctx:
             return
         self.comp_head, self.comp_token, self.comp_base_dir, self.comp_shell = ctx
+        if self.comp_head in ("e", "edit") and not self.comp_token.startswith("--literal "):
+            if self._edit_glob(self.comp_token, picker=True):
+                return
+        self.comp_glob = None
         self.comp_matches, _ = self._completion_names(self.comp_token, self.comp_base_dir)
         self.comp_index = 0
         self.comp_filter = ""
@@ -197,9 +244,11 @@ class CommandMixin:
         if self.mode == Mode.INSERT:
             token = os.path.expandvars(os.path.expanduser(token))
         directory = os.path.dirname(token)
-        names, _ = self._completion_names(directory.rstrip(os.sep) + os.sep if directory else "", os.getcwd())
+        names = self.comp_glob
+        if names is None:
+            names, _ = self._completion_names(directory.rstrip(os.sep) + os.sep if directory else "", os.getcwd())
         query = self.comp_filter.casefold()
-        if (query.startswith(".") or os.path.basename(token).startswith(".")) and not self.comp_hidden:
+        if self.comp_glob is None and (query.startswith(".") or os.path.basename(token).startswith(".")) and not self.comp_hidden:
             extra, _ = self._completion_names(os.path.join(directory, "."), os.getcwd())
             names = list(dict.fromkeys(names + extra))
         ranked = []
@@ -225,6 +274,9 @@ class CommandMixin:
         self.comp_index = self.comp_matches.index(selected) if selected in self.comp_matches else 0
 
     def _toggle_completion_hidden(self):
+        if self.comp_glob is not None:
+            self.msg = "Wildcard matches: use a dot-prefixed pattern for hidden files"
+            return
         self.comp_hidden = not self.comp_hidden
         self._filter_completion()
 
@@ -303,6 +355,12 @@ class CommandMixin:
         self.comp_index = min(self.comp_index, max(0, len(self.comp_matches) - 1))
 
     def _accept_completion(self):
+        if self.comp_glob is not None and self.comp_matches:
+            path = self.comp_matches[self.comp_index]
+            self.cmd = "edit --literal " + path
+            self.cmd_cx = len(self.cmd)
+            self._clear_completion()
+            return
         if self.comp_matches:
             directory = self.comp_matches[self.comp_index].endswith("/")
             self._set_completed_token(self.comp_matches[self.comp_index])
@@ -366,8 +424,9 @@ class CommandMixin:
             self._reset_history_nav()
             self._clear_completion()
             self._exec_command(cmd)
-            self.cmd = ""
-            self.cmd_cx = 0
+            if not self.comp_active:
+                self.cmd = ""
+                self.cmd_cx = 0
             return
         self._edit_prompt(key, completion=True)
 
@@ -477,17 +536,17 @@ class CommandMixin:
             self.mode = Mode.NORMAL
         elif cmd in ("e", "edit"):
             if arg:
-                # Add new buffer and switch to it
+                literal = arg.startswith("--literal ")
+                if literal:
+                    arg = arg[len("--literal "):]
+                elif self._edit_glob(arg):
+                    return
+                # Open or reuse the requested file without discarding existing edits.
                 path = self._resolve_cmd_path(arg)
                 if os.path.isdir(path):
                     self.msg = f'Cannot edit directory: "{path}"'
                 else:
-                    try:
-                        new_bs = BufferState(path)
-                    except OSError as e:
-                        self.msg = f'Cannot edit "{path}": {e.strerror or str(e)}'
-                    else:
-                        self._add_buffer(new_bs)
+                    if self._goto_file_location(path):
                         self.msg = f'"{path}"'
             else:
                 self.msg = "No file name"

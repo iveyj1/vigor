@@ -2775,6 +2775,32 @@ def test_completion_parent_root_and_normalization():
     print("  PASS: normalized parents, root suppression, and Insert dot replay")
 
 
+def test_edit_glob_picker():
+    with tempfile.TemporaryDirectory() as d:
+        for name in ("alpha.py", "beta.py", ".hidden.py", "literal*.txt"):
+            with open(os.path.join(d, name), "w") as f:
+                f.write("body " + name + "\n")
+        os.mkdir(os.path.join(d, "dir.py"))
+        env = {"VIG_NO_CONFIG": "1", "XDG_STATE_HOME": d}
+        for launch in (b":e *.py\r", b":e *.py\t"):
+            screen, _, code = run_vig(launch + b"bt\r\r:qa\r", cwd=d, env=env)
+            assert code == 0 and "body beta.py" in screen
+            assert "dir.py" not in screen and ".hidden.py" not in screen
+            screen, _, code = run_vig(launch + b"bt\r\x1b:qa\r", cwd=d, env=env)
+            assert code == 0 and "body beta.py" not in screen
+        for pattern, expected in (("a?pha.py", "alpha.py"), ("[ab]lpha.py", "alpha.py"),
+                                  (".*.py", ".hidden.py"), ("--literal literal*.txt", "literal*.txt")):
+            screen, _, code = run_vig((":e " + pattern + "\r:qa\r").encode(), cwd=d, env=env)
+            assert code == 0 and "body " + expected in screen
+        for pattern, message in (("missing*.py", "No files match"), ("**/*.py", "not supported")):
+            screen, _, code = run_vig((":e " + pattern + "\r:qa\r").encode(), cwd=d, env=env)
+            assert code == 0 and message in screen
+        target = os.path.join(d, "alpha.py")
+        screen, content, code = run_vig(b"iCHANGED\x1b:e a*.py\r:wq\r", file_path=target, cwd=d, env=env)
+        assert code == 0 and content == "CHANGEDbody alpha.py\n"
+    print("  PASS: edit glob picker, Tab consistency, literals, and buffer reuse")
+
+
 def test_completion_fuzzy_filter():
     with tempfile.TemporaryDirectory() as d:
         names = ("vigor_commands.md", "vigor_config.md", "abc-tail", "xabc", "a_b_c", ".secret")
@@ -6400,6 +6426,7 @@ def main():
             test_completion_parent_entry,
             test_completion_enter_directory,
             test_completion_fuzzy_filter,
+            test_edit_glob_picker,
             test_insert_completion_fuzzy_replacement,
             test_completion_parent_root_and_normalization,
             test_completion_hidden_toggle,
