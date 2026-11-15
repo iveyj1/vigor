@@ -3073,6 +3073,37 @@ def test_vigfiles_missing_entry_opens_new_file_with_warning():
     assert os.path.basename(missing) in screen and "New file from vigfiles" in screen, f"Expected new-file warning: {screen[-800:]}"
     print("  PASS: vigfiles missing entry opens new file")
 
+def test_binary_files_report_errors_without_losing_edits():
+    """Binary opens and reloads fail safely, including before terminal startup."""
+    import subprocess
+    with tempfile.TemporaryDirectory() as d:
+        binary = os.path.join(d, "data.sqlite3-shm")
+        for payload in (b"\xff\xfe", b"SQLite\0data"):
+            with open(binary, "wb") as f:
+                f.write(payload)
+            screen, _, code = run_vig(
+                f"iKEEP\x1b:e {binary}\r:w {d}/saved\r:q\r".encode())
+            assert code == 0 and "Cannot edit" in screen, screen[-1500:]
+            with open(os.path.join(d, "saved")) as f:
+                assert f.read() == "KEEP\n"
+            result = subprocess.run(["./vig", binary], capture_output=True)
+            assert result.returncode == 1 and b"Cannot open" in result.stderr
+            assert b"Traceback" not in result.stderr
+            with open(binary, "rb") as f:
+                assert f.read() == payload
+        from vigor.state import Buffer
+        buf = Buffer()
+        buf.lines = ["KEEP"]
+        try:
+            buf.lines = buf.read_lines(binary)
+        except OSError:
+            pass
+        else:
+            assert False, "binary reload must fail"
+        assert buf.lines == ["KEEP"]
+    print("  PASS: binary files report errors and preserve edits")
+
+
 def test_external_file_change_blocks_first_write():
     """Enter cancels a conflicting write; seeing the warning grants no approval."""
     path = write_temp("orig\n")
@@ -6478,6 +6509,7 @@ def main():
             test_mru_persistence_and_shortcuts,
             test_mru_limit_empty_and_storage_failure,
             test_vigfiles_missing_entry_opens_new_file_with_warning,
+            test_binary_files_report_errors_without_losing_edits,
             test_external_file_change_blocks_first_write,
             test_external_file_change_explicit_overwrite,
             test_disk_dialog_reload_cancel_save_elsewhere,

@@ -366,8 +366,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
             return
         else:
             try:
-                with open(self.buf.path, "r") as f:
-                    self.buf.lines = f.read().splitlines() or [""]
+                self.buf.lines = self.buf.read_lines(self.buf.path)
             except OSError as e:
                 self.msg = f'Cannot reload "{self.buf.path}": {e.strerror or str(e)}'
                 self.mode = Mode.NORMAL
@@ -963,7 +962,11 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
 def main():
     paths = sys.argv[1:] if len(sys.argv) > 1 else None
-    ed = Editor(paths)
+    try:
+        ed = Editor(paths)
+    except OSError as e:
+        sys.stderr.write(f"vig: Cannot open file: {e}\n")
+        raise SystemExit(1)
     try:
         ed.run()
     except Exception as e:

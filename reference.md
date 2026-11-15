@@ -286,6 +286,10 @@ Ctrl-P completes whitespace-delimited paths or paths inside an opening single/do
 | Home / End | start / end of line |
 | Escape | return to Normal mode |
 
+### Binary Files
+- Opens and reloads reject files containing NUL bytes or text-decoding errors with an error message, preserving current edits. Binary editing and lossy decoding are not supported.
+- A startup open failure prints an error to stderr and exits nonzero.
+
 ### Disk Change Detection
 - Named buffers remember their disk signature after open, reload, autosave, and explicit write.
 - A persistent `[DISK CHANGED]` status marker identifies unresolved disk changes on redraw. Merely seeing a warning never authorizes an overwrite.

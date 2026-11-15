@@ -21,12 +21,21 @@ class Buffer:
         self._dirty = False
         self.dirty_callback = None
         if path and os.path.exists(path):
-            with open(path, "r") as f:
-                self.lines = f.read().splitlines()
-            if not self.lines:
-                self.lines = [""]
+            self.lines = self.read_lines(path)
         else:
             self.lines = [""]
+
+    @staticmethod
+    def read_lines(path):
+        """Reject binary/undecodable input without lossy text conversion."""
+        try:
+            with open(path, "r") as f:
+                text = f.read()
+        except UnicodeError as e:
+            raise OSError(f'Not a supported text file (decoding failed): "{path}"') from e
+        if "\0" in text:
+            raise OSError(f'Binary file (NUL bytes): "{path}"')
+        return text.splitlines() or [""]
 
     @property
     def dirty(self):
