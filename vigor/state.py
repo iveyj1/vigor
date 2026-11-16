@@ -10,6 +10,7 @@ class Mode(Enum):
     COMMAND = "COMMAND"
     VISUAL = "VISUAL"
     VISUAL_LINE = "VISUAL LINE"
+    VISUAL_BLOCK = "VISUAL BLOCK"
     SEARCH = "SEARCH"
 
 

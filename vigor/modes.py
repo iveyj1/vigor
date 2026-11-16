@@ -510,6 +510,11 @@ class ModeMixin:
             self._start_dot(n, "A")
             self.cx = len(self.buf.lines[self.cy])
             self._enter_insert(snapshot=True)
+        elif key == "CTRL_V":
+            self._set_markdown_view(False)
+            self.mode = Mode.VISUAL_BLOCK
+            self.vy = self.cy
+            self.vx = self._block_x = self._view_col(self.cy, self.cx)
         elif key == "v":
             self.vx, self.vy = self.cx, self.cy
             self.mode = Mode.VISUAL
@@ -692,7 +697,8 @@ class ModeMixin:
     def _remember_visual_selection(self):
         """Save the current Visual mode, anchor, and endpoint for gv."""
         self.buffers[self.buf_idx].last_visual = (
-            self.mode, self.vx, self.vy, self.cx, self.cy,
+            self.mode, self.vx, self.vy,
+            self._block_x if self.mode == Mode.VISUAL_BLOCK else self.cx, self.cy,
         )
 
     def _restore_visual_selection(self):
@@ -703,11 +709,76 @@ class ModeMixin:
             return
         self.mode, self.vx, self.vy, self.cx, self.cy = saved
         self.vy = max(0, min(self.vy, len(self.buf.lines) - 1))
-        self.vx = max(0, min(self.vx, len(self.buf.lines[self.vy])))
+        if self.mode == Mode.VISUAL_BLOCK:
+            self._set_markdown_view(False)
+            self._block_x = self.cx
+            self.cy = max(0, min(self.cy, len(self.buf.lines) - 1))
+            self.cx = self._view_index(self.cy, self._block_x)
+        else:
+            self.vx = max(0, min(self.vx, len(self.buf.lines[self.vy])))
         self._clamp_cursor()
         self._ensure_scroll()
 
+    def _handle_visual_block(self, key):
+        """Block endpoints use display cells; j/k always cross logical lines."""
+        if key in ("ESC", "CTRL_V", "CTRL_C"):
+            self._remember_visual_selection()
+            self._cancel_pending()
+            self.mode = Mode.NORMAL
+            return
+        if self._pending_find:
+            cmd, n = self._pending_find
+            self._pending_find = None
+            self._exec_find(cmd, key, n)
+        else:
+            if key.isdigit() and (key != "0" or self.count):
+                self.count = self.count * 10 + int(key)
+                return
+            n, extra_n = max(1, self.count), self.count or None
+            self.count = 0
+            if self._pending_g:
+                self._pending_g = False
+                if key not in ("g", "0", "^", "$"):
+                    return
+                key = "g" + key
+            elif key == "g":
+                self._pending_g = True
+                self.count = extra_n or 0
+                return
+            if key in ("y", "d", "x"):
+                self._remember_visual_selection()
+                self._block_edit(delete=key != "y")
+                self._clamp_cursor()
+                self._ensure_scroll()
+                return
+            if key in ("f", "t", "F", "T"):
+                self._pending_find = (key, n)
+                return
+            if key in ("h", "l", "LEFT", "RIGHT", "j", "k", "DOWN", "UP"):
+                if key in ("j", "k", "DOWN", "UP"):
+                    self.cy = max(0, min(len(self.buf.lines) - 1, self.cy + (n if key in ("j", "DOWN") else -n)))
+                else:
+                    end = self._view_col(self.cy, len(self.buf.lines[self.cy]))
+                    self._block_x = max(0, min(end, self._block_x + (n if key in ("l", "RIGHT") else -n)))
+                self.cx = self._view_index(self.cy, self._block_x)
+                self._ensure_scroll()
+                return
+            if key in (";", ","):
+                self._repeat_find(reverse=key == ",", n=n)
+            elif key == "%":
+                self._motion_percent()
+            elif not self._exec_motion(key, n, extra_n=extra_n):
+                self.msg = "Block selection: y yank, d/x delete, Esc cancel"
+                return
+        self._clamp_cursor()
+        if key not in ("g0", "g^", "g$"):
+            self._block_x = self._view_col(self.cy, self.cx)
+        self._ensure_scroll()
+
     def handle_visual(self, key):
+        if self.mode == Mode.VISUAL_BLOCK:
+            self._handle_visual_block(key)
+            return
         if key not in ("j", "k", "DOWN", "UP"):
             self._sticky_cx = None
         if (self._flash_targets or self._pending_flash) and self._handle_flash_key(key):

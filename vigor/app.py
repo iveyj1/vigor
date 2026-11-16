@@ -86,6 +86,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         self.pending_extra_n = None  # raw count for G/gg motions
         self.register = ""  # unnamed register (last yank/delete text)
         self.reg_linewise = False  # was last register content linewise?
+        self.reg_block_width = 0
+        self._block_x = 0  # display-column endpoint, including positions inside tabs
         self.search_pattern = ""  # last / or ? search
         self.search_ignorecase = False  # smart-case flag for active search
         self.search_dir = 1  # 1=forward, -1=backward
@@ -758,7 +760,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
 
     def _cursor_view_row(self):
         """Return the cursor's display row relative to the viewport top."""
-        return self._viewport_layout().source_view_row(self.cy, self.cx)
+        return self._viewport_layout().source_view_row(self.cy, self.cx, self._cursor_display_col())
 
     def _position_at_view_row(self, target, col):
         """Move cursor to a viewport display row, preserving column where possible."""
@@ -849,6 +851,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
         if action == "press":
             self.cy, self.cx = position
             self._sticky_cx = None
+            if self.mode == Mode.VISUAL_BLOCK:
+                self._block_x = self._view_col(self.cy, self.cx)
             if self.opt_mouse == "visual":
                 self._mouse_anchor = position
                 self._mouse_dragged = False
@@ -923,6 +927,8 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     self._suspend()
                     continue
                 if key == "CTRL_C" and self.mode != Mode.NORMAL:
+                    if self.mode == Mode.VISUAL_BLOCK:
+                        self._remember_visual_selection()
                     self._restore_search_view()
                     self._cancel_pending()
                     self._startup_completion = False
@@ -949,7 +955,7 @@ class Editor(CommandMixin, ModeMixin, EditingMixin, RenderMixin):
                     self.handle_insert(key)
                 elif self.mode == Mode.COMMAND:
                     self.handle_command(key)
-                elif self.mode in (Mode.VISUAL, Mode.VISUAL_LINE):
+                elif self.mode in (Mode.VISUAL, Mode.VISUAL_LINE, Mode.VISUAL_BLOCK):
                     self.handle_visual(key)
                 elif self.mode == Mode.SEARCH:
                     self.handle_search(key)

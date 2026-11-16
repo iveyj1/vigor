@@ -19,9 +19,8 @@ None
 1. Add marks.
    **Moderate-to-large; 60–100 lines.** Build on location-history jumps and per-buffer state. Specify local/global names, deletion behavior, path persistence, motions, operators, and what happens when edited text invalidates a mark.
 1. Add named registers.
-   **Large; 80–130 lines.** Extend the current unnamed-register and operator-prefix state before macros or Visual Block. Specify numbered/small-delete/clipboard registers only if they are actually wanted; a compact first phase could support named character registers plus the existing unnamed register.
-1. Add Visual Block mode via Ctrl-V; see `proposals/block-select.md`.
-   **Large; 80–120 lines for highlighting plus delete/yank, 180–280 for broader editing.** Implement after register semantics are settled. Short-line padding, tabs, insert/change behavior, and numeric operations remain design blockers.
+   **Large; 80–130 lines.** Extend the current unnamed-register and operator-prefix state before macros. Specify numbered/small-delete/clipboard registers only if they are actually wanted; a compact first phase could support named character registers plus the existing unnamed register.
+1. Visual Block Phase 2: c/I/A replicated insertion and block-edit dot repeat; see `proposals/block-select.md`. Phase 1 selection, tabs, yank/delete/paste, undo, and gv are complete. Define insertion replay/cancellation before implementing Phase 2.
 1. Add configurable keymaps.
    **Large and architecturally broad; likely 120+ lines.** Define scope before implementation: remap versus recursive mapping, mode-specific maps, multi-key timeout, config syntax, and interaction with counts/operator-pending. Keep this below editor-state and command dispatch rather than introducing a plugin system.
 1. Add `kjk` as an Insert-mode Esc alias.
@@ -30,6 +29,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+- Visual Block Phase 1: Ctrl-V display-column selection with partial tabs, yank/delete, padded block paste, atomic undo/redo, and per-buffer gv. Phase 89 and the full suite pass; replicated insertion remains deferred.
 - Reject binary/undecodable opens and reloads safely; report startup open failures on stderr.
 1. Ctrl-A opens all filtered files from edit pickers, excluding directories, preserving existing buffers, focusing the first success, and reporting failures; count footer and full suite passed.
 1. Add :edit wildcard expansion with a shared Tab/fuzzy picker, literal-path escape hatch, no-match errors, and safe buffer reuse; full suite passed.

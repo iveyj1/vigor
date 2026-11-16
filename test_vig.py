@@ -3073,6 +3073,115 @@ def test_vigfiles_missing_entry_opens_new_file_with_warning():
     assert os.path.basename(missing) in screen and "New file from vigfiles" in screen, f"Expected new-file warning: {screen[-800:]}"
     print("  PASS: vigfiles missing entry opens new file")
 
+def make_file(text):
+    """Create a named text fixture; callers remove it after the PTY run."""
+    with tempfile.NamedTemporaryFile(mode="w", delete=False) as f:
+        f.write(text)
+        return f.name
+
+
+def test_visual_block_delete_reverse_and_undo():
+    cases = [(b"l\x16ljd", "ad\neh\nijkl\n"),
+             (b"2j2l\x16khd", "abcd\neh\nil\n"),
+             (b"l\x16ljdu", "abcd\nefgh\nijkl\n"),
+             (b"l\x16ljdu\x12", "ad\neh\nijkl\n")]
+    for keys, expected in cases:
+        path = make_file("abcd\nefgh\nijkl\n")
+        screen, content, code = run_vig(keys + b":wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == expected, (content, expected)
+        assert "VISUAL BLOCK" in screen
+    print("  PASS: block delete, reverse selection, undo and redo")
+
+
+def test_visual_block_partial_tabs():
+    from vigor.editing import split_display, paste_block
+    assert split_display("a\tZ\tQ", 2) == ("a ", "  Z\tQ")
+    lines = ["xy", "\tZ"]
+    paste_block(lines, 0, 1, "A\nB", 1, before=True)
+    assert lines == ["xAy", " B   Z"], lines
+    for keys, expected in [(b"\x16ljd", "  AB\tQ\n  CD\tR\n"),
+                           (b"\x163ljd", "AB\tQ\nCD\tR\n")]:
+        path = make_file("\tAB\tQ\n\tCD\tR\n")
+        _, content, code = run_vig(keys + b":wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == expected, repr(content)
+    path = make_file("\tAB\n\tCD\nZ\n")
+    _, content, code = run_vig(b"\x16ljyG$p:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "\tAB\n\tCD\nZ  \n   \n", repr(content)
+    path = make_file("\tAB\n")
+    screen, _, _ = run_vig(b":set wrap\r:set wrapcol=1\r\x162l", file_path=path, timeout=0.3)
+    os.unlink(path)
+    assert "\x1b[3;1H\x1b[?25h" in last_frame(screen), "cursor must address a cell inside a wrapped tab"
+    print("  PASS: block partial/full tabs, yank and paste tab boundaries")
+
+
+def test_visual_block_paste_padding_eof_and_undo():
+    for paste_key, expected in [(b"p", "abcd\nefgh\nZbc\n fg\n"),
+                                (b"P", "abcd\nefgh\nbcZ\nfg\n")]:
+        path = make_file("abcd\nefgh\nZ\n")
+        _, content, code = run_vig(b"l\x16ljyG" + paste_key + b":wq\r", file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == expected, repr(content)
+    path = make_file("abcd\nefgh\nZ\n")
+    _, content, code = run_vig(b"l\x16ljyGpu:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abcd\nefgh\nZ\n"
+    print("  PASS: block paste pads short lines, extends EOF and undoes atomically")
+
+
+def test_visual_block_short_lines_and_gv():
+    path = make_file("abcd\n\nwxyz\n")
+    _, content, code = run_vig(b"l\x16l2j\x1bgvd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "ad\n\nwz\n", repr(content)
+    path = make_file("abcd\n\nwxyz\n")
+    _, content, code = run_vig(b"l\x16ljyG$p:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abcd\n\nwxyzbc\n      \n", repr(content)
+    path = make_file("abcd\nefgh\n")
+    _, content, code = run_vig(b"l\x16lj\x03:new\rgv:k\rgvd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "ad\neh\n", "Ctrl-C and buffer switching must retain block gv"
+    print("  PASS: block gv and short-line selection/paste")
+
+
+def test_visual_block_wrap_and_markdown():
+    path = make_file("abcdefgh\nijklmnop\n")
+    screen, content, code = run_vig(
+        b":set wrap\r:set wrapcol=3\r:set wrapmove\rl\x16ljd:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "adefgh\nilmnop\n", repr(content)
+    assert "\x1b[7mbc\x1b[m" in screen, "block highlight must use display columns"
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, "note.md")
+        with open(path, "w") as f:
+            f.write("# Title\ntext\n")
+        screen, content, code = run_vig(b"\x16\x1b:q\r", file_path=path)
+        assert code == 0 and content == "# Title\ntext\n"
+        assert "[MD]" not in last_frame(screen)
+    print("  PASS: block logical-line wrapping, highlighting and literal Markdown")
+
+
+def test_visual_block_register_policy_and_readonly():
+    cases = [(b"yl:set nodelcopy\rl\x16ljd$p", "ada\neh\n"),
+             (b"l\x16ljyggyyGp", "abcd\nefgh\nabcd\n"),
+             (b":set readonly\rl\x16ljd:q\r", "abcd\nefgh\n"),
+             (b"l\x16ljcIA\x1b", "abcd\nefgh\n")]
+    for keys, expected in cases:
+        path = make_file("abcd\nefgh\n")
+        ending = b"" if keys.endswith(b":q\r") else b":wq\r"
+        _, content, code = run_vig(keys + ending, file_path=path)
+        os.unlink(path)
+        assert code == 0 and content == expected, repr(content)
+    path = make_file("abc\n")
+    _, content, code = run_vig(b"iX\x1b$\x16du:wq\r", file_path=path)
+    os.unlink(path)
+    assert code == 0 and content == "abc\n", "empty block delete must not snapshot"
+    print("  PASS: block register reset, nodelcopy, readonly and no-op protection")
+
+
 def test_binary_files_report_errors_without_losing_edits():
     """Binary opens and reloads fail safely, including before terminal startup."""
     import subprocess
@@ -6830,6 +6939,14 @@ def main():
             test_gq_motion_and_undo_dot_repeat,
             test_nowordwrap_gq_hard_splits_at_textwidth,
             test_visual_gq_and_long_word_split,
+        ]),
+        ("89", "Phase 89 — Visual Block selection", [
+            test_visual_block_delete_reverse_and_undo,
+            test_visual_block_partial_tabs,
+            test_visual_block_paste_padding_eof_and_undo,
+            test_visual_block_short_lines_and_gv,
+            test_visual_block_wrap_and_markdown,
+            test_visual_block_register_policy_and_readonly,
         ]),
     ]
 

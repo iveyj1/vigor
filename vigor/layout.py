@@ -248,7 +248,7 @@ class ViewportLayout:
             first_skip = 0
         return result
 
-    def source_view_row(self, source_y, source_x):
+    def source_view_row(self, source_y, source_x, display_x=None):
         """Return a source position's display row relative to the viewport."""
         origin_y, skip = self.origin()
         target_y = self.nearest_visible(source_y, 1)
@@ -260,7 +260,8 @@ class ViewportLayout:
             y = self.next_visible(y, 1)
             if y is None:
                 return self.rows
-        display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
+        if display_x is None or target_y != source_y:
+            display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
         return row + (self.wrap_position(source_y, display_x)[0] if self.wrap else 0)
 
     def position_at_view_row(self, target, col):
@@ -279,12 +280,13 @@ class ViewportLayout:
             y, skip = self.next_visible(y, 1), 0
         return None
 
-    def source_to_screen(self, source_y, source_x, hscroll=0):
+    def source_to_screen(self, source_y, source_x, hscroll=0, display_x=None):
         """Return zero-based content screen coordinates or None if not visible."""
         target_y = self.nearest_visible(source_y, 1)
         if target_y is None:
             return None
-        display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
+        if display_x is None or target_y != source_y:
+            display_x = self.source_to_display(source_y, source_x) if target_y == source_y else 0
         wanted_wrap, local_col = self.wrap_position(target_y, display_x) if self.wrap else (0, display_x - hscroll)
         for row in self.visible_rows(hscroll):
             if row.source_y == target_y and row.wrap_row == wanted_wrap:
@@ -398,7 +400,13 @@ class RenderMixin:
             if sx < end and ex > start:
                 bounds.update((max(start, sx), min(end, ex)))
         select_start = select_end = None
-        if sel:
+        if self.mode == Mode.VISUAL_BLOCK:
+            sy, sx, ey, ex = self._block_range()
+            if sy <= buf_line <= ey:
+                select_start, select_end = max(start, sx), min(end, ex)
+                if select_start < select_end:
+                    bounds.update((select_start, select_end))
+        elif sel:
             sy, sx, ey, ex = sel
             if sy <= buf_line <= ey:
                 select_start = max(start, self._view_col(buf_line, sx) if buf_line == sy else start)
@@ -541,7 +549,7 @@ class RenderMixin:
         if self.mode == Mode.SEARCH and self._search_hscroll is not None:
             window_hscroll = self._search_hscroll
         cursor_screen_y = cursor_screen_x = 0
-        cursor_position = layout.source_to_screen(self.cy, self.cx, window_hscroll)
+        cursor_position = layout.source_to_screen(self.cy, self.cx, window_hscroll, cursor_display_x)
         if cursor_position:
             cursor_screen_y, cursor_screen_x = cursor_position
 

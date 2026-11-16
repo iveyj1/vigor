@@ -6,7 +6,7 @@ The splash footer identifies the source as `v0.1.0 · development`; `scripts/ins
 
 Run `vig tutor` for an exercise-driven introduction. On invocation, file arguments open as buffers. The first existing directory argument opens an `:edit` filename-completion menu without the splash; later directory arguments are ignored. Esc clears a nonempty fuzzy filter first; with an empty filter it cancels the directory item while retaining any file buffers.
 
-**Modes:** NORMAL, INSERT, VISUAL, VISUAL LINE, COMMAND, SEARCH
+**Modes:** NORMAL, INSERT, VISUAL, VISUAL LINE, VISUAL BLOCK, COMMAND, SEARCH
 
 ### Movement
 | Key | Action |
@@ -83,6 +83,15 @@ At the final word in a file, `w`/`W` operator motions extend to one-past-EOL, so
 | `~` / `g~` / `gU` / `gu` | toggle / toggle / upper / lower case in the selection |
 | `>` `<` | indent / dedent every selected logical line, then return to Normal mode |
 | `gq` | hard-wrap every selected logical line using `textwidth`, then return to Normal mode |
+
+### Visual Block Mode
+- Normal **Ctrl-V** selects a rectangle over logical lines and display columns, with inclusive endpoints. Entering block mode switches Markdown presentation to literal source without changing the file.
+- `h`/`l` and Left/Right move by display cells, including inside tabs. `j`/`k` and Up/Down always move by logical lines, even with `wrapmove`. Counts, word motions, line-edge motions, `gg`/`G`, and find-char motions work. Soft wrapping may make the highlight look fragmented; `:set nowrap` makes rectangles easier to see.
+- Short lines retain the desired column during vertical movement; their cursor is shown at EOL. Selection never pads the file, and only existing cells are highlighted. `$` selects through the current line's EOL column, not each selected line's individual end.
+- `y` yanks the block; `d`/`x` deletes it without joining lines. Partial-tab deletion expands only tabs cut by the block boundaries; other tabs remain literal. Deletion honors `delcopy` and read-only protection.
+- The unnamed register retains block width and rows, expanding selected tabs to spaces and padding short selected rows in the register only. Normal `p`/`P` inserts it after/before the cursor's source character across successive lines, padding short target lines and adding lines at EOF. Tabs cut by the insertion column are split into spaces. Ordinary yanks/deletes replace the block register shape.
+- Each block deletion or paste is one undo step; redo works. Yank does not change the buffer. Esc, Ctrl-C, or Ctrl-V exits; `gv` restores the saved block in its original buffer, including its display columns.
+- Block `c`, `I`, `A`, case changes, indentation, commenting, hard wrapping, and replaying a block selection/edit with `.` are not implemented in this phase. Normal paste remains an ordinary repeatable command.
 
 ### Syntax Highlighting
 

@@ -31,6 +31,14 @@ f t F T ; ,         find character; repeat / reverse
 Ctrl-D / Ctrl-U     half-page down / up
 Ctrl-E / Ctrl-Y     scroll viewport down / up
 
+Ctrl-V              Normal: Visual Block; disables Markdown presentation
+                    h/l: display cells (including tabs); j/k: logical lines
+                    y: yank rectangle; d/x: delete; Esc/Ctrl-V: exit; gv: restore
+                    short lines are not padded by selection/deletion
+                    p/P: paste block across lines, padding short targets/EOF
+                    partial tabs become spaces; delete/paste undo atomically
+                    block c/I/A and block-edit dot replay are not yet supported
+
 i a I A             insert at cursor/after/start/end
 o O                 open line below / above
 r{char} / s         replace / substitute character

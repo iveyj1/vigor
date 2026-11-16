@@ -80,6 +80,28 @@ def paste(lines, cy, cx, text, linewise=False, before=False):
     return cy + len(parts) - 1, max(0, len(parts[-1]) - 1), True
 
 
+def split_display(line, col):
+    """Split at a display column, expanding only a tab cut by the boundary."""
+    index = display_index(line, col)
+    start = display_col(line, index)
+    if index < len(line) and start < col:
+        end = display_col(line, index + 1)
+        return line[:index] + " " * (col - start), " " * (end - col) + line[index + 1:]
+    return line[:index], line[index:]
+
+
+def paste_block(lines, cy, cx, text, width, before=False):
+    """Insert a rectangular register, padding short lines and extending EOF."""
+    col = display_col(lines[cy], cx if before else min(cx + 1, len(lines[cy])))
+    for offset, part in enumerate(text.split("\n")):
+        y = cy + offset
+        if y == len(lines):
+            lines.append("")
+        line = lines[y]
+        left, right = split_display(line, col)
+        lines[y] = left + " " * max(0, col - display_col(line, len(line))) + part.ljust(width) + right
+    return cy, display_index(lines[cy], col), True
+
 
 class EditingMixin:
     """Undo, motions, operators, registers, and buffer mutations."""
@@ -445,6 +467,8 @@ class EditingMixin:
         return len(mapping) - 1
 
     def _cursor_display_col(self):
+        if self.mode == Mode.VISUAL_BLOCK:
+            return min(self._block_x, display_col(self.buf.lines[self.cy], len(self.buf.lines[self.cy])))
         return self._view_col(self.cy, self.cx)
 
     def _viewport_layout(self):
@@ -503,6 +527,8 @@ class EditingMixin:
         elif key == "g$":
             target = max(start, end - 1)
         self.cx = self._view_index(self.cy, target)
+        if self.mode == Mode.VISUAL_BLOCK:
+            self._block_x = target
 
     def _motion_counted_line(self, n, extra_n):
         if extra_n is not None:
@@ -1104,10 +1130,11 @@ class EditingMixin:
             except Exception:
                 pass
 
-    def _set_register(self, text, linewise=False):
+    def _set_register(self, text, linewise=False, block_width=0):
         """Store text in unnamed register and copy to system clipboard."""
         self.register = text
         self.reg_linewise = linewise
+        self.reg_block_width = block_width
         self._copy_to_system_clipboard(text)
 
     def _flash_yank(self, sy, sx, ey, ex, linewise=False):
@@ -1280,11 +1307,35 @@ class EditingMixin:
         ty, tx = target
         return self._exec_operator_to_target(op, ty, tx, linewise, motion_key)
 
+    def _block_range(self):
+        return min(self.vy, self.cy), min(self.vx, self._block_x), max(self.vy, self.cy), max(self.vx, self._block_x) + 1
+
+    def _block_edit(self, delete=False):
+        """Yank/delete a rectangle in display columns without joining lines."""
+        if delete and self._readonly_blocked():
+            self.mode = Mode.NORMAL
+            return
+        sy, left, ey, right = self._block_range()
+        original = self.buf.lines[sy:ey + 1]
+        text = "\n".join(expand_tabs_for_display(line)[left:right].ljust(right - left) for line in original)
+        replacement = [split_display(line, left)[0] + split_display(line, right)[1] for line in original]
+        changed = replacement != original
+        if not delete or (changed and self.opt_delcopy):
+            self._set_register(text, block_width=right - left)
+        if delete and changed:
+            self._snapshot()
+            self.buf.lines[sy:ey + 1] = replacement
+            self.buf.dirty = True
+        self.cy, self.cx = sy, display_index(self.buf.lines[sy], left)
+        self.mode = Mode.NORMAL
+        if not delete:
+            self.msg = "block yanked"
+
     def _paste_after(self):
         if self._readonly_blocked():
             return False
-        self.cy, self.cx, changed = paste(
-            self.buf.lines, self.cy, self.cx, self.register, self.reg_linewise,
+        self.cy, self.cx, changed = (paste_block if self.reg_block_width else paste)(
+            self.buf.lines, self.cy, self.cx, self.register, self.reg_block_width or self.reg_linewise,
         )
         if changed:
             self.buf.dirty = True
@@ -1293,8 +1344,8 @@ class EditingMixin:
     def _paste_before(self):
         if self._readonly_blocked():
             return False
-        self.cy, self.cx, changed = paste(
-            self.buf.lines, self.cy, self.cx, self.register, self.reg_linewise, before=True,
+        self.cy, self.cx, changed = (paste_block if self.reg_block_width else paste)(
+            self.buf.lines, self.cy, self.cx, self.register, self.reg_block_width or self.reg_linewise, before=True,
         )
         if changed:
             self.buf.dirty = True
