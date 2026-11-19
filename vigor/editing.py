@@ -250,6 +250,9 @@ class EditingMixin:
         """Save the recorded keys as the last action."""
         if self._recording and not self._replaying_dot:
             self._recording = False
+            if self.mode == Mode.INSERT and self._insert_snapshot_pending:
+                self._recording_keys = []
+                return
             self._last_action = (self._dot_count, self._recording_keys[:])
 
     def _dot_repeat(self, n, extra_n):

@@ -1812,6 +1812,30 @@ def test_dot_repeat_insert():
     assert "bbb!!!" in content, f"dot insert repeat failed: {content!r}"
     print("  PASS: dot repeat insert")
 
+def test_dot_survives_empty_insert():
+    for entry in (b"i", b"a", b"I", b"A", b"i\x1b[C", b"0i\x7f"):
+        path = write_temp("abcd\nefgh\n")
+        try:
+            _, content, code = run_vig(b"x" + entry + b"\x1bj0.:wq\r", file_path=path)
+            assert code == 0 and content == "bcd\nfgh\n", (entry, content)
+            with open(path, "w") as f:
+                f.write("abcd\nefgh\n")
+            _, content, code = run_vig(b"xu" + entry + b"\x1b\x12:wq\r", file_path=path)
+            assert code == 0 and content == "bcd\nefgh\n", (entry, content)
+        finally:
+            os.unlink(path)
+    for keys, expected in ((b"xo\x1b.:wq\r", "bcd\n\n\nefgh\n"),
+                           (b"xcw\x1bj0.:wq\r", "\n\n"),
+                           (b"xiZ\x1bj0.:wq\r", "Zbcd\nZefgh\n")):
+        path = write_temp("abcd\nefgh\n")
+        try:
+            _, content, code = run_vig(keys, file_path=path)
+            assert code == 0 and content == expected, (keys, content)
+        finally:
+            os.unlink(path)
+    print("  PASS: empty Insert preserves dot/redo; actual edits replace dot")
+
+
 def test_dot_repeat_operator_counts():
     """Dot retains internal counts, independently of the leading repeat count."""
     cases = (
@@ -6511,6 +6535,7 @@ def main():
             test_dot_repeat_indent,
             test_dot_repeat_character_targets,
             test_dot_repeat_operator_counts,
+            test_dot_survives_empty_insert,
         ]),
         ("27", "Phase 27 — :read :! :read !", [
             test_read_file,

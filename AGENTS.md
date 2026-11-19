@@ -25,7 +25,7 @@ The project goal is a practical editor that remains inspectable despite a featur
 - `vigor/__main__.py` — `python3 -m vigor` entry point
 - `vighelp` — concise in-editor command and option help opened by `:help`
 - `example-config` — every supported startup option shown at its runtime default
-- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 455 test functions)
+- `test_vig.py` — PTY-based smoke tests and focused layout checks (plain asserts, no framework, 456 test functions)
 - `AGENTS.md` — current requirements, architecture, and contributor guidance
 - `reference.md` — full command reference
 - `tutor` — exercise-driven vigor tutorial, opened with `vig tutor`
@@ -194,6 +194,8 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Text objects** — `_find_word_object(big, around)` handles `iw`/`iW`/`aw`/`aW`. `_find_bracket_object(open_ch, close_ch, around)` handles `i(`/`a(`/`i[`/`a[`/`i{`/`a{` using depth counting. `_find_quote_object(quote_ch, around)` handles `i"`/`a"`/`i'`/`a'` on a single line. All return `(sy, sx, ey, ex)` tuples consumed by operator-pending.
 
+**Empty Insert and dot** — `_save_dot` discards an Insert recording while its deferred snapshot is still pending: no mutation occurred, so preserve the previous repeatable action. Cursor-only movement and no-op deletions do not replace dot. `o`/`O` and changes that already modified text remain repeatable even without further typing. Keep existing Esc cursor behavior and undo/redo semantics.
+
 **Dot repeat** — `_start_dot(count, first_keys)` begins recording keystrokes for the current action, pre-populating with any keys already consumed (e.g., the `d` in `dd`). `_save_dot()` stores the recording as `_last_action = (count, keys)`. `.` invokes `_dot_repeat(n, extra_n)` which replays the saved keys through `handle_normal`/`handle_insert` with `_replaying_dot = True` to prevent nested recording. The dot count overrides the original leading count; counts within the recorded action are preserved (so `d2w` then `2.` deletes four words). Active recordings capture count digits before count parsing returns. Doubled operators multiply leading and internal counts. Pending `f/t/F/T` and `r` targets must be recorded before their early-return handlers, including digit targets.
 
 **Ripgrep context** — `:rg` accepts leading `-C N`, `-B N`, and `-A N` context options, plus `--` before the pattern. Counts are nonnegative integers. Native context/separator rows remain visible but are skipped by next/previous quickfix entry navigation. Ordinary j/k still move by line.
@@ -234,7 +236,7 @@ vigor is vi-inspired, not vi-compatible. These differences are intentional:
 
 **Assertions** — tests check exit code, file contents after `:wq`, and screen output for markers like reverse video escapes, filenames, or tilde rows. Screen output is decoded as UTF-8 with replacement.
 
-**Coverage** — 455 test functions organized into 88 phase groups (selectors 1–89, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
+**Coverage** — 456 test functions organized into 88 phase groups (selectors 1–89, with retired phase 16 absent), covering scaffold, editing, motions, visual mode, ex commands, wrapping, line numbers, undo/redo, operators, text objects, comments, dot repeat, shell/read commands, multi-buffer behavior, path handling, scrolloff, clipboard modes, small command/edit fixes, quit aliases, startup config, ripgrep quickfix, completion/history, splash, help, fzf ripgrep selection, syntax highlighting, initial-buffer replacement, search polish, Markdown presentation, and recent polish. Run with `python3 test_vig.py`.
 
 ### Workflow for AI Agents
 

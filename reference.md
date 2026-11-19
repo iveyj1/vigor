@@ -280,6 +280,8 @@ In Insert mode, the common-prefix extension remains until acceptance; accepting 
 
 ### Insert Mode
 
+Entering Insert with `i`/`a`/`I`/`A` and leaving without a text mutation preserves the previous dot-repeat action and undo/redo history. Cursor-only movement and ineffective Backspace/Delete do not count as edits. `o`/`O` and change commands that already modified text still become the repeatable action even without additional typing. Esc keeps the cursor in place.
+
 Ctrl-P completes whitespace-delimited paths or paths inside an opening single/double quote, including spaces. Filesystem lookup expands `~` and environment variables while preserving their spelling in the buffer. A unique match inserts its remaining suffix; directories end in `/`. Multiple matches insert their common prefix and show the existing completion menu: Up/Down select, Tab/Shift-Tab cycle, Enter accepts files or enters directories and refreshes their contents without auto-acceptance, and Esc clears a nonempty filter or dismisses while staying in Insert and retaining the common prefix. Typing in the menu edits its separate fuzzy filter, not the buffer; Ctrl-P refreshes candidates. No matches leave text unchanged with a message. Following text is preserved. Accepted suffixes participate in ordinary Insert undo grouping and dot repeat as literal text, not filesystem lookups. No shell execution, globbing, or quote escaping; names containing tabs or newlines are omitted.
 | Key | Action |
 |-----|--------|

@@ -29,6 +29,7 @@ None
    **Largest dependency item; likely 120–200 lines.** Do after named registers and the keymap decision. Reuse the existing dot/input replay path where practical, but specify recording registers, recursion, counts, cancellation, and replay of prompts or subprocess commands.
 
 ### Completed
+1. Preserve the previous dot action after Insert sessions without mutations, while keeping actual open-line/change edits repeatable; focused and full suites passed.
 - Visual Block Phase 1: Ctrl-V display-column selection with partial tabs, yank/delete, padded block paste, atomic undo/redo, and per-buffer gv. Phase 89 and the full suite pass; replicated insertion remains deferred.
 - Reject binary/undecodable opens and reloads safely; report startup open failures on stderr.
 1. Ctrl-A opens all filtered files from edit pickers, excluding directories, preserving existing buffers, focusing the first success, and reporting failures; count footer and full suite passed.

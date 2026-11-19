@@ -56,6 +56,7 @@ gcc                 toggle line comment
 gq + motion / gqq   hard-wrap touched lines using textwidth
 ~ / g~ / gU / gu    toggle / toggle / upper / lower case
 .                   repeat last change; retains counts inside action
+                    empty Insert sessions preserve the previous dot action
 [count].            replace leading count (d2w then 2. deletes 4 words)
 u / Ctrl-R          undo / redo
 v V / gv            visual character / line; reselect last
